@@ -8,13 +8,13 @@ import 'domain/providers/language_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Set preferred orientations
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  
+
   // Set system UI overlay style for dark theme
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -41,7 +41,7 @@ class AnimeAIPlayerApp extends ConsumerWidget {
     final languageCode = ref.watch(languageProvider);
 
     return MaterialApp.router(
-      title: 'Anime AI Player',
+      title: 'SynapseAnime',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
       locale: Locale(languageCode),

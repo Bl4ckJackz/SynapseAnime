@@ -75,7 +75,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             ),
             const SizedBox(height: 24),
             Text(
-              'Anime AI Player',
+              'SynapseAnime',
               style: Theme.of(context).textTheme.displaySmall,
             ),
             const SizedBox(height: 16),

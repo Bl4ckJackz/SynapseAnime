@@ -1,12 +1,12 @@
 name: anime_ai_player
-description: Anime AI Player - Mobile app for anime streaming with AI recommendations
+description: SynapseAnime - Mobile app for anime streaming with AI recommendations
 
-publish_to: 'none'
+publish_to: "none"
 
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -66,13 +66,13 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   riverpod_generator: ^2.3.9
   build_runner: ^2.4.13
-  custom_lint: ^0.5.8  # Downgrade to avoid analyzer conflict
+  custom_lint: ^0.5.8 # Downgrade to avoid analyzer conflict
   mockito: ^5.4.4
   build_test: ^2.1.3
 
 flutter:
   uses-material-design: true
-  
+
   assets:
     - assets/images/
     - assets/icons/
