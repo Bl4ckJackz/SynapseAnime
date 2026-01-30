@@ -26,17 +26,26 @@ class MangaDetailScreen extends ConsumerWidget {
   }
 }
 
-class MangaDetailContent extends ConsumerWidget {
+class MangaDetailContent extends ConsumerStatefulWidget {
   final Manga manga;
 
   const MangaDetailContent({super.key, required this.manga});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MangaDetailContent> createState() => _MangaDetailContentState();
+}
+
+class _MangaDetailContentState extends ConsumerState<MangaDetailContent> {
+  String? _selectedSource;
+  int _selectedRangeIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
     final chaptersAsync = ref.watch(mangaChaptersProvider(ChapterListRequest(
-        mangaId: manga.id,
-        title: manga.title,
-        titleEnglish: manga.titleEnglish)));
+        mangaId: widget.manga.id,
+        title: widget.manga.title,
+        titleEnglish: widget.manga.titleEnglish,
+        preferredSource: _selectedSource)));
 
     return CustomScrollView(
       slivers: [
@@ -45,7 +54,7 @@ class MangaDetailContent extends ConsumerWidget {
           pinned: true,
           flexibleSpace: FlexibleSpaceBar(
             title: Text(
-              manga.title,
+              widget.manga.title,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 16,
@@ -58,7 +67,7 @@ class MangaDetailContent extends ConsumerWidget {
               fit: StackFit.expand,
               children: [
                 CachedNetworkImage(
-                  imageUrl: manga.coverUrl ?? '',
+                  imageUrl: widget.manga.coverUrl ?? '',
                   fit: BoxFit.cover,
                   errorWidget: (context, url, error) => Container(
                     color: AppTheme.surfaceColor,
@@ -90,21 +99,21 @@ class MangaDetailContent extends ConsumerWidget {
                 Row(
                   children: [
                     _buildTag(
-                      manga.statusText,
-                      manga.status == MangaStatus.ongoing
+                      widget.manga.statusText,
+                      widget.manga.status == MangaStatus.ongoing
                           ? Colors.green
                           : Colors.blue,
                     ),
-                    if (manga.year != null) ...[
+                    if (widget.manga.year != null) ...[
                       const SizedBox(width: 8),
-                      _buildTag(manga.year.toString(), Colors.grey),
+                      _buildTag(widget.manga.year.toString(), Colors.grey),
                     ],
-                    if (manga.score != null) ...[
+                    if (widget.manga.score != null) ...[
                       const SizedBox(width: 8),
                       const Icon(Icons.star, color: Colors.amber, size: 18),
                       const SizedBox(width: 4),
                       Text(
-                        manga.score!.toStringAsFixed(1),
+                        widget.manga.score!.toStringAsFixed(1),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -116,9 +125,9 @@ class MangaDetailContent extends ConsumerWidget {
                 const SizedBox(height: 12),
 
                 // Authors
-                if (manga.authors.isNotEmpty) ...[
+                if (widget.manga.authors.isNotEmpty) ...[
                   Text(
-                    'Autori: ${manga.authors.join(", ")}',
+                    'Autori: ${widget.manga.authors.join(", ")}',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Colors.grey,
                         ),
@@ -127,11 +136,11 @@ class MangaDetailContent extends ConsumerWidget {
                 ],
 
                 // Genres
-                if (manga.genres.isNotEmpty)
+                if (widget.manga.genres.isNotEmpty)
                   Wrap(
                     spacing: 8,
                     runSpacing: 4,
-                    children: manga.genres
+                    children: widget.manga.genres
                         .map((g) => Chip(
                               label: Text(g),
                               backgroundColor: AppTheme.surfaceColor,
@@ -151,7 +160,7 @@ class MangaDetailContent extends ConsumerWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  manga.synopsis ?? 'Nessuna descrizione disponibile.',
+                  widget.manga.synopsis ?? 'Nessuna descrizione disponibile.',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 24),
@@ -161,18 +170,45 @@ class MangaDetailContent extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Capitoli${manga.chapters != null ? " (${manga.chapters})" : ""}',
+                      'Capitoli${widget.manga.chapters != null ? " (${widget.manga.chapters})" : ""}',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.bookmark_border),
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Aggiunto alla lista di lettura'),
-                          ),
-                        );
-                      },
+                    Row(
+                      children: [
+                        // Source Selector
+                        DropdownButton<String>(
+                            value: _selectedSource,
+                            hint: const Text("Auto",
+                                style: TextStyle(fontSize: 12)),
+                            underline: const SizedBox(),
+                            items: const [
+                              DropdownMenuItem(
+                                  value: null, child: Text("Auto")),
+                              DropdownMenuItem(
+                                  value: "mangadex", child: Text("MangaDex")),
+                              DropdownMenuItem(
+                                  value: "mangareader",
+                                  child: Text("MangaReader")),
+                              DropdownMenuItem(
+                                  value: "mangakakalot",
+                                  child: Text("MangaKakalot")),
+                            ],
+                            onChanged: (val) {
+                              setState(() {
+                                _selectedSource = val;
+                              });
+                            }),
+                        IconButton(
+                          icon: const Icon(Icons.bookmark_border),
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Aggiunto alla lista di lettura'),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -190,7 +226,7 @@ class MangaDetailContent extends ConsumerWidget {
                 child: Padding(
                   padding: EdgeInsets.all(16),
                   child: Text(
-                    'Nessun capitolo disponibile. Il servizio MangaDex potrebbe essere irraggiungibile. Verifica la tua connessione e riprova.',
+                    'Nessun capitolo disponibile. Prova a cambiare fonte.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.grey),
                   ),
@@ -198,13 +234,96 @@ class MangaDetailContent extends ConsumerWidget {
               );
             }
 
+            // Pagination Logic
+            const int pageSize = 50;
+            final int totalCount = chapters.length;
+            final int totalPages = (totalCount / pageSize).ceil();
+
+            // Reset index if out of bounds (e.g. source change)
+            if (_selectedRangeIndex >= totalPages && totalPages > 0) {
+              // Schedule reset after build
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() => _selectedRangeIndex = 0);
+              });
+            }
+
+            // Slice chapters
+            final int start = _selectedRangeIndex * pageSize;
+            final int end = (start + pageSize) < totalCount
+                ? (start + pageSize)
+                : totalCount;
+
+            final List<MangaChapter> displayedChapters =
+                (totalPages > 0 && start < totalCount)
+                    ? chapters.sublist(start, end)
+                    : chapters;
+
             return SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
-                  final chapter = chapters[index];
-                  return _buildChapterTile(context, chapter);
+                  // Index 0: Pagination Controls (if needed)
+                  if (index == 0) {
+                    if (totalPages <= 1) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Seleziona Capitoli',
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: List.generate(totalPages, (i) {
+                                final isSelected = i == _selectedRangeIndex;
+                                final s = i * pageSize + 1;
+                                final e = (i + 1) * pageSize;
+                                final label =
+                                    '$s-${e > totalCount ? totalCount : e}';
+
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: ChoiceChip(
+                                    label: Text(label),
+                                    selected: isSelected,
+                                    onSelected: (_) =>
+                                        setState(() => _selectedRangeIndex = i),
+                                    selectedColor: AppTheme.accentColor,
+                                    labelStyle: TextStyle(
+                                      color: isSelected
+                                          ? Colors.white
+                                          : Colors.grey,
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                      ),
+                    );
+                  }
+
+                  // Index 1+: Chapters
+                  // Adjust index by -1 because of pagination header
+                  final chapterIndex = index - 1;
+                  if (chapterIndex < displayedChapters.length) {
+                    return _buildChapterTile(
+                        context, displayedChapters[chapterIndex]);
+                  }
+                  return null;
                 },
-                childCount: chapters.length,
+                // Add 1 for the pagination header
+                childCount: displayedChapters.length + 1,
               ),
             );
           },
@@ -224,7 +343,7 @@ class MangaDetailContent extends ConsumerWidget {
                   const Icon(Icons.info_outline, color: Colors.orange),
                   const SizedBox(height: 8),
                   Text(
-                    'Errore nel caricamento dei capitoli: $err',
+                    'Errore: $err',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.grey[400]),
                   ),
@@ -270,7 +389,10 @@ class MangaDetailContent extends ConsumerWidget {
           : null,
       trailing: const Icon(Icons.chevron_right),
       onTap: () {
-        context.push('/manga/${manga.id}/chapter/${chapter.id}');
+        final sourceParam =
+            _selectedSource != null ? '?source=$_selectedSource' : '';
+        context.push(
+            '/manga/${widget.manga.id}/chapter/${chapter.id}$sourceParam');
       },
     );
   }

@@ -8,11 +8,13 @@ import '../../domain/providers/manga_provider.dart';
 class MangaReaderScreen extends ConsumerStatefulWidget {
   final String mangaId;
   final String chapterId;
+  final String? preferredSource;
 
   const MangaReaderScreen({
     super.key,
     required this.mangaId,
     required this.chapterId,
+    this.preferredSource,
   });
 
   @override
@@ -111,6 +113,7 @@ class _MangaReaderScreenState extends ConsumerState<MangaReaderScreen> {
             mangaId: widget.mangaId,
             title: manga.title,
             titleEnglish: manga.titleEnglish,
+            preferredSource: widget.preferredSource,
           ),
         ));
 

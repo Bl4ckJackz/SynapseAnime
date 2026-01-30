@@ -126,7 +126,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final mangaId = state.pathParameters['mangaId']!;
           final chapterId = state.pathParameters['chapterId']!;
-          return MangaReaderScreen(mangaId: mangaId, chapterId: chapterId);
+          final preferredSource = state.uri.queryParameters['source'];
+          return MangaReaderScreen(
+            mangaId: mangaId,
+            chapterId: chapterId,
+            preferredSource: preferredSource,
+          );
         },
       ),
       GoRoute(

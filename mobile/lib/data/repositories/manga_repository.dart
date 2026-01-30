@@ -89,109 +89,176 @@ class MangaRepository {
   /// Get manga chapters (Switching to MangaDex via search)
   /// If [mangaId] is numeric (Jikan/MAL ID), we search MangaDex by [title] to get the correct ID.
   /// Get manga chapters from Consumet Manga API with MangaReader fallback
+  /// Get available manga sources
+  List<String> get availableSources =>
+      ['mangadex', 'mangareader', 'mangakakalot'];
+
+  /// Get manga chapters using multi-source fallback
   Future<List<MangaChapter>> getChapters(String mangaId,
-      {String? title, String? titleEnglish}) async {
-    // Try MangaDex first
-    final mangaDexChapters = await _getChaptersFromMangaDex(mangaId, title: title, titleEnglish: titleEnglish);
-    if (mangaDexChapters.isNotEmpty) {
-      return mangaDexChapters;
+      {String? title, String? titleEnglish, String? preferredSource}) async {
+    // 1. Determine titles to search
+    final titlesToTry = <String>{};
+    if (title != null && title.isNotEmpty) titlesToTry.add(title);
+    if (titleEnglish != null && titleEnglish.isNotEmpty)
+      titlesToTry.add(titleEnglish);
+    // Add variations if needed (e.g. removing special chars)
+
+    // 2. Determine source order
+    List<String> sources = List.from(availableSources);
+    if (preferredSource != null && availableSources.contains(preferredSource)) {
+      sources.remove(preferredSource);
+      sources.insert(0, preferredSource);
     }
-    
-    // Fallback to MangaReader
-    print('MangaDex failed, trying MangaReader fallback for: ${title ?? mangaId}');
-    return _getChaptersFromMangaReader(title ?? titleEnglish ?? mangaId);
+
+    print(
+        'DEBUG: getChapters called for $mangaId (Title: $title, TitleENG: $titleEnglish, Pref: $preferredSource)');
+    print('DEBUG: Sources order: $sources');
+
+    // 3. Iterate through sources
+    for (final source in sources) {
+      try {
+        print('DEBUG: Trying source: $source');
+        final chapters =
+            await _getChaptersFromSource(source, mangaId, titlesToTry.toList());
+
+        if (chapters.isNotEmpty) {
+          print(
+              'DEBUG: SUCCESS - Fetched ${chapters.length} chapters from $source');
+          return chapters;
+        } else {
+          print('DEBUG: No chapters found on $source');
+        }
+      } catch (e) {
+        print('DEBUG: Failed to fetch from $source: $e');
+        // Continue to next source
+      }
+    }
+
+    print('DEBUG: All sources failed or returned empty.');
+    return [];
   }
 
-  /// Internal: Get chapters from MangaDex
-  Future<List<MangaChapter>> _getChaptersFromMangaDex(String mangaId,
-      {String? title, String? titleEnglish}) async {
-    try {
-      String targetId = mangaId;
+  Future<List<MangaChapter>> _getChaptersFromSource(
+      String source, String originalId, List<String> searchTitles) async {
+    String? targetId;
 
-      // If it looks like a Jikan ID (numeric), resolve MangaDex ID via search
-      if (RegExp(r'^\d+$').hasMatch(mangaId)) {
-        final searchResults =
-            await searchMangaOnMangaDex(title ?? titleEnglish ?? '');
-        if (searchResults.isNotEmpty) {
-          targetId = searchResults[0].id;
-        } else {
-          return [];
+    // Resolve ID: If originalId is numeric (Jikan), we MUST search.
+    // If it's not numeric, it might be a specific ID for that source, but safer to search if source differs.
+    // For simplicity: If source is 'mangadex' and ID looks like UUID, usage it.
+    // If source is others, usually we need to search unless we stored the ID mapping.
+
+    if (source == 'mangadex' && !RegExp(r'^\d+$').hasMatch(originalId)) {
+      // Assume originalId is already a MangaDex ID if not numeric (and reasonable length)
+      // But Jikan ID is numeric. content IDs are strings.
+      targetId = originalId;
+      print('DEBUG: Using original ID for MangaDex: $targetId');
+    } else {
+      // Need to search
+      print('DEBUG: Searching on $source with queries: $searchTitles');
+      for (final query in searchTitles) {
+        try {
+          final results = await _searchOnSource(source, query);
+          if (results.isNotEmpty) {
+            // Find best match
+            final exactMatch = results.firstWhere(
+              (m) => m['title'].toString().toLowerCase() == query.toLowerCase(),
+              orElse: () => results.first,
+            );
+            targetId = exactMatch['id'].toString();
+            print(
+                'DEBUG: Found match on $source: ${exactMatch['title']} ($targetId)');
+            break;
+          }
+        } catch (e) {
+          print('DEBUG: Search failed on $source for $query: $e');
         }
       }
+    }
 
-      final response = await _apiClient.get(
-        '${AppConstants.consumetBaseUrl}/manga/mangadex/info/$targetId',
-      );
+    if (targetId == null) {
+      print('DEBUG: Could not resolve ID for $source');
+      return [];
+    }
 
-      final data = response.data;
-      final chaptersRaw = data['chapters'] as List<dynamic>? ?? [];
+    if (targetId == null) {
+      print('DEBUG: Could not resolve ID for $source');
+      return [];
+    }
 
-      // Filter chapters by language (e.g., prefer 'it', then 'en')
-      final filteredChapters = chaptersRaw.where((json) {
-        final lang = (json['language'] as String? ?? '').toLowerCase();
-        return lang.isEmpty || lang == 'it' || lang == 'en' || lang == 'gb';
-      }).toList();
+    // Fetch Info (Chapters)
+    final url = _buildInfoUrl(source, targetId);
+    print('DEBUG: Fetching info from $url');
 
-      final displayChapters =
-          filteredChapters.isEmpty ? chaptersRaw : filteredChapters;
+    final response = await _apiClient.get(url);
 
-      return displayChapters
+    final data = response.data;
+    final chaptersRaw = data['chapters'] as List<dynamic>? ?? [];
+
+    // MangaDex specific filtering
+    if (source == 'mangadex') {
+      return chaptersRaw
+          .where((json) {
+            final lang = (json['language'] as String? ?? '').toLowerCase();
+            // Prefer IT, then EN
+            return lang == 'it' ||
+                lang == 'en' ||
+                lang == 'gb' ||
+                lang == ''; // relax filter
+          })
           .map((json) {
             return MangaChapter(
-              id: json['id'].toString(),
-              mangaId: targetId,
+              id: '$source:${json['id']}', // Prefix ID
+              mangaId: originalId,
               title: json['title'] ??
                   'Chapter ${json['chapterNumber'] ?? json['number']}',
-              number: double.tryParse(
-                      (json['chapterNumber'] ?? json['number'] ?? 0)
-                          .toString()) ??
-                  0.0,
+              number: _parseChapterNumber(json),
             );
           })
           .toList()
           .reversed
           .toList();
-    } catch (e) {
-      print('Error fetching chapters from MangaDex: $e');
-      return [];
     }
+
+    // Generic mapping
+    return chaptersRaw
+        .map((json) {
+          return MangaChapter(
+            id: '$source:${json['id']}',
+            mangaId: originalId,
+            title: json['title'] ??
+                'Chapter ${json['chapterNumber'] ?? json['number']}',
+            number: _parseChapterNumber(json),
+          );
+        })
+        .toList()
+        .reversed
+        .toList();
   }
 
-  /// Internal: Get chapters from MangaReader (fallback)
-  Future<List<MangaChapter>> _getChaptersFromMangaReader(String query) async {
-    try {
-      // Search for manga on MangaReader
-      final searchResponse = await _apiClient.get(
-        '${AppConstants.consumetBaseUrl}/manga/mangareader/${Uri.encodeComponent(query)}',
-      );
+  double _parseChapterNumber(Map<String, dynamic> json) {
+    if (json['chapterNumber'] != null)
+      return double.tryParse(json['chapterNumber'].toString()) ?? 0.0;
+    if (json['number'] != null)
+      return double.tryParse(json['number'].toString()) ?? 0.0;
 
-      final results = searchResponse.data['results'] as List<dynamic>? ?? [];
-      if (results.isEmpty) return [];
-
-      final mangaReaderId = results.first['id'].toString();
-      print('Found MangaReader manga: $mangaReaderId');
-
-      // Get manga info with chapters
-      final infoResponse = await _apiClient.get(
-        '${AppConstants.consumetBaseUrl}/manga/mangareader/info/$mangaReaderId',
-      );
-
-      final chaptersRaw = infoResponse.data['chapters'] as List<dynamic>? ?? [];
-
-      return chaptersRaw.map((json) {
-        return MangaChapter(
-          id: 'mangareader:${json['id']}', // Prefix to identify source
-          mangaId: mangaReaderId,
-          title: json['title'] ?? 'Chapter ${json['chapterNumber'] ?? json['number']}',
-          number: double.tryParse(
-                  (json['chapterNumber'] ?? json['number'] ?? 0).toString()) ??
-              0.0,
-        );
-      }).toList().reversed.toList();
-    } catch (e) {
-      print('Error fetching chapters from MangaReader: $e');
-      return [];
+    // Fallback: extract from title
+    final title = (json['title'] ?? '').toString();
+    // Match "Chapter 123", "Ch. 123", "123" etc.
+    final match = RegExp(r'(?:Chapter|Ch\.|Ep\.|Vol\.)?\s*(\d+(?:\.\d+)?)',
+            caseSensitive: false)
+        .firstMatch(title);
+    if (match != null) {
+      return double.tryParse(match.group(1)!) ?? 0.0;
     }
+    return 0.0;
+  }
+
+  Future<List<dynamic>> _searchOnSource(String source, String query) async {
+    final provider = _mapSourceToProvider(source);
+    final response = await _apiClient.get(
+      '${AppConstants.consumetBaseUrl}/manga/$provider/${Uri.encodeComponent(query)}',
+    );
+    return response.data['results'] as List<dynamic>? ?? [];
   }
 
   Future<List<Manga>> searchMangaOnMangaDex(String query) async {
@@ -214,49 +281,90 @@ class MangaRepository {
   }
 
   /// Get chapter pages from Consumet Manga API (handles both MangaDex and MangaReader)
+  /// Get chapter pages using source prefix in chapterID
   Future<List<String>> getChapterPages(String mangaId, String chapterId) async {
     try {
-      // Check if this is a MangaReader chapter
-      if (chapterId.startsWith('mangareader:')) {
-        final actualChapterId = chapterId.replaceFirst('mangareader:', '');
-        return _getChapterPagesFromMangaReader(actualChapterId);
+      String source = 'mangadex'; // default
+      String actualChapterId = chapterId;
+
+      if (chapterId.contains(':')) {
+        final parts = chapterId.split(':');
+        // Handle source prefix
+        if (availableSources.contains(parts[0])) {
+          source = parts[0];
+          actualChapterId = parts.sublist(1).join(':');
+        }
       }
-      
-      // Default: MangaDex
-      final response = await _apiClient.get(
-        '${AppConstants.consumetBaseUrl}/manga/mangadex/read/$chapterId',
-      );
 
-      // Consumet usually returns a list of { page: 1, img: "..." } or similar
-      final List<dynamic> images = response.data is List
-          ? response.data
-          : (response.data['results'] ?? []);
+      print('Fetching pages for $actualChapterId from $source');
 
-      return images.map((img) => img['img'].toString()).toList();
+      final url = _buildReadUrl(source, actualChapterId);
+      print('DEBUG: Fetching pages from $url');
+
+      final response = await _apiClient.get(url);
+
+      // Consumet response standardization attempt
+      // Usually returns list of objects { img: url } or { url: url } or just string urls
+      // Key might be 'results', 'images', 'pages', 'data'
+
+      final data = response.data;
+      List<dynamic> pagesRaw = [];
+
+      if (data is List) {
+        pagesRaw = data;
+      } else if (data is Map<String, dynamic>) {
+        if (data.containsKey('results') && data['results'] is List)
+          pagesRaw = data['results'];
+        else if (data.containsKey('images') && data['images'] is List)
+          pagesRaw = data['images'];
+        else if (data.containsKey('pages') && data['pages'] is List)
+          pagesRaw = data['pages'];
+        else if (data.containsKey('data') && data['data'] is List)
+          pagesRaw = data['data'];
+      }
+
+      return pagesRaw
+          .map((page) {
+            if (page is String) return page;
+            if (page is Map<String, dynamic>) {
+              return (page['img'] ?? page['url'] ?? page['link'] ?? '')
+                  .toString();
+            }
+            return '';
+          })
+          .where((url) => url.isNotEmpty)
+          .toList();
     } catch (e) {
       print('Error fetching pages: $e');
       return [];
     }
   }
 
-  /// Internal: Get chapter pages from MangaReader
-  Future<List<String>> _getChapterPagesFromMangaReader(String chapterId) async {
-    try {
-      final response = await _apiClient.get(
-        '${AppConstants.consumetBaseUrl}/manga/mangareader/read/$chapterId',
-      );
+  // Helper to map source names (fixing typos in API)
+  String _mapSourceToProvider(String source) {
+    if (source == 'mangareader') return 'managreader'; // Fix API typo
+    return source;
+  }
 
-      final List<dynamic> images = response.data is List
-          ? response.data
-          : (response.data['results'] ?? response.data['pages'] ?? []);
+  // Helper to build info URL based on provider
+  String _buildInfoUrl(String source, String id) {
+    final provider = _mapSourceToProvider(source);
+    if (source == 'mangadex') {
+      return '${AppConstants.consumetBaseUrl}/manga/$provider/info/$id';
+    } else {
+      // MangaReader, MangaKakalot etc use query params
+      return '${AppConstants.consumetBaseUrl}/manga/$provider/info?id=$id';
+    }
+  }
 
-      return images.map((img) {
-        if (img is String) return img;
-        return (img['img'] ?? img['url'] ?? '').toString();
-      }).where((url) => url.isNotEmpty).toList();
-    } catch (e) {
-      print('Error fetching pages from MangaReader: $e');
-      return [];
+  // Helper to build read URL based on provider
+  String _buildReadUrl(String source, String chapterId) {
+    final provider = _mapSourceToProvider(source);
+    if (source == 'mangadex') {
+      return '${AppConstants.consumetBaseUrl}/manga/$provider/read/$chapterId';
+    } else {
+      // MangaReader, MangaKakalot etc use query params
+      return '${AppConstants.consumetBaseUrl}/manga/$provider/read?chapterId=$chapterId';
     }
   }
 

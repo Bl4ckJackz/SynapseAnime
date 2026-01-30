@@ -54,6 +54,7 @@ final mangaChaptersProvider = FutureProvider.autoDispose
     request.mangaId,
     title: request.title,
     titleEnglish: request.titleEnglish,
+    preferredSource: request.preferredSource,
   );
 });
 
@@ -132,11 +133,13 @@ class ChapterListRequest {
   final String mangaId;
   final String? title;
   final String? titleEnglish;
+  final String? preferredSource;
 
   const ChapterListRequest({
     required this.mangaId,
     this.title,
     this.titleEnglish,
+    this.preferredSource,
   });
 
   @override
@@ -145,8 +148,13 @@ class ChapterListRequest {
       other is ChapterListRequest &&
           mangaId == other.mangaId &&
           title == other.title &&
-          titleEnglish == other.titleEnglish;
+          titleEnglish == other.titleEnglish &&
+          preferredSource == other.preferredSource;
 
   @override
-  int get hashCode => mangaId.hashCode ^ title.hashCode ^ titleEnglish.hashCode;
+  int get hashCode =>
+      mangaId.hashCode ^
+      title.hashCode ^
+      titleEnglish.hashCode ^
+      preferredSource.hashCode;
 }
