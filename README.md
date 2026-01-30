@@ -1,71 +1,46 @@
-# Anime AI Player
+# 🎬 OpenAnime
 
-App mobile completa per Android/iOS con catalogo anime (mockato), player video, chat AI per raccomandazioni e notifiche push.
+> **La tua fonte illimitata di Anime.**
+> Un'applicazione moderna e completa per lo streaming di anime, costruita con tecnologie all'avanguardia.
 
-## 🏗️ Stack Tecnologico
+![Anime Banner](https://via.placeholder.com/1200x300?text=OpenAnime+Project)
 
-| Componente | Tecnologia |
-|------------|------------|
-| **Mobile** | Flutter (Dart) + Riverpod + go_router |
-| **Backend** | NestJS (TypeScript) + TypeORM |
+## 🌟 Panoramica
+
+**OpenAnime** è una soluzione full-stack per la fruizione di contenuti anime. Il progetto è composto da:
+- **Mobile App**: Un'applicazione Flutter fluida e reattiva per Android e iOS.
+- **Backend**: API robusta in NestJS per la gestione utenti, progressi e metadati.
+- **Consumet API**: Un wrapper personalizzato per l'aggregazione di fonti streaming.
+
+## 🛠️ Stack Tecnologico
+
+| Area | Tecnologie Chiave |
+|------|-------------------|
+| **Frontend Mobile** | [Flutter](https://flutter.dev), Dart, Riverpod (State Management), GoRouter |
+| **Backend API** | [NestJS](https://nestjs.com), TypeScript, TypeORM |
 | **Database** | PostgreSQL |
-| **Push Notifications** | Firebase Cloud Messaging |
+| **Integrazioni** | Firebase (Notifiche), AnimeUnity/AnimeWorld (Sources) |
 
-## 📁 Struttura Repository
+## 🚀 Per Iniziare
+
+Per configurare l'ambiente di sviluppo e avviare il progetto, consulta le guide dettagliate:
+
+- **[📖 Guida all'Installazione (SETUP.md)](docs/SETUP.md)**: Istruzioni passo-passo per Backend e Mobile.
+- **[🏗️ Architettura del Progetto (ARCHITECTURE.md)](docs/ARCHITECTURE.md)**: Dettagli sulla struttura del codice e flussi dati.
+
+## 📂 Struttura della Repository
 
 ```
-player/
-├── backend/          # NestJS API
-├── mobile/           # Flutter app
-└── docs/             # Documentazione
+/
+├── backend/        # Server API NestJS (Logica di business, DB)
+├── mobile/         # Applicazione Flutter (UI, Logica client)
+├── consumet-api/   # Microservizio per scraping/aggregazione fonti
+└── docs/           # Documentazione tecnica approfondita
 ```
 
-## 🚀 Quick Start
+## 🤝 Contribuire
 
-### Prerequisiti
-- Node.js 18+
-- Flutter SDK 3.x
-- Docker (per PostgreSQL)
-- Firebase project (per notifiche)
+Il progetto è attualmente privato. Per modifiche e suggerimenti, contattare il team di sviluppo.
 
-### Backend
-
-```bash
-cd backend
-cp .env.example .env        # Configura variabili
-docker-compose up -d        # Avvia PostgreSQL
-npm install
-npm run migration:run       # Applica migrations
-npm run seed                # Popola dati demo
-npm run start:dev           # Avvia server (http://localhost:3000)
-```
-
-### Mobile
-
-```bash
-cd mobile
-cp .env.example .env        # Configura API URL
-flutter pub get
-flutter run                 # Avvia su device/emulatore
-```
-
-## 📖 API Endpoints
-
-| Metodo | Endpoint | Descrizione |
-|--------|----------|-------------|
-| POST | `/auth/register` | Registrazione utente |
-| POST | `/auth/login` | Login utente |
-| GET | `/anime` | Lista anime (filtri: genre, status, search) |
-| GET | `/anime/:id` | Dettaglio anime |
-| GET | `/anime/:id/episodes` | Lista episodi |
-| POST | `/ai/recommend` | Chat AI recommendations |
-
-## ⚠️ Nota Legale
-
-Questo progetto utilizza **esclusivamente dati mockati/fittizi** per il catalogo anime.
-Nessun scraping o integrazione con servizi di streaming reali.
-L'architettura è predisposta per future integrazioni con fonti legali/licenziate.
-
-## 📄 License
-
-MIT
+---
+*OpenAnime Project © 2026*
