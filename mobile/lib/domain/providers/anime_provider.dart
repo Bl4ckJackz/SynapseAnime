@@ -29,6 +29,7 @@ final animeListProvider = FutureProvider.autoDispose
       genre: filter.genre,
       status: filter.status,
       search: filter.search,
+      page: filter.page,
     );
     return response.data;
   }
@@ -78,12 +79,14 @@ class AnimeFilter {
   final String? genre;
   final String? status;
   final String? search;
+  final int page;
 
   const AnimeFilter({
     this.type = FilterType.list,
     this.genre,
     this.status,
     this.search,
+    this.page = 1,
   });
 
   @override
@@ -94,9 +97,14 @@ class AnimeFilter {
           type == other.type &&
           genre == other.genre &&
           status == other.status &&
-          search == other.search;
+          search == other.search &&
+          page == other.page;
 
   @override
   int get hashCode =>
-      type.hashCode ^ genre.hashCode ^ status.hashCode ^ search.hashCode;
+      type.hashCode ^
+      genre.hashCode ^
+      status.hashCode ^
+      search.hashCode ^
+      page.hashCode;
 }

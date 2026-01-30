@@ -6,6 +6,7 @@ import '../screens/chat_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/watch_history_screen.dart';
 import '../screens/manga_home_screen.dart';
+import 'local_library_screen.dart';
 import '../widgets/animated_bottom_nav_bar.dart';
 
 class MainNavigationScreen extends ConsumerStatefulWidget {
@@ -24,6 +25,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     const SearchScreen(),
     const MangaHomeScreen(),
     const WatchHistoryScreen(),
+    const LocalLibraryScreen(),
     const ChatScreen(),
     const ProfileScreen(),
   ];

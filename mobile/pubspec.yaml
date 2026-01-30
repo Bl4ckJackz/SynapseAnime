@@ -59,6 +59,9 @@ dependencies:
   liquid_swipe: ^3.0.1
   cristalyse: ^0.9.4
   carousel_slider: ^5.1.1
+  file_picker: ^10.3.10
+  permission_handler: ^12.0.1
+  path: ^1.9.1
 
 dev_dependencies:
   flutter_test:

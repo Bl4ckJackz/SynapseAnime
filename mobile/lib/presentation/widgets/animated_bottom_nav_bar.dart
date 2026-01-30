@@ -35,6 +35,10 @@ class _AnimatedBottomNavBarState extends State<AnimatedBottomNavBar>
         activeIcon: Icons.history,
         label: 'Cronologia'),
     NavItem(
+        icon: Icons.video_library_outlined,
+        activeIcon: Icons.video_library,
+        label: 'Libreria'),
+    NavItem(
         icon: Icons.smart_toy_outlined,
         activeIcon: Icons.smart_toy,
         label: 'AI'),

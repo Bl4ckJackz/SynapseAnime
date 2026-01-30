@@ -506,11 +506,11 @@ class AnimeRepository {
     }
   }
 
-  Future<List<Anime>> getNewReleases({int limit = 20}) async {
+  Future<List<Anime>> getNewReleases({int limit = 20, int page = 1}) async {
     try {
       final response = await _apiClient.get(
         AppConstants.animeNewReleases,
-        queryParameters: {'limit': limit, 'page': 1},
+        queryParameters: {'limit': limit, 'page': page},
       );
 
       final List<dynamic> results = response.data is List
@@ -525,11 +525,11 @@ class AnimeRepository {
     }
   }
 
-  Future<List<Anime>> getTopRated({int limit = 20}) async {
+  Future<List<Anime>> getTopRated({int limit = 20, int page = 1}) async {
     try {
       final response = await _apiClient.get(
         AppConstants.animeTopRated,
-        queryParameters: {'limit': limit, 'page': 1},
+        queryParameters: {'limit': limit, 'page': page},
       );
 
       final List<dynamic> results = response.data is List
@@ -544,19 +544,19 @@ class AnimeRepository {
     }
   }
 
-  Future<List<Anime>> getTrendingAnime({int limit = 20}) async {
-    return getTopRated(limit: limit);
+  Future<List<Anime>> getTrendingAnime({int limit = 20, int page = 1}) async {
+    return getTopRated(limit: limit, page: page);
   }
 
-  Future<List<Anime>> getPopularAnime({int limit = 20}) async {
-    return getTopRated(limit: limit);
+  Future<List<Anime>> getPopularAnime({int limit = 20, int page = 1}) async {
+    return getTopRated(limit: limit, page: page);
   }
 
-  Future<List<Anime>> getUpcomingAnime({int limit = 20}) async {
+  Future<List<Anime>> getUpcomingAnime({int limit = 20, int page = 1}) async {
     try {
       final response = await _apiClient.get(
         AppConstants.animeTopRated,
-        queryParameters: {'filter': 'upcoming', 'page': 1, 'limit': limit},
+        queryParameters: {'filter': 'upcoming', 'page': page, 'limit': limit},
       );
       final List<dynamic> results = response.data is List
           ? response.data as List<dynamic>
@@ -569,11 +569,11 @@ class AnimeRepository {
     }
   }
 
-  Future<List<Anime>> getAiringAnime({int limit = 20}) async {
+  Future<List<Anime>> getAiringAnime({int limit = 20, int page = 1}) async {
     try {
       final response = await _apiClient.get(
         AppConstants.animeTopRated,
-        queryParameters: {'filter': 'airing', 'page': 1, 'limit': limit},
+        queryParameters: {'filter': 'airing', 'page': page, 'limit': limit},
       );
       final List<dynamic> results = response.data is List
           ? response.data as List<dynamic>
@@ -586,13 +586,13 @@ class AnimeRepository {
     }
   }
 
-  Future<List<Anime>> getClassicsAnime({int limit = 20}) async {
+  Future<List<Anime>> getClassicsAnime({int limit = 20, int page = 1}) async {
     try {
       final response = await _apiClient.get(
         AppConstants.animeTopRated,
         queryParameters: {
           'filter': 'favorite',
-          'page': 1,
+          'page': page,
           'limit': limit,
         },
       );

@@ -69,8 +69,18 @@ class HomeScreen extends ConsumerWidget {
         onRefresh: () async {
           ref.invalidate(animeListProvider(
               const AnimeFilter(type: FilterType.newReleases)));
+          ref.invalidate(animeListProvider(
+              const AnimeFilter(type: FilterType.topRated, page: 1)));
+          ref.invalidate(animeListProvider(
+              const AnimeFilter(type: FilterType.topRated, page: 2)));
+          ref.invalidate(animeListProvider(
+              const AnimeFilter(type: FilterType.popular, page: 3)));
           ref.invalidate(
-              animeListProvider(const AnimeFilter(type: FilterType.topRated)));
+              animeListProvider(const AnimeFilter(type: FilterType.airing)));
+          ref.invalidate(
+              animeListProvider(const AnimeFilter(type: FilterType.upcoming)));
+          ref.invalidate(
+              animeListProvider(const AnimeFilter(type: FilterType.classics)));
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -323,7 +333,7 @@ class HomeScreen extends ConsumerWidget {
                 child: Consumer(
                   builder: (context, ref, child) {
                     final animeAsync = ref.watch(animeListProvider(
-                        const AnimeFilter(type: FilterType.topRated)));
+                        const AnimeFilter(type: FilterType.topRated, page: 2)));
 
                     return animeAsync.when(
                       data: (animeList) {
@@ -358,7 +368,7 @@ class HomeScreen extends ConsumerWidget {
                 child: Consumer(
                   builder: (context, ref, child) {
                     final animeAsync = ref.watch(animeListProvider(
-                        const AnimeFilter(type: FilterType.popular)));
+                        const AnimeFilter(type: FilterType.popular, page: 3)));
 
                     return animeAsync.when(
                       data: (animeList) {
