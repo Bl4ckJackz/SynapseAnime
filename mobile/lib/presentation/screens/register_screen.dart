@@ -39,11 +39,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
     try {
       await ref.read(authServiceProvider.notifier).register(
-            _nicknameController.text.trim().isEmpty ? 'User' : _nicknameController.text.trim(),
+            _nicknameController.text.trim().isEmpty
+                ? 'User'
+                : _nicknameController.text.trim(),
             _emailController.text.trim(),
             _passwordController.text,
           );
-      
+
       if (mounted) {
         context.goNamed('home');
       }
@@ -79,7 +81,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Unisciti a Anime AI Player',
+                    'Unisciti a SynapseAnime',
                     style: Theme.of(context).textTheme.headlineMedium,
                     textAlign: TextAlign.center,
                   ),
@@ -90,7 +92,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       decoration: BoxDecoration(
                         color: AppTheme.errorColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppTheme.errorColor.withOpacity(0.5)),
+                        border: Border.all(
+                            color: AppTheme.errorColor.withOpacity(0.5)),
                       ),
                       child: Text(
                         _errorMessage!,
@@ -179,7 +182,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       const Expanded(child: Divider()),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text('OPPURE', style: Theme.of(context).textTheme.bodySmall),
+                        child: Text('OPPURE',
+                            style: Theme.of(context).textTheme.bodySmall),
                       ),
                       const Expanded(child: Divider()),
                     ],
@@ -194,20 +198,26 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         side: const BorderSide(color: Colors.grey),
                       ),
-                      onPressed: _isLoading ? null : () async {
-                          setState(() => _isLoading = true);
-                          await ref.read(authServiceProvider.notifier).loginWithGoogle();
-                          if (mounted) {
-                             if (ref.read(authServiceProvider).hasError) {
-                                 ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Errore: ${ref.read(authServiceProvider).error}')),
-                                 );
-                                 setState(() => _isLoading = false);
-                             } else {
-                                 context.goNamed('home');
-                             }
-                          }
-                      },
+                      onPressed: _isLoading
+                          ? null
+                          : () async {
+                              setState(() => _isLoading = true);
+                              await ref
+                                  .read(authServiceProvider.notifier)
+                                  .loginWithGoogle();
+                              if (mounted) {
+                                if (ref.read(authServiceProvider).hasError) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content: Text(
+                                            'Errore: ${ref.read(authServiceProvider).error}')),
+                                  );
+                                  setState(() => _isLoading = false);
+                                } else {
+                                  context.goNamed('home');
+                                }
+                              }
+                            },
                     ),
                   ),
                 ],

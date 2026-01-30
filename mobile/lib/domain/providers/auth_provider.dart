@@ -7,7 +7,8 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository(ref.read(apiClientProvider));
 });
 
-final authServiceProvider = StateNotifierProvider<AuthService, AsyncValue<User?>>((ref) {
+final StateNotifierProvider<AuthService, AsyncValue<User?>>
+    authServiceProvider = StateNotifierProvider((ref) {
   return AuthService(ref.read(authRepositoryProvider));
 });
 
@@ -52,7 +53,7 @@ class AuthService extends StateNotifier<AsyncValue<User?>> {
   }
 
   Future<void> checkSession() async {
-      // Basic check, try to get profile if token exists in storage (handled by api client init)
-      // For now just skipping complex re-auth logic
+    // Basic check, try to get profile if token exists in storage (handled by api client init)
+    // For now just skipping complex re-auth logic
   }
 }
