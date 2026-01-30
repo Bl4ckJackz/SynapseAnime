@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
-import '../../domain/providers/auth_provider.dart';
 import '../../domain/providers/anime_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../widgets/section_header.dart';
 import '../widgets/anime_card.dart';
 import '../widgets/featured_slider.dart';
+import '../widgets/shimmer_loading.dart';
 import '../../domain/providers/active_source_provider.dart';
 import '../../data/repositories/user_repository.dart';
 
@@ -50,12 +50,6 @@ class HomeScreen extends ConsumerWidget {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              context.pushNamed('search');
-            },
-          ),
-          IconButton(
             icon: const Icon(Icons.calendar_month),
             tooltip: 'Calendario Uscite',
             onPressed: () {
@@ -63,18 +57,10 @@ class HomeScreen extends ConsumerWidget {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.chat_bubble_outline),
-            onPressed: () => context.pushNamed('chat'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => context.pushNamed('settings'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await ref.read(authServiceProvider.notifier).logout();
-              if (context.mounted) context.goNamed('login');
+            icon: const Icon(Icons.notifications_outlined),
+            tooltip: 'Notifiche',
+            onPressed: () {
+              // TODO: Implement notifications
             },
           ),
         ],
@@ -103,7 +89,7 @@ class HomeScreen extends ConsumerWidget {
                         FeaturedSlider(animeList: list.take(5).toList()),
                     loading: () => const SizedBox(
                         height: 220,
-                        child: Center(child: CircularProgressIndicator())),
+                        child: Center(child: PulsingDotIndicator())),
                     error: (_, __) => const SizedBox.shrink(),
                   );
                 },
@@ -134,8 +120,9 @@ class HomeScreen extends ConsumerWidget {
                                 itemBuilder: (context, index) {
                                   final item = snapshot.data![index];
                                   final anime = item.anime;
-                                  if (anime == null)
+                                  if (anime == null) {
                                     return const SizedBox.shrink();
+                                  }
 
                                   return GestureDetector(
                                     onTap: () => context.pushNamed('player',
@@ -171,7 +158,7 @@ class HomeScreen extends ConsumerWidget {
                                                   colors: [
                                                     Colors.transparent,
                                                     Colors.black
-                                                        .withOpacity(0.8),
+                                                        .withValues(alpha: 0.8),
                                                   ],
                                                 ),
                                                 borderRadius:
@@ -246,7 +233,7 @@ class HomeScreen extends ConsumerWidget {
                 },
               ),
               SizedBox(
-                height: 240,
+                height: 320,
                 child: Consumer(
                   builder: (context, ref, child) {
                     final animeAsync = ref.watch(animeListProvider(
@@ -281,7 +268,7 @@ class HomeScreen extends ConsumerWidget {
                 },
               ),
               SizedBox(
-                height: 240,
+                height: 320,
                 child: Consumer(
                   builder: (context, ref, child) {
                     final animeAsync = ref.watch(animeListProvider(
@@ -332,7 +319,7 @@ class HomeScreen extends ConsumerWidget {
                 },
               ),
               SizedBox(
-                height: 240,
+                height: 320,
                 child: Consumer(
                   builder: (context, ref, child) {
                     final animeAsync = ref.watch(animeListProvider(
@@ -367,7 +354,7 @@ class HomeScreen extends ConsumerWidget {
                 },
               ),
               SizedBox(
-                height: 240,
+                height: 320,
                 child: Consumer(
                   builder: (context, ref, child) {
                     final animeAsync = ref.watch(animeListProvider(
@@ -402,7 +389,7 @@ class HomeScreen extends ConsumerWidget {
                 },
               ),
               SizedBox(
-                height: 240,
+                height: 320,
                 child: Consumer(
                   builder: (context, ref, child) {
                     final animeAsync = ref.watch(animeListProvider(
@@ -437,7 +424,7 @@ class HomeScreen extends ConsumerWidget {
                 },
               ),
               SizedBox(
-                height: 240,
+                height: 320,
                 child: Consumer(
                   builder: (context, ref, child) {
                     final animeAsync = ref.watch(animeListProvider(
@@ -518,20 +505,6 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _buildLoadingList() {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      scrollDirection: Axis.horizontal,
-      itemCount: 5,
-      itemBuilder: (context, index) {
-        return Container(
-          width: 140,
-          margin: const EdgeInsets.only(right: 12),
-          decoration: BoxDecoration(
-            color: AppTheme.surfaceColor,
-            borderRadius: BorderRadius.circular(12),
-          ),
-        );
-      },
-    );
+    return const ShimmerAnimeList();
   }
 }

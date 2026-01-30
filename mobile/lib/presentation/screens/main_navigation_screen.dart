@@ -4,7 +4,6 @@ import '../screens/home_screen.dart';
 import '../screens/search_screen.dart';
 import '../screens/chat_screen.dart';
 import '../screens/profile_screen.dart';
-import '../screens/external_stream_screen.dart';
 import '../screens/watch_history_screen.dart';
 import '../screens/manga_home_screen.dart';
 import '../widgets/animated_bottom_nav_bar.dart';
@@ -23,9 +22,8 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   final List<Widget> _screens = [
     const HomeScreen(),
     const SearchScreen(),
-    const MangaHomeScreen(), // New manga tab
+    const MangaHomeScreen(),
     const WatchHistoryScreen(),
-    const ExternalStreamScreen(),
     const ChatScreen(),
     const ProfileScreen(),
   ];
