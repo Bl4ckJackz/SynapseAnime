@@ -296,19 +296,30 @@ class AnimeRepository {
 
               if (results.isNotEmpty) {
                 // Try to find EXACT match first
-                final exactMatch = results.firstWhere(
-                  (r) {
-                    final resultTitle = _cleanTitle(r['title'].toString());
-                    return resultTitle.toLowerCase() ==
-                        titleVariant.toLowerCase();
-                  },
-                  orElse: () => null,
-                );
+                // Find ALL exact matches
+                final exactMatches = results.where((r) {
+                  final resultTitle = _cleanTitle(r['title'].toString());
+                  return resultTitle.toLowerCase() ==
+                      titleVariant.toLowerCase();
+                }).toList();
 
-                if (exactMatch != null) {
-                  bestMatchId = exactMatch['id'].toString();
+                if (exactMatches.isNotEmpty) {
+                  // Sort: Prefer titles WITHOUT "ITA"
+                  exactMatches.sort((a, b) {
+                    final aTitle = a['title'].toString().toUpperCase();
+                    final bTitle = b['title'].toString().toUpperCase();
+                    final aHasIta = aTitle.contains('ITA');
+                    final bHasIta = bTitle.contains('ITA');
+
+                    if (aHasIta && !bHasIta) return 1; // b comes first
+                    if (!aHasIta && bHasIta) return -1; // a comes first
+                    return 0;
+                  });
+
+                  final bestMatch = exactMatches.first;
+                  bestMatchId = bestMatch['id'].toString();
                   print(
-                      'Found EXACT match: ${exactMatch['title']} ($bestMatchId)');
+                      'Found EXACT match (Preferred): ${bestMatch['title']} ($bestMatchId)');
                   break; // Found perfect match, stop searching
                 }
 
