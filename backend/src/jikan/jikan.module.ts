@@ -6,9 +6,9 @@ import { JikanAnimeService } from './jikan-anime.service';
 import { JikanAnimeController } from './jikan-anime.controller';
 
 @Module({
-    imports: [CommonModule],
-    controllers: [JikanMangaController, JikanAnimeController],
-    providers: [JikanMangaService, JikanAnimeService],
-    exports: [JikanMangaService, JikanAnimeService],
+  imports: [CommonModule],
+  controllers: [JikanMangaController, JikanAnimeController],
+  providers: [JikanMangaService, JikanAnimeService],
+  exports: [JikanMangaService, JikanAnimeService],
 })
-export class JikanModule { }
+export class JikanModule {}

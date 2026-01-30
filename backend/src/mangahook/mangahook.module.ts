@@ -5,9 +5,9 @@ import { MangaHookController } from './mangahook.controller';
 import { MangaModule } from '../manga/manga.module';
 
 @Module({
-    imports: [ConfigModule, MangaModule],
-    controllers: [MangaHookController],
-    providers: [MangaHookService],
-    exports: [MangaHookService],
+  imports: [ConfigModule, MangaModule],
+  controllers: [MangaHookController],
+  providers: [MangaHookService],
+  exports: [MangaHookService],
 })
-export class MangaHookModule { }
+export class MangaHookModule {}

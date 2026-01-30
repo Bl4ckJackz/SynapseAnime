@@ -2,7 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, Not } from 'typeorm';
 import { User } from '../entities/user.entity';
-import { Subscription, SubscriptionStatus, SubscriptionTier } from '../entities/subscription.entity';
+import {
+  Subscription,
+  SubscriptionStatus,
+  SubscriptionTier,
+} from '../entities/subscription.entity';
 import { Payment } from '../entities/payment.entity';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
@@ -22,16 +26,21 @@ export class SubscriptionService {
   ) {
     const stripeKey = configService.get<string>('STRIPE_SECRET_KEY');
     if (!stripeKey) {
-      console.warn('Stripe secret key not found. Subscription features will be disabled.');
+      console.warn(
+        'Stripe secret key not found. Subscription features will be disabled.',
+      );
     }
     this.stripe = new Stripe(stripeKey || 'sk_test_placeholder', {
       apiVersion: '2024-11-20.acacia' as any, // Using 'as any' to bypass version check
     });
   }
 
-  async createCheckoutSession(userId: string, plan: 'premium'): Promise<string> {
+  async createCheckoutSession(
+    userId: string,
+    plan: 'premium',
+  ): Promise<string> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
-    
+
     if (!user) {
       throw new Error('User not found');
     }
@@ -62,12 +71,18 @@ export class SubscriptionService {
   }
 
   async handleWebhook(payload: Buffer, signature: string): Promise<void> {
-    const webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
-    
+    const webhookSecret = this.configService.get<string>(
+      'STRIPE_WEBHOOK_SECRET',
+    );
+
     let event: Stripe.Event;
-    
+
     try {
-      event = this.stripe.webhooks.constructEvent(payload, signature, webhookSecret!);
+      event = this.stripe.webhooks.constructEvent(
+        payload,
+        signature,
+        webhookSecret!,
+      );
     } catch (err) {
       console.error(`Webhook signature verification failed: ${err.message}`);
       throw err;
@@ -91,9 +106,11 @@ export class SubscriptionService {
     }
   }
 
-  private async handleCheckoutSessionCompleted(session: Stripe.Checkout.Session): Promise<void> {
+  private async handleCheckoutSessionCompleted(
+    session: Stripe.Checkout.Session,
+  ): Promise<void> {
     const userId = session.metadata?.userId;
-    
+
     if (!userId) {
       console.error('No userId found in session metadata');
       return;
@@ -101,7 +118,7 @@ export class SubscriptionService {
 
     // Find or create subscription record
     let subscription = await this.subscriptionRepository.findOne({
-      where: { 
+      where: {
         userId: userId,
         stripeSubscriptionId: session.subscription as string,
       },
@@ -114,16 +131,21 @@ export class SubscriptionService {
       subscription.stripeCustomerId = session.customer as string;
       subscription.tier = SubscriptionTier.PREMIUM;
       subscription.status = SubscriptionStatus.ACTIVE;
-      
+
       // Calculate dates based on Stripe subscription
       const stripeSubscription = await this.stripe.subscriptions.retrieve(
-        session.subscription as string
+        session.subscription as string,
       );
 
-      subscription.startDate = new Date((stripeSubscription as any).current_period_start * 1000);
-      subscription.endDate = new Date((stripeSubscription as any).current_period_end * 1000);
-      subscription.amount = (stripeSubscription as any).items.data[0].price.unit_amount / 100; // Convert cents to dollars
-      
+      subscription.startDate = new Date(
+        (stripeSubscription as any).current_period_start * 1000,
+      );
+      subscription.endDate = new Date(
+        (stripeSubscription as any).current_period_end * 1000,
+      );
+      subscription.amount =
+        (stripeSubscription as any).items.data[0].price.unit_amount / 100; // Convert cents to dollars
+
       await this.subscriptionRepository.save(subscription);
     }
 
@@ -137,22 +159,29 @@ export class SubscriptionService {
     }
   }
 
-  private async handleInvoicePaymentSucceeded(invoice: Stripe.Invoice): Promise<void> {
+  private async handleInvoicePaymentSucceeded(
+    invoice: Stripe.Invoice,
+  ): Promise<void> {
     // Handle successful recurring payment
     const subscriptionId = (invoice as any).subscription as string;
-    
+
     const subscription = await this.subscriptionRepository.findOne({
       where: { stripeSubscriptionId: subscriptionId },
     });
 
     if (subscription) {
       // Update end date to next billing cycle
-      const stripeSubscription = await this.stripe.subscriptions.retrieve(subscriptionId);
-      subscription.endDate = new Date((stripeSubscription as any).current_period_end * 1000);
+      const stripeSubscription =
+        await this.stripe.subscriptions.retrieve(subscriptionId);
+      subscription.endDate = new Date(
+        (stripeSubscription as any).current_period_end * 1000,
+      );
       await this.subscriptionRepository.save(subscription);
 
       // Update user expiration date
-      const user = await this.userRepository.findOne({ where: { id: subscription.userId } });
+      const user = await this.userRepository.findOne({
+        where: { id: subscription.userId },
+      });
       if (user) {
         user.subscriptionExpiresAt = new Date(subscription.endDate);
         await this.userRepository.save(user);
@@ -160,7 +189,9 @@ export class SubscriptionService {
     }
   }
 
-  private async handleSubscriptionUpdated(subscription: Stripe.Subscription): Promise<void> {
+  private async handleSubscriptionUpdated(
+    subscription: Stripe.Subscription,
+  ): Promise<void> {
     const dbSubscription = await this.subscriptionRepository.findOne({
       where: { stripeSubscriptionId: subscription.id },
     });
@@ -182,29 +213,37 @@ export class SubscriptionService {
       }
 
       // Update dates
-      dbSubscription.startDate = new Date((subscription as any).current_period_start * 1000);
-      dbSubscription.endDate = new Date((subscription as any).current_period_end * 1000);
+      dbSubscription.startDate = new Date(
+        (subscription as any).current_period_start * 1000,
+      );
+      dbSubscription.endDate = new Date(
+        (subscription as any).current_period_end * 1000,
+      );
 
       await this.subscriptionRepository.save(dbSubscription);
 
       // Update user status
-      const user = await this.userRepository.findOne({ where: { id: dbSubscription.userId } });
+      const user = await this.userRepository.findOne({
+        where: { id: dbSubscription.userId },
+      });
       if (user) {
         user.subscriptionStatus = dbSubscription.status;
         user.subscriptionExpiresAt = new Date(dbSubscription.endDate);
-        
+
         if (dbSubscription.status === SubscriptionStatus.ACTIVE) {
           user.subscriptionTier = SubscriptionTier.PREMIUM;
         } else {
           user.subscriptionTier = SubscriptionTier.FREE;
         }
-        
+
         await this.userRepository.save(user);
       }
     }
   }
 
-  private async handleSubscriptionDeleted(subscription: Stripe.Subscription): Promise<void> {
+  private async handleSubscriptionDeleted(
+    subscription: Stripe.Subscription,
+  ): Promise<void> {
     const dbSubscription = await this.subscriptionRepository.findOne({
       where: { stripeSubscriptionId: subscription.id },
     });
@@ -214,7 +253,9 @@ export class SubscriptionService {
       await this.subscriptionRepository.save(dbSubscription);
 
       // Update user status
-      const user = await this.userRepository.findOne({ where: { id: dbSubscription.userId } });
+      const user = await this.userRepository.findOne({
+        where: { id: dbSubscription.userId },
+      });
       if (user) {
         user.subscriptionStatus = SubscriptionStatus.CANCELLED;
         user.subscriptionTier = SubscriptionTier.FREE;
@@ -225,7 +266,7 @@ export class SubscriptionService {
 
   async cancelSubscription(userId: string): Promise<void> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
-    
+
     if (!user) {
       throw new Error('User not found');
     }
@@ -256,9 +297,11 @@ export class SubscriptionService {
     await this.userRepository.save(user);
   }
 
-  async checkSubscriptionStatus(userId: string): Promise<{isActive: boolean, tier: SubscriptionTier}> {
+  async checkSubscriptionStatus(
+    userId: string,
+  ): Promise<{ isActive: boolean; tier: SubscriptionTier }> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
-    
+
     if (!user) {
       return { isActive: false, tier: SubscriptionTier.FREE };
     }
@@ -269,7 +312,7 @@ export class SubscriptionService {
       user.subscriptionStatus = SubscriptionStatus.EXPIRED;
       user.subscriptionTier = SubscriptionTier.FREE;
       await this.userRepository.save(user);
-      
+
       return { isActive: false, tier: SubscriptionTier.FREE };
     }
 
@@ -281,7 +324,7 @@ export class SubscriptionService {
 
   async getSubscriptionDetails(userId: string): Promise<Subscription | null> {
     return await this.subscriptionRepository.findOne({
-      where: { 
+      where: {
         userId: userId,
         status: SubscriptionStatus.ACTIVE,
       },

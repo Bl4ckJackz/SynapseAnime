@@ -9,6 +9,7 @@
 
 **OpenAnime** è una soluzione full-stack per la fruizione di contenuti anime. Il progetto è composto da:
 - **Mobile App**: Un'applicazione Flutter fluida e reattiva per Android e iOS.
+- **Web App**: Una moderna applicazione web in Next.js.
 - **Backend**: API robusta in NestJS per la gestione utenti, progressi e metadati.
 - **Consumet API**: Un wrapper personalizzato per l'aggregazione di fonti streaming.
 
@@ -17,25 +18,52 @@
 | Area | Tecnologie Chiave |
 |------|-------------------|
 | **Frontend Mobile** | [Flutter](https://flutter.dev), Dart, Riverpod (State Management), GoRouter |
+| **Frontend Web** | [Next.js](https://nextjs.org), React, Tailwind CSS |
 | **Backend API** | [NestJS](https://nestjs.com), TypeScript, TypeORM |
-| **Database** | PostgreSQL |
-| **Integrazioni** | Firebase (Notifiche), AnimeUnity/AnimeWorld (Sources) |
+| **Database** | PostgreSQL (Prod), SQLite (Local), Redis (Cache) |
+| **Integrazioni** | Firebase (Notifiche/Sync), AnimeUnity/AnimeWorld (Sources) |
+| **DevOps** | Docker, Docker Compose |
 
 ## 🚀 Per Iniziare
 
-Per configurare l'ambiente di sviluppo e avviare il progetto, consulta le guide dettagliate:
+### Installazione Rapida
+Dalla root del progetto:
+```bash
+# Installa tutte le dipendenze (Backend, Web, Consumet)
+npm install
+```
 
-- **[📖 Guida all'Installazione (SETUP.md)](docs/SETUP.md)**: Istruzioni passo-passo per Backend e Mobile.
-- **[🏗️ Architettura del Progetto (ARCHITECTURE.md)](docs/ARCHITECTURE.md)**: Dettagli sulla struttura del codice e flussi dati.
+### Avvio in Sviluppo (Locale)
+Avvia Backend, Consumet API e Web App contemporaneamente:
+```bash
+npm run dev
+```
+- Web App: http://localhost:3001
+- Backend: http://localhost:3010
+- Consumet: http://localhost:3000
+
+### 🐳 Deployment con Docker
+Per avviare l'intero stack in container (incluso Postgres e Redis):
+
+```bash
+docker-compose up --build -d
+```
+Questo avvierà:
+- Postgres (Database SQL)
+- Redis (Cache)
+- Backend (NestJS)
+- Consumet API
+- (Web App: da aggiungere al compose se necessario, di solito deployata su Vercel/Netlify)
 
 ## 📂 Struttura della Repository
 
 ```
 /
 ├── backend/        # Server API NestJS (Logica di business, DB)
-├── mobile/         # Applicazione Flutter (UI, Logica client)
-├── consumet-api/   # Microservizio per scraping/aggregazione fonti
-└── docs/           # Documentazione tecnica approfondita
+├── mobile/         # Applicazione Flutter (UI, Mobile)
+├── web/            # Applicazione Next.js (UI, Web)
+├── consumet-api/   # Microservizio per scraping
+└── docker-compose.yml # Orchestrazione container
 ```
 
 ## 🤝 Contribuire

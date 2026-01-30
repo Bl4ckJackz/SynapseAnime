@@ -62,6 +62,6 @@ export class Subscription {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToOne(() => User, user => user.subscriptions)
+  @ManyToOne(() => User, (user) => user.subscriptions)
   user: User;
 }

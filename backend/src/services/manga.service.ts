@@ -16,9 +16,7 @@ export class MangaService {
   async searchManga(query: string, filters?: any) {
     // Only search in our local database
     const localManga = await this.mangaRepository.find({
-      where: [
-        { title: Like(`%${query}%`) }
-      ],
+      where: [{ title: Like(`%${query}%`) }],
     });
 
     return localManga;
@@ -30,7 +28,9 @@ export class MangaService {
 
     if (!manga) {
       // If not found locally, try to find by mangadexId
-      manga = await this.mangaRepository.findOne({ where: { mangadexId: mangaId } });
+      manga = await this.mangaRepository.findOne({
+        where: { mangadexId: mangaId },
+      });
     }
 
     return manga;
@@ -48,7 +48,9 @@ export class MangaService {
     }
 
     // If no chapters in DB, try to get manga to trigger sync
-    const manga = await this.mangaRepository.findOne({ where: { id: mangaId } });
+    const manga = await this.mangaRepository.findOne({
+      where: { id: mangaId },
+    });
     if (manga) {
       // Chapters should already be synced when manga was added
       return await this.chapterRepository.find({

@@ -6,16 +6,8 @@ import { CircuitBreakerService } from './services/circuit-breaker.service';
 
 @Global()
 @Module({
-    imports: [ConfigModule],
-    providers: [
-        RateLimiterService,
-        CacheService,
-        CircuitBreakerService,
-    ],
-    exports: [
-        RateLimiterService,
-        CacheService,
-        CircuitBreakerService,
-    ],
+  imports: [ConfigModule],
+  providers: [RateLimiterService, CacheService, CircuitBreakerService],
+  exports: [RateLimiterService, CacheService, CircuitBreakerService],
 })
-export class CommonModule { }
+export class CommonModule {}

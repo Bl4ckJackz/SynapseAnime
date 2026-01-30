@@ -11,7 +11,7 @@ import { AnimeFilters } from './sources/anime-source.interface';
 
 @Controller('anime')
 export class AnimeController {
-  constructor(private readonly animeService: AnimeService) { }
+  constructor(private readonly animeService: AnimeService) {}
 
   @Get()
   async findAll(
@@ -37,19 +37,26 @@ export class AnimeController {
   }
 
   @Get('new-releases')
-  async getNewReleases(@Query('limit') limit?: string, @Query('page') page?: string) {
+  async getNewReleases(
+    @Query('limit') limit?: string,
+    @Query('page') page?: string,
+  ) {
     return this.animeService.getNewReleases(
       limit ? parseInt(limit, 10) : 10,
-      page ? parseInt(page, 10) : 1
+      page ? parseInt(page, 10) : 1,
     );
   }
 
   @Get('top-rated')
-  async getTopRated(@Query('limit') limit?: string, @Query('page') page?: string, @Query('filter') filter?: string) {
+  async getTopRated(
+    @Query('limit') limit?: string,
+    @Query('page') page?: string,
+    @Query('filter') filter?: string,
+  ) {
     return this.animeService.getTopRated(
       limit ? parseInt(limit, 10) : 10,
       page ? parseInt(page, 10) : 1,
-      filter
+      filter,
     );
   }
 

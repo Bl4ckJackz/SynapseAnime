@@ -18,7 +18,12 @@ import { AnimeStreamingService } from '../services/anime-streaming.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Anime, Episode]), HttpModule],
-  controllers: [AnimeController, StreamController, AnimeUnityController, HiAnimeController],
+  controllers: [
+    AnimeController,
+    StreamController,
+    AnimeUnityController,
+    HiAnimeController,
+  ],
   providers: [
     AnimeService,
     SourceManager,
@@ -29,7 +34,12 @@ import { AnimeStreamingService } from '../services/anime-streaming.service';
     HiAnimeSource,
     AnimeStreamingService,
   ],
-  exports: [AnimeService, SourceManager, AnimeUnitySource, HiAnimeSource, AnimeStreamingService],
+  exports: [
+    AnimeService,
+    SourceManager,
+    AnimeUnitySource,
+    HiAnimeSource,
+    AnimeStreamingService,
+  ],
 })
-export class AnimeModule { }
-
+export class AnimeModule {}

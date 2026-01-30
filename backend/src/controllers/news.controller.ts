@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Put, Delete, Param, Query, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Query,
+  Body,
+  UseGuards,
+} from '@nestjs/common';
 import { NewsService } from '../services/news.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -11,9 +21,11 @@ export class NewsController {
     @Query('sources') sources?: string,
     @Query('category') category?: string,
     @Query('limit') limit?: string,
-    @Query('search') search?: string
+    @Query('search') search?: string,
   ) {
-    const sourcesArray = sources ? sources.split(',') : ['myanimelist', 'custom'];
+    const sourcesArray = sources
+      ? sources.split(',')
+      : ['myanimelist', 'custom'];
     const limitNum = limit ? parseInt(limit, 10) : 10;
 
     if (search) {
@@ -65,7 +77,7 @@ export class NewsController {
   @Get('category/:category')
   async getNewsByCategory(
     @Param('category') category: string,
-    @Query('limit') limit?: string
+    @Query('limit') limit?: string,
   ) {
     const limitNum = limit ? parseInt(limit, 10) : 10;
     return await this.newsService.getNewsByCategory(category, limitNum);
@@ -74,7 +86,7 @@ export class NewsController {
   @Get('search/:query')
   async searchNews(
     @Param('query') query: string,
-    @Query('limit') limit?: string
+    @Query('limit') limit?: string,
   ) {
     const limitNum = limit ? parseInt(limit, 10) : 10;
     return await this.newsService.getNewsBySearch(query, limitNum);
@@ -83,7 +95,7 @@ export class NewsController {
   @Get('tags/:tags')
   async getNewsByTags(
     @Param('tags') tags: string,
-    @Query('limit') limit?: string
+    @Query('limit') limit?: string,
   ) {
     const tagsArray = tags.split(',');
     const limitNum = limit ? parseInt(limit, 10) : 10;

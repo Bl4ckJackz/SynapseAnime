@@ -83,6 +83,6 @@ export class AdImpression {
   @CreateDateColumn()
   timestamp: Date;
 
-  @ManyToOne(() => User, user => user.adImpressions)
+  @ManyToOne(() => User, (user) => user.adImpressions)
   user: User;
 }

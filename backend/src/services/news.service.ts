@@ -25,8 +25,9 @@ export class NewsService {
     }
 
     // Sort by publication date (newest first)
-    return allNews.sort((a, b) =>
-      new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+    return allNews.sort(
+      (a, b) =>
+        new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
     );
   }
 
@@ -60,20 +61,20 @@ export class NewsService {
   async createNews(newsData: Partial<News>): Promise<News> {
     const news = new News();
     Object.assign(news, newsData);
-    
+
     // Set default values if not provided
     if (!news.publishedAt) {
       news.publishedAt = new Date();
     }
-    
+
     if (!news.createdAt) {
       news.createdAt = new Date();
     }
-    
+
     if (!news.updatedAt) {
       news.updatedAt = new Date();
     }
-    
+
     return await this.newsRepository.save(news);
   }
 
@@ -111,14 +112,14 @@ export class NewsService {
 
   async updateNews(id: string, newsData: Partial<News>): Promise<News | null> {
     const news = await this.newsRepository.findOne({ where: { id } });
-    
+
     if (!news) {
       return null;
     }
-    
+
     Object.assign(news, newsData);
     news.updatedAt = new Date();
-    
+
     return await this.newsRepository.save(news);
   }
 
@@ -139,9 +140,13 @@ export class NewsService {
 
   async getNewsByTags(tags: string[], limit = 10): Promise<News[]> {
     // Find news that contains any of the specified tags
-    const allNews = await this.newsRepository.find({ where: { isActive: true } });
+    const allNews = await this.newsRepository.find({
+      where: { isActive: true },
+    });
     return allNews
-      .filter(news => news.tags && news.tags.some(tag => tags.includes(tag)))
+      .filter(
+        (news) => news.tags && news.tags.some((tag) => tags.includes(tag)),
+      )
       .slice(0, limit);
   }
 }

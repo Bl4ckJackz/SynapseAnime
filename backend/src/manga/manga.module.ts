@@ -11,9 +11,12 @@ import { AnimeStreamingService } from '../services/anime-streaming.service';
 import { MangaDexController } from './mangadex.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Manga, Chapter, Anime, Episode]), HttpModule],
+  imports: [
+    TypeOrmModule.forFeature([Manga, Chapter, Anime, Episode]),
+    HttpModule,
+  ],
   controllers: [MangaDexController],
   providers: [MangaService, MangaDexService, AnimeStreamingService],
   exports: [MangaService, MangaDexService],
 })
-export class MangaModule { }
+export class MangaModule {}

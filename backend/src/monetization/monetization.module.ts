@@ -21,16 +21,16 @@ import { Episode } from '../entities/episode.entity';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
-      User, 
-      Subscription, 
-      Payment, 
-      Ad, 
-      AdImpression, 
+      User,
+      Subscription,
+      Payment,
+      Ad,
+      AdImpression,
       News,
       Manga,
       Chapter,
       Anime,
-      Episode
+      Episode,
     ]),
     ConfigModule,
   ],

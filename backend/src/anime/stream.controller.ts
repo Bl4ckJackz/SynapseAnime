@@ -14,7 +14,7 @@ import axios from 'axios';
 
 @Controller('stream')
 export class StreamController {
-  constructor(private readonly localSource: LocalFileSource) { }
+  constructor(private readonly localSource: LocalFileSource) {}
 
   @Get('local/:animeId/:filename')
   streamLocalVideo(
@@ -54,8 +54,10 @@ export class StreamController {
       // Determine appropriate headers based on URL
       const isAnimeUnity = url.includes('animeunity');
       const headers: Record<string, string> = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        Accept:
+          'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
       };
 

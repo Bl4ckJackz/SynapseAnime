@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Req, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Body,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { AdService } from '../services/ad.service';
 import { AdInsertionService } from '../services/ad-insertion.service';
@@ -25,7 +35,7 @@ export class AdController {
   async getAdForUser(
     @Req() req: Request,
     @Param('contentType') contentType: 'video' | 'manga',
-    @Body() context?: any
+    @Body() context?: any,
   ) {
     const userId = req.user?.['sub'];
 
@@ -35,22 +45,29 @@ export class AdController {
 
     // Check if user should see an ad
     const shouldShowAd = await this.adInsertionService.shouldShowAd(
-      { id: userId, subscriptionTier: req.user?.['subscriptionTier'] || 'free' } as any,
+      {
+        id: userId,
+        subscriptionTier: req.user?.['subscriptionTier'] || 'free',
+      } as any,
       contentType,
-      context
+      context,
     );
 
     if (!shouldShowAd) {
       return { showAd: false };
     }
 
-    const ad = await this.adService.getRandomAdForUser(userId, 'video', 'free_users');
+    const ad = await this.adService.getRandomAdForUser(
+      userId,
+      'video',
+      'free_users',
+    );
 
     return {
       showAd: !!ad,
       ad: ad,
       skipAllowed: true,
-      skipAfter: 5 // seconds
+      skipAfter: 5, // seconds
     };
   }
 
@@ -58,7 +75,7 @@ export class AdController {
   @Post('track-impression')
   async trackAdImpression(
     @Req() req: Request,
-    @Body() body: { adId: string; sessionId: string; durationWatched?: number }
+    @Body() body: { adId: string; sessionId: string; durationWatched?: number },
   ) {
     const userId = req.user?.['sub'];
 
@@ -70,7 +87,7 @@ export class AdController {
       body.adId,
       userId,
       body.sessionId,
-      body.durationWatched
+      body.durationWatched,
     );
 
     return { success: true };
@@ -78,9 +95,7 @@ export class AdController {
 
   @UseGuards(JwtAuthGuard)
   @Post('track-click/:impressionId')
-  async trackAdClick(
-    @Param('impressionId') impressionId: string
-  ) {
+  async trackAdClick(@Param('impressionId') impressionId: string) {
     await this.adService.trackAdClick(impressionId);
     return { success: true };
   }
@@ -95,7 +110,8 @@ export class AdController {
   @UseGuards(JwtAuthGuard)
   @Post('create')
   async createAd(
-    @Body() adData: {
+    @Body()
+    adData: {
       title: string;
       content: string;
       advertiser: string;
@@ -104,7 +120,7 @@ export class AdController {
       targetingCriteria?: any;
       startDate?: Date;
       endDate?: Date;
-    }
+    },
   ) {
     const ad = await this.adService.createAd(
       adData.title,
@@ -114,9 +130,9 @@ export class AdController {
       adData.targetAudience,
       adData.targetingCriteria,
       adData.startDate,
-      adData.endDate
+      adData.endDate,
     );
-    
+
     return ad;
   }
 }

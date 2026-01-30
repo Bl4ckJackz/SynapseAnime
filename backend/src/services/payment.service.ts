@@ -22,16 +22,22 @@ export class PaymentService {
   ) {
     const stripeKey = configService.get<string>('STRIPE_SECRET_KEY');
     if (!stripeKey) {
-      console.warn('Stripe secret key not found. Payment features will be disabled.');
+      console.warn(
+        'Stripe secret key not found. Payment features will be disabled.',
+      );
     }
     this.stripe = new Stripe(stripeKey || 'sk_test_placeholder', {
       apiVersion: '2024-11-20.acacia' as any, // Using 'as any' to bypass version check
     });
   }
 
-  async createPaymentIntent(userId: string, amount: number, currency: string = 'usd'): Promise<string> {
+  async createPaymentIntent(
+    userId: string,
+    amount: number,
+    currency: string = 'usd',
+  ): Promise<string> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
-    
+
     if (!user) {
       throw new Error('User not found');
     }
@@ -50,9 +56,14 @@ export class PaymentService {
     return paymentIntent.client_secret!;
   }
 
-  async processSubscriptionPayment(userId: string, subscriptionId: string): Promise<Payment> {
+  async processSubscriptionPayment(
+    userId: string,
+    subscriptionId: string,
+  ): Promise<Payment> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
-    const subscription = await this.subscriptionRepository.findOne({ where: { id: subscriptionId } });
+    const subscription = await this.subscriptionRepository.findOne({
+      where: { id: subscriptionId },
+    });
 
     if (!user || !subscription) {
       throw new Error('User or subscription not found');
@@ -74,7 +85,9 @@ export class PaymentService {
   }
 
   async refundPayment(paymentId: string, reason?: string): Promise<Payment> {
-    const payment = await this.paymentRepository.findOne({ where: { id: paymentId } });
+    const payment = await this.paymentRepository.findOne({
+      where: { id: paymentId },
+    });
 
     if (!payment) {
       throw new Error('Payment not found');
@@ -111,13 +124,22 @@ export class PaymentService {
     return await this.paymentRepository.findOne({ where: { id: paymentId } });
   }
 
-  async handlePaymentWebhook(payload: Buffer, signature: string): Promise<void> {
-    const webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
-    
+  async handlePaymentWebhook(
+    payload: Buffer,
+    signature: string,
+  ): Promise<void> {
+    const webhookSecret = this.configService.get<string>(
+      'STRIPE_WEBHOOK_SECRET',
+    );
+
     let event: Stripe.Event;
-    
+
     try {
-      event = this.stripe.webhooks.constructEvent(payload, signature, webhookSecret!);
+      event = this.stripe.webhooks.constructEvent(
+        payload,
+        signature,
+        webhookSecret!,
+      );
     } catch (err) {
       console.error(`Webhook signature verification failed: ${err.message}`);
       throw err;
@@ -138,9 +160,11 @@ export class PaymentService {
     }
   }
 
-  private async handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent): Promise<void> {
+  private async handlePaymentIntentSucceeded(
+    paymentIntent: Stripe.PaymentIntent,
+  ): Promise<void> {
     const userId = paymentIntent.metadata?.userId;
-    
+
     if (!userId) {
       console.error('No userId found in payment intent metadata');
       return;
@@ -155,16 +179,18 @@ export class PaymentService {
     payment.status = 'completed';
     payment.paymentMethod = 'stripe';
     payment.transactionId = paymentIntent.id;
-    
+
     // Generate a mock receipt URL
     payment.receiptUrl = `https://receipts.example.com/${paymentIntent.id}`;
-    
+
     await this.paymentRepository.save(payment);
   }
 
-  private async handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent): Promise<void> {
+  private async handlePaymentIntentFailed(
+    paymentIntent: Stripe.PaymentIntent,
+  ): Promise<void> {
     const userId = paymentIntent.metadata?.userId;
-    
+
     if (!userId) {
       console.error('No userId found in payment intent metadata');
       return;
@@ -179,7 +205,7 @@ export class PaymentService {
     payment.status = 'failed';
     payment.paymentMethod = 'stripe';
     payment.transactionId = paymentIntent.id;
-    
+
     await this.paymentRepository.save(payment);
   }
 
@@ -195,11 +221,17 @@ export class PaymentService {
     }
   }
 
-  async createPayPalPayment(userId: string, amount: number, currency: string = 'usd'): Promise<any> {
+  async createPayPalPayment(
+    userId: string,
+    amount: number,
+    currency: string = 'usd',
+  ): Promise<any> {
     // This would integrate with PayPal's API
     // For now, we'll return a mock response
-    console.log(`Creating PayPal payment for user ${userId}, amount: ${amount} ${currency}`);
-    
+    console.log(
+      `Creating PayPal payment for user ${userId}, amount: ${amount} ${currency}`,
+    );
+
     return {
       id: `paypal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       status: 'created',
@@ -208,8 +240,10 @@ export class PaymentService {
   }
 
   async verifyPayment(paymentId: string): Promise<boolean> {
-    const payment = await this.paymentRepository.findOne({ where: { id: paymentId } });
-    
+    const payment = await this.paymentRepository.findOne({
+      where: { id: paymentId },
+    });
+
     if (!payment) {
       return false;
     }
@@ -221,7 +255,9 @@ export class PaymentService {
     // If payment is pending, verify with payment processor
     if (payment.paymentMethod === 'stripe' && payment.transactionId) {
       try {
-        const stripePayment = await this.stripe.paymentIntents.retrieve(payment.transactionId);
+        const stripePayment = await this.stripe.paymentIntents.retrieve(
+          payment.transactionId,
+        );
         if (stripePayment.status === 'succeeded') {
           payment.status = 'completed';
           await this.paymentRepository.save(payment);

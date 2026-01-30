@@ -22,7 +22,7 @@ export class MangaDexService {
     private mangaRepository: Repository<Manga>,
     @InjectRepository(Chapter)
     private chapterRepository: Repository<Chapter>,
-  ) { }
+  ) {}
 
   async searchManga(query: string, filters?: any): Promise<Manga[]> {
     try {
@@ -33,20 +33,25 @@ export class MangaDexService {
         ...filters,
       };
 
-      const response = await mangadexAxios.get(`${this.baseUrl}/manga`, { params });
+      const response = await mangadexAxios.get(`${this.baseUrl}/manga`, {
+        params,
+      });
       const mangaResults = response.data.data;
-
 
       const mangas: Manga[] = mangaResults.map((mangaData: any) => {
         const manga = new Manga();
         manga.mangadexId = mangaData.id;
         manga.title = this.extractTitle(mangaData.attributes.title);
-        manga.description = this.extractDescription(mangaData.attributes.description);
+        manga.description = this.extractDescription(
+          mangaData.attributes.description,
+        );
         manga.status = this.mapStatus(mangaData.attributes.status);
         manga.year = mangaData.attributes.year;
 
         // Find cover relationship
-        const coverRel = mangaData.relationships?.find((rel: any) => rel.type === 'cover_art');
+        const coverRel = mangaData.relationships?.find(
+          (rel: any) => rel.type === 'cover_art',
+        );
         if (coverRel && coverRel.attributes?.fileName) {
           manga.coverImage = `https://uploads.mangadex.org/covers/${mangaData.id}/${coverRel.attributes.fileName}`;
         }
@@ -63,12 +68,14 @@ export class MangaDexService {
 
   async getMangaDetails(mangadexId: string): Promise<Manga> {
     try {
-      const response = await mangadexAxios.get(`${this.baseUrl}/manga/${mangadexId}`);
+      const response = await mangadexAxios.get(
+        `${this.baseUrl}/manga/${mangadexId}`,
+      );
       const mangaData = response.data.data;
 
       // Check if manga already exists in our database
       let manga = await this.mangaRepository.findOne({
-        where: { mangadexId }
+        where: { mangadexId },
       });
 
       if (!manga) {
@@ -79,7 +86,9 @@ export class MangaDexService {
       manga.mangadexId = mangaData.id;
       manga.title = this.extractTitle(mangaData.attributes.title);
       manga.altTitles = this.extractAltTitles(mangaData.attributes.altTitles);
-      manga.description = this.extractDescription(mangaData.attributes.description);
+      manga.description = this.extractDescription(
+        mangaData.attributes.description,
+      );
       manga.authors = this.extractAuthors(mangaData.relationships);
       manga.artists = this.extractArtists(mangaData.relationships);
       manga.genres = this.extractGenres(mangaData.attributes.tags);
@@ -110,12 +119,14 @@ export class MangaDexService {
   async getChapters(mangadexId: string): Promise<Chapter[]> {
     try {
       let manga = await this.mangaRepository.findOne({
-        where: { mangadexId }
+        where: { mangadexId },
       });
 
       // If manga not found in local DB, sync it first
       if (!manga) {
-        console.log(`Manga ${mangadexId} not found in DB, syncing from MangaDex...`);
+        console.log(
+          `Manga ${mangadexId} not found in DB, syncing from MangaDex...`,
+        );
         try {
           manga = await this.getMangaDetails(mangadexId);
         } catch (syncError) {
@@ -132,7 +143,9 @@ export class MangaDexService {
 
       // If no chapters in DB, try to fetch from API
       if (chapters.length === 0) {
-        console.log(`No chapters found in DB for ${mangadexId}, fetching from API...`);
+        console.log(
+          `No chapters found in DB for ${mangadexId}, fetching from API...`,
+        );
         return await this.getChaptersFromApi(mangadexId);
       }
 
@@ -152,7 +165,10 @@ export class MangaDexService {
         'translatedLanguage[]': ['it', 'en'],
       };
 
-      const response = await mangadexAxios.get(`${this.baseUrl}/manga/${mangadexId}/feed`, { params });
+      const response = await mangadexAxios.get(
+        `${this.baseUrl}/manga/${mangadexId}/feed`,
+        { params },
+      );
       const chapterData = response.data.data || [];
 
       return chapterData.map((chap: any) => {
@@ -170,14 +186,19 @@ export class MangaDexService {
         return chapter;
       });
     } catch (error) {
-      console.error(`Error fetching chapters from MangaDex API for ${mangadexId}:`, error);
+      console.error(
+        `Error fetching chapters from MangaDex API for ${mangadexId}:`,
+        error,
+      );
       return [];
     }
   }
 
   async getChapterPages(chapterId: string): Promise<string[]> {
     try {
-      const response = await mangadexAxios.get(`${this.baseUrl}/at-home/server/${chapterId}`);
+      const response = await mangadexAxios.get(
+        `${this.baseUrl}/at-home/server/${chapterId}`,
+      );
       const serverUrl = response.data.baseUrl;
       const chapterData = response.data.chapter;
 
@@ -232,7 +253,7 @@ export class MangaDexService {
     // Return first available description
     if (descriptions) {
       const firstDesc = Object.values(descriptions)[0];
-      return firstDesc as string || '';
+      return (firstDesc as string) || '';
     }
     return '';
   }
@@ -240,36 +261,44 @@ export class MangaDexService {
   private extractAuthors(relationships: any[]): string[] {
     if (!relationships) return [];
 
-    return relationships
-      .filter((rel: any) => rel.type === 'author')
-      .map((rel: any) => rel.attributes?.name)
-      .filter((name: any) => name) || [];
+    return (
+      relationships
+        .filter((rel: any) => rel.type === 'author')
+        .map((rel: any) => rel.attributes?.name)
+        .filter((name: any) => name) || []
+    );
   }
 
   private extractArtists(relationships: any[]): string[] {
     if (!relationships) return [];
 
-    return relationships
-      .filter((rel: any) => rel.type === 'artist')
-      .map((rel: any) => rel.attributes?.name)
-      .filter((name: any) => name) || [];
+    return (
+      relationships
+        .filter((rel: any) => rel.type === 'artist')
+        .map((rel: any) => rel.attributes?.name)
+        .filter((name: any) => name) || []
+    );
   }
 
   private extractGenres(tags: any[]): string[] {
     if (!tags) return [];
 
-    return tags
-      .filter((tag: any) => tag.attributes.group === 'genre')
-      .map((tag: any) => tag.attributes.name.en)
-      .filter((name: any) => name) || [];
+    return (
+      tags
+        .filter((tag: any) => tag.attributes.group === 'genre')
+        .map((tag: any) => tag.attributes.name.en)
+        .filter((name: any) => name) || []
+    );
   }
 
   private extractTags(tags: any[]): string[] {
     if (!tags) return [];
 
-    return tags
-      .map((tag: any) => tag.attributes.name.en)
-      .filter((name: any) => name) || [];
+    return (
+      tags
+        .map((tag: any) => tag.attributes.name.en)
+        .filter((name: any) => name) || []
+    );
   }
 
   private mapStatus(status: string): MangaStatus {
@@ -294,7 +323,9 @@ export class MangaDexService {
     if (!coverRel?.id) return null;
 
     try {
-      const coverResponse = await mangadexAxios.get(`${this.baseUrl}/cover/${coverRel.id}`);
+      const coverResponse = await mangadexAxios.get(
+        `${this.baseUrl}/cover/${coverRel.id}`,
+      );
       const fileName = coverResponse.data.data.attributes.fileName;
       return `https://uploads.mangadex.org/covers/${coverRel.manga.id}/${fileName}`;
     } catch (error) {
@@ -321,7 +352,10 @@ export class MangaDexService {
           'translatedLanguage[]': ['it', 'en'], // Filter for Italian and English
         };
 
-        const response = await mangadexAxios.get(`${this.baseUrl}/manga/${mangadexId}/feed`, { params });
+        const response = await mangadexAxios.get(
+          `${this.baseUrl}/manga/${mangadexId}/feed`,
+          { params },
+        );
         const chapterData = response.data.data;
         total = response.data.total;
 
@@ -334,7 +368,9 @@ export class MangaDexService {
           chapter.volume = isNaN(parsedVolume) ? undefined : parsedVolume;
           chapter.pages = chap.attributes.pages || 0;
           chapter.language = chap.attributes.translatedLanguage || 'en';
-          const scanlationGroup = this.extractScanlationGroup(chap.relationships);
+          const scanlationGroup = this.extractScanlationGroup(
+            chap.relationships,
+          );
           if (scanlationGroup) {
             chapter.scanlationGroup = scanlationGroup;
           }
@@ -356,7 +392,9 @@ export class MangaDexService {
   private extractScanlationGroup(relationships: any[]): string | undefined {
     if (!relationships) return undefined;
 
-    const groupRel = relationships.find((rel: any) => rel.type === 'scanlation_group');
+    const groupRel = relationships.find(
+      (rel: any) => rel.type === 'scanlation_group',
+    );
     return groupRel?.attributes?.name;
   }
 }

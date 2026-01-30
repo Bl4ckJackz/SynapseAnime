@@ -19,7 +19,7 @@ import { UpdateProgressDto } from './dto/update-progress.dto';
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) { }
+  constructor(private readonly usersService: UsersService) {}
 
   // --- Profile ---
   @Get('profile')
@@ -106,10 +106,7 @@ export class UsersController {
   }
 
   @Get('progress/*')
-  async getEpisodeProgress(
-    @CurrentUser() user: User,
-    @Param() params: any,
-  ) {
+  async getEpisodeProgress(@CurrentUser() user: User, @Param() params: any) {
     const episodeId = params['0'];
     return this.usersService.getEpisodeProgress(user.id, episodeId);
   }

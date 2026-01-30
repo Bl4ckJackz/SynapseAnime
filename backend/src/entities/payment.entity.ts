@@ -43,6 +43,6 @@ export class Payment {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToOne(() => User, user => user.payments)
+  @ManyToOne(() => User, (user) => user.payments)
   user: User;
 }

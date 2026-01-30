@@ -16,7 +16,7 @@ export class AnimeService {
     private animeRepository: Repository<Anime>,
     @InjectRepository(Episode)
     private episodeRepository: Repository<Episode>,
-  ) { }
+  ) {}
 
   async findAll(filters: AnimeFilters) {
     return this.sourceManager.getActiveSource().getAnimeList(filters);
@@ -32,9 +32,8 @@ export class AnimeService {
         try {
           // You might have a way to search Jikan by title or malId
           // For now, if we have malId, we could use it.
-          // Let's assume for now we trust the provider for the most "on the ground" info 
+          // Let's assume for now we trust the provider for the most "on the ground" info
           // but could backup with more descriptive info if missing.
-
           // If totalEpisodes is 0 or low, and we have another source for it, we could merge.
           // But usually provider is the one with the actual streamable episodes.
         } catch (e) {
@@ -123,7 +122,9 @@ export class AnimeService {
       if (result.data.length > 0) return result.data;
       throw new Error('No items found');
     } catch (error) {
-      console.warn(`[AnimeService] Failed to fetch new releases from active source, falling back to Jikan: ${error.message}`);
+      console.warn(
+        `[AnimeService] Failed to fetch new releases from active source, falling back to Jikan: ${error.message}`,
+      );
       const jikanSource = this.sourceManager.getSource('jikan_api');
       if (jikanSource) {
         const fallback = await jikanSource.getAnimeList({ limit, page });
@@ -141,10 +142,16 @@ export class AnimeService {
       if (result.data.length > 0) return result.data;
       throw new Error('No items found');
     } catch (error) {
-      console.warn(`[AnimeService] Failed to fetch top rated from active source, falling back to Jikan: ${error.message}`);
+      console.warn(
+        `[AnimeService] Failed to fetch top rated from active source, falling back to Jikan: ${error.message}`,
+      );
       const jikanSource = this.sourceManager.getSource('jikan_api');
       if (jikanSource) {
-        const fallback = await jikanSource.getAnimeList({ limit, page, filter });
+        const fallback = await jikanSource.getAnimeList({
+          limit,
+          page,
+          filter,
+        });
         return fallback.data;
       }
       return [];
@@ -169,14 +176,28 @@ export class AnimeService {
   }
 
   async getStreamingSources(animeId: string, episodeNumber: number) {
-    return await this.animeStreamingService.getStreamingSources(animeId, episodeNumber);
+    return await this.animeStreamingService.getStreamingSources(
+      animeId,
+      episodeNumber,
+    );
   }
 
-  async getRecommendedEpisodes(animeId: string, currentEpisode: number, count: number = 3) {
-    return await this.animeStreamingService.getRecommendedEpisodes(animeId, currentEpisode, count);
+  async getRecommendedEpisodes(
+    animeId: string,
+    currentEpisode: number,
+    count: number = 3,
+  ) {
+    return await this.animeStreamingService.getRecommendedEpisodes(
+      animeId,
+      currentEpisode,
+      count,
+    );
   }
 
   async getEpisodeWithFallbackSources(animeId: string, episodeNumber: number) {
-    return await this.animeStreamingService.getEpisodeWithFallbackSources(animeId, episodeNumber);
+    return await this.animeStreamingService.getEpisodeWithFallbackSources(
+      animeId,
+      episodeNumber,
+    );
   }
 }

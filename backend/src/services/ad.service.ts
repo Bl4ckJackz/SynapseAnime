@@ -45,16 +45,26 @@ export class AdService {
     };
   }
 
-  async getEligibleAds(userId: string, adType: string, targetAudience: 'all' | 'free_users' | 'premium_users' = 'all'): Promise<Ad[]> {
+  async getEligibleAds(
+    userId: string,
+    adType: string,
+    targetAudience: 'all' | 'free_users' | 'premium_users' = 'all',
+  ): Promise<Ad[]> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
-    
+
     // If user is premium, don't show ads unless specifically for premium users
-    if (user?.subscriptionTier === 'premium' && targetAudience !== 'premium_users') {
+    if (
+      user?.subscriptionTier === 'premium' &&
+      targetAudience !== 'premium_users'
+    ) {
       return [];
     }
-    
+
     // If user is free but ads are for premium users only, don't show
-    if (user?.subscriptionTier === 'free' && targetAudience === 'premium_users') {
+    if (
+      user?.subscriptionTier === 'free' &&
+      targetAudience === 'premium_users'
+    ) {
       return [];
     }
 
@@ -75,14 +85,19 @@ export class AdService {
     return eligibleAds;
   }
 
-  async trackAdImpression(adId: string, userId: string, sessionId: string, durationWatched?: number): Promise<void> {
+  async trackAdImpression(
+    adId: string,
+    userId: string,
+    sessionId: string,
+    durationWatched?: number,
+  ): Promise<void> {
     const impression = new AdImpression();
     impression.adId = adId;
     impression.userId = userId;
     impression.sessionId = sessionId;
     impression.durationWatched = durationWatched;
     impression.wasClicked = false; // Will be updated separately if clicked
-    
+
     await this.adImpressionRepository.save(impression);
 
     // Update ad statistics
@@ -94,13 +109,17 @@ export class AdService {
   }
 
   async trackAdClick(impressionId: string): Promise<void> {
-    const impression = await this.adImpressionRepository.findOne({ where: { id: impressionId } });
+    const impression = await this.adImpressionRepository.findOne({
+      where: { id: impressionId },
+    });
     if (impression) {
       impression.wasClicked = true;
       await this.adImpressionRepository.save(impression);
 
       // Update ad statistics
-      const ad = await this.adRepository.findOne({ where: { id: impression.adId } });
+      const ad = await this.adRepository.findOne({
+        where: { id: impression.adId },
+      });
       if (ad) {
         ad.clicks += 1;
         ad.ctr = (ad.clicks / ad.impressions) * 100;
@@ -109,11 +128,16 @@ export class AdService {
     }
   }
 
-  async createAd(title: string, content: string, advertiser: string, adType: string, 
-                 targetAudience: 'all' | 'free_users' | 'premium_users', 
-                 targetingCriteria?: any, 
-                 startDate?: Date, 
-                 endDate?: Date): Promise<Ad> {
+  async createAd(
+    title: string,
+    content: string,
+    advertiser: string,
+    adType: string,
+    targetAudience: 'all' | 'free_users' | 'premium_users',
+    targetingCriteria?: any,
+    startDate?: Date,
+    endDate?: Date,
+  ): Promise<Ad> {
     const ad = new Ad();
     ad.title = title;
     ad.content = content;
@@ -124,7 +148,7 @@ export class AdService {
     ad.startDate = startDate || new Date();
     ad.endDate = endDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // Default 30 days
     ad.isActive = true;
-    
+
     return await this.adRepository.save(ad);
   }
 
@@ -134,19 +158,24 @@ export class AdService {
     ctr: number;
     avgDurationWatched?: number;
   }> {
-    const impressions = await this.adImpressionRepository.find({ 
-      where: { adId } 
+    const impressions = await this.adImpressionRepository.find({
+      where: { adId },
     });
-    
+
     const totalImpressions = impressions.length;
-    const totalClicks = impressions.filter(i => i.wasClicked).length;
-    const ctr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
-    
+    const totalClicks = impressions.filter((i) => i.wasClicked).length;
+    const ctr =
+      totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
+
     // Calculate average duration watched for video ads
-    const avgDurationWatched = impressions.length > 0 
-      ? impressions.reduce((sum, imp) => sum + (imp.durationWatched || 0), 0) / impressions.length
-      : undefined;
-    
+    const avgDurationWatched =
+      impressions.length > 0
+        ? impressions.reduce(
+            (sum, imp) => sum + (imp.durationWatched || 0),
+            0,
+          ) / impressions.length
+        : undefined;
+
     return {
       impressions: totalImpressions,
       clicks: totalClicks,
@@ -155,14 +184,21 @@ export class AdService {
     };
   }
 
-  async getRandomAdForUser(userId: string, adType: 'video' | 'banner' | 'native' | 'interstitial', 
-                           targetAudience: 'all' | 'free_users' | 'premium_users' = 'all'): Promise<Ad | null> {
-    const eligibleAds = await this.getEligibleAds(userId, adType, targetAudience);
-    
+  async getRandomAdForUser(
+    userId: string,
+    adType: 'video' | 'banner' | 'native' | 'interstitial',
+    targetAudience: 'all' | 'free_users' | 'premium_users' = 'all',
+  ): Promise<Ad | null> {
+    const eligibleAds = await this.getEligibleAds(
+      userId,
+      adType,
+      targetAudience,
+    );
+
     if (eligibleAds.length === 0) {
       return null;
     }
-    
+
     // Select a random ad from eligible ads
     const randomIndex = Math.floor(Math.random() * eligibleAds.length);
     return eligibleAds[randomIndex];

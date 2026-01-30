@@ -37,7 +37,7 @@ export class JikanSource implements AnimeSource {
             page: filters.page || 1,
             limit: filters.limit || 20,
           });
-          data = Array.isArray(result) ? result : (result['data'] || []);
+          data = Array.isArray(result) ? result : result['data'] || [];
         } else {
           // Map 'airing' filter if needed (default is already airing)
 
@@ -46,7 +46,7 @@ export class JikanSource implements AnimeSource {
             filter: filters.filter as any,
             page: filters.page || 1,
           } as any);
-          data = Array.isArray(result) ? result : (result['data'] || []);
+          data = Array.isArray(result) ? result : result['data'] || [];
         }
       }
 
@@ -114,13 +114,13 @@ export class JikanSource implements AnimeSource {
       // Map day names to Jikan's expected format (lowercase)
       // Note: jikan4.js ScheduleDay type uses 'tursday' (typo in library) for Tuesday
       const dayMap: Record<string, any> = {
-        'monday': 'monday',
-        'tuesday': 'tursday', // Library typo
-        'wednesday': 'wednesday',
-        'thursday': 'thursday',
-        'friday': 'friday',
-        'saturday': 'saturday',
-        'sunday': 'sunday',
+        monday: 'monday',
+        tuesday: 'tursday', // Library typo
+        wednesday: 'wednesday',
+        thursday: 'thursday',
+        friday: 'friday',
+        saturday: 'saturday',
+        sunday: 'sunday',
       };
       const dayFilter = day?.toLowerCase();
 
@@ -128,7 +128,9 @@ export class JikanSource implements AnimeSource {
       let scheduleData: any;
 
       if (dayFilter && dayMap[dayFilter]) {
-        scheduleData = await this.client.schedules.list(dayMap[dayFilter] as any);
+        scheduleData = await this.client.schedules.list(
+          dayMap[dayFilter] as any,
+        );
       } else {
         // Fetch today's schedule by default
         scheduleData = await this.client.schedules.list();
@@ -137,13 +139,15 @@ export class JikanSource implements AnimeSource {
       // Handle both array and object responses
       const data = Array.isArray(scheduleData)
         ? scheduleData
-        : (scheduleData?.data || scheduleData || []);
+        : scheduleData?.data || scheduleData || [];
 
       const animeList = data
         .filter((item: any) => item && (item.mal_id || item.malId || item.id))
         .map((item: any) => this.mapJikanToAnime(item));
 
-      this.logger.log(`Schedule fetched for ${day || 'all days'}: ${animeList.length} anime`);
+      this.logger.log(
+        `Schedule fetched for ${day || 'all days'}: ${animeList.length} anime`,
+      );
 
       return {
         data: animeList,
@@ -175,14 +179,16 @@ export class JikanSource implements AnimeSource {
       anime.title = item.title;
     } else if (item.title && typeof item.title === 'object') {
       // jikan4.js wrapper object structure
-      anime.title = item.title.default || item.title.english || item.title.japanese || '';
+      anime.title =
+        item.title.default || item.title.english || item.title.japanese || '';
     } else if (typeof item.titles === 'object' && Array.isArray(item.titles)) {
       // Raw API returns titles array: [{ type: 'Default', title: 'Name' }, ...]
       const defaultTitle = item.titles.find((t: any) => t.type === 'Default');
       const englishTitle = item.titles.find((t: any) => t.type === 'English');
       anime.title = defaultTitle?.title || englishTitle?.title || '';
     } else {
-      anime.title = item.title_english || item.title_japanese || 'Unknown Title';
+      anime.title =
+        item.title_english || item.title_japanese || 'Unknown Title';
     }
 
     // Map English and Japanese Titles
@@ -199,7 +205,10 @@ export class JikanSource implements AnimeSource {
       anime.titleJapanese = item.title_japanese || '';
     }
 
-    anime.description = typeof item.synopsis === 'string' ? item.synopsis : (item.synopsis?.default || '');
+    anime.description =
+      typeof item.synopsis === 'string'
+        ? item.synopsis
+        : item.synopsis?.default || '';
 
     // Images extraction - jikan4.js returns complex image object
     // Structure: { webp: { default: { href: '...' }, ... }, jpg: { ... } }
@@ -239,15 +248,19 @@ export class JikanSource implements AnimeSource {
 
     // Genres - handle both array of objects and array of strings
     if (Array.isArray(item.genres)) {
-      anime.genres = item.genres.map((g: any) => typeof g === 'string' ? g : (g.name || g.title || ''));
+      anime.genres = item.genres.map((g: any) =>
+        typeof g === 'string' ? g : g.name || g.title || '',
+      );
     } else {
       anime.genres = [];
     }
 
     // Status
-    const statusStr = typeof item.status === 'string'
-      ? item.status
-      : (item.status?.status || (item.airing ? 'Currently Airing' : 'Finished'));
+    const statusStr =
+      typeof item.status === 'string'
+        ? item.status
+        : item.status?.status ||
+          (item.airing ? 'Currently Airing' : 'Finished');
 
     if (statusStr === 'Not yet aired') {
       anime.status = AnimeStatus.UPCOMING;
@@ -265,7 +278,8 @@ export class JikanSource implements AnimeSource {
 
     // Year
     const airedFrom = item.aired?.from || item.airInfo?.airedFrom;
-    anime.releaseYear = item.year || (airedFrom ? new Date(airedFrom).getFullYear() : 0);
+    anime.releaseYear =
+      item.year || (airedFrom ? new Date(airedFrom).getFullYear() : 0);
 
     // Rating and episodes
     anime.rating = typeof item.score === 'number' ? item.score : 0;

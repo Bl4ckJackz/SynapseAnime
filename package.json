@@ -1,0 +1,16 @@
+{
+    "name": "anime-player-root",
+    "version": "1.0.0",
+    "description": "Root for Anime Player project",
+    "scripts": {
+        "postinstall": "npm run install:all",
+        "install:all": "concurrently \"npm install --prefix backend\" \"npm install --prefix consumet-api\" \"npm install --prefix web\"",
+        "dev": "concurrently \"npm run start:dev --prefix backend\" \"npm run start --prefix consumet-api\" \"npm run dev --prefix web\"",
+        "start:backend": "npm run start:dev --prefix backend",
+        "start:consumet": "npm run start --prefix consumet-api",
+        "start:web": "npm run dev --prefix web"
+    },
+    "devDependencies": {
+        "concurrently": "^8.2.2"
+    }
+}
