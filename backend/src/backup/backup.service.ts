@@ -15,7 +15,7 @@ export class BackupService implements OnModuleInit {
     private historyRepo: Repository<WatchHistory>,
     @InjectRepository(User)
     private userRepo: Repository<User>,
-  ) {}
+  ) { }
 
   onModuleInit() {
     // Initialize Firebase only if credentials exist and not already initialized
@@ -45,7 +45,7 @@ export class BackupService implements OnModuleInit {
     try {
       const history = await this.historyRepo.find({
         where: { user: { id: userId } },
-        relations: ['user'],
+        relations: ['user', 'episode'],
       });
 
       if (history.length === 0) return;
@@ -56,15 +56,17 @@ export class BackupService implements OnModuleInit {
 
       // Sync each history item
       for (const item of history) {
+        if (!item.episode) continue;
+
         const docRef = historyCollection.doc(
-          `${item.animeId}_${item.episodeId}`,
+          `${item.episode.animeId}_${item.episodeId}`,
         );
         batch.set(
           docRef,
           {
-            animeId: item.animeId,
+            animeId: item.episode.animeId,
             episodeId: item.episodeId,
-            progress: item.progress,
+            progress: item.progressSeconds,
             completed: item.completed,
             lastUpdated: new Date(),
           },

@@ -21,7 +21,7 @@ export class DefaultDbSource implements AnimeSource {
     private animeRepository: Repository<Anime>,
     @InjectRepository(Episode)
     private episodeRepository: Repository<Episode>,
-  ) {}
+  ) { }
 
   async getAnimeList(filters: AnimeFilters): Promise<PaginatedResult<Anime>> {
     // For now, return mock data to avoid database issues
@@ -54,6 +54,7 @@ export class DefaultDbSource implements AnimeSource {
         episodes: [],
         watchlist: [],
         releaseSchedules: [],
+        duration: '24 min',
       },
       {
         id: '2',
@@ -84,6 +85,7 @@ export class DefaultDbSource implements AnimeSource {
         episodes: [],
         watchlist: [],
         releaseSchedules: [],
+        duration: '24 min',
       },
       {
         id: '3',
@@ -113,6 +115,7 @@ export class DefaultDbSource implements AnimeSource {
         episodes: [],
         watchlist: [],
         releaseSchedules: [],
+        duration: '24 min',
       },
       {
         id: '4',
@@ -141,6 +144,7 @@ export class DefaultDbSource implements AnimeSource {
         episodes: [],
         watchlist: [],
         releaseSchedules: [],
+        duration: '24 min',
       },
       {
         id: '5',
@@ -170,6 +174,7 @@ export class DefaultDbSource implements AnimeSource {
         episodes: [],
         watchlist: [],
         releaseSchedules: [],
+        duration: '24 min',
       },
     ];
 

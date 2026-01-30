@@ -11,13 +11,13 @@ class CrystalizeChartWidget extends StatelessWidget {
   final Color? color;
 
   const CrystalizeChartWidget({
-    Key? key,
+    super.key,
     required this.data,
     required this.xField,
     required this.yField,
     this.chartType = 'bar', // bar, line, scatter, pie
     this.color,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -66,11 +66,11 @@ class CrystalizeComplexChart extends StatelessWidget {
   final String chartType;
 
   const CrystalizeComplexChart({
-    Key? key,
+    super.key,
     required this.data,
     required this.fields,
     this.chartType = 'multi',
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

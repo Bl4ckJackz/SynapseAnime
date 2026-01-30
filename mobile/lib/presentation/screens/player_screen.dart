@@ -58,10 +58,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       // Get episodes from provider state (preserves loaded pages)
       final episodesAsync = ref.read(animeEpisodesProvider(widget.animeId));
       var episodesList = episodesAsync.valueOrNull ?? [];
-      
+
       if (episodesList.isEmpty) {
-         // Fallback fetch if provider is empty - fetch ALL episodes
-         episodesList = await animeRepository.getAllEpisodes(widget.animeId);
+        // Fallback fetch if provider is empty - fetch ALL episodes
+        episodesList = await animeRepository.getAllEpisodes(widget.animeId);
       }
       Episode? episode;
       try {
@@ -75,17 +75,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       }
 
       // If not in list, try to fetch it or create a placeholder
-      if (episode == null) {
-        episode = Episode(
-          id: widget.episodeId,
-          animeId: widget.animeId,
-          number: 1,
-          title: 'Episode',
-          duration: 0,
-          thumbnail: null,
-          streamUrl: '',
-        );
-      }
+      episode ??= Episode(
+        id: widget.episodeId,
+        animeId: widget.animeId,
+        number: 1,
+        title: 'Episode',
+        duration: 0,
+        thumbnail: null,
+        streamUrl: '',
+      );
 
       var currentEpisode = episode;
 

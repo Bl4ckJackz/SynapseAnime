@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 class HeroBanner extends StatefulWidget {
-  const HeroBanner({Key? key}) : super(key: key);
+  const HeroBanner({super.key});
 
   @override
   State<HeroBanner> createState() => _HeroBannerState();
@@ -10,7 +10,7 @@ class HeroBanner extends StatefulWidget {
 
 class _HeroBannerState extends State<HeroBanner> {
   int _currentBanner = 0;
-  
+
   final List<String> _banners = [
     'assets/images/banner1.jpg',
     'assets/images/banner2.jpg',
@@ -57,17 +57,21 @@ class _HeroBannerState extends State<HeroBanner> {
                       children: [
                         Text(
                           'Featured Anime Title ${index + 1}',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineSmall
+                              ?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'Season 2 • 2023 • Action, Adventure',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey[300],
-                          ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Colors.grey[300],
+                                  ),
                         ),
                         const SizedBox(height: 16),
                         Row(

@@ -7,15 +7,15 @@ class RiveAnimationWidget extends StatelessWidget {
   final double height;
 
   const RiveAnimationWidget({
-    Key? key,
+    super.key,
     required this.animationName,
     this.width = 200,
     this.height = 200,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: width,
       height: height,
       child: RiveAnimation.asset(
@@ -35,13 +35,13 @@ class RiveAnimatedButton extends StatefulWidget {
   final double height;
 
   const RiveAnimatedButton({
-    Key? key,
+    super.key,
     required this.animationName,
     required this.onPressed,
     required this.label,
     this.width = 200,
     this.height = 60,
-  }) : super(key: key);
+  });
 
   @override
   _RiveAnimatedButtonState createState() => _RiveAnimatedButtonState();

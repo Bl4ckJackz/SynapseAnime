@@ -17,11 +17,11 @@ class ContentRow extends StatelessWidget {
   final String? genre;
 
   const ContentRow({
-    Key? key,
+    super.key,
     required this.title,
     required this.contentType,
     this.genre,
-  }) : super(key: key);
+  });
 
   List<ContentItem> _getContentItems() {
     // This would normally fetch from the provider based on content type
@@ -31,9 +31,14 @@ class ContentRow extends StatelessWidget {
         id: 'item_$index',
         title: '$title Item ${index + 1}',
         imageUrl: 'https://placehold.co/300x450?text=${title[0]}${index + 1}',
-        type: index % 3 == 0 ? ContentType.continueWatching : 
-              index % 3 == 1 ? ContentType.trending : ContentType.newReleases,
-        progress: index % 3 == 0 ? 0.6 : 0.0, // Simulate progress for continue watching
+        type: index % 3 == 0
+            ? ContentType.continueWatching
+            : index % 3 == 1
+                ? ContentType.trending
+                : ContentType.newReleases,
+        progress: index % 3 == 0
+            ? 0.6
+            : 0.0, // Simulate progress for continue watching
         rating: 8.0 + (index % 3),
         year: 2020 + (index % 4),
       );
@@ -50,9 +55,9 @@ class ContentRow extends StatelessWidget {
           child: Text(
             title,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
           ),
         ),
         const SizedBox(height: 8),

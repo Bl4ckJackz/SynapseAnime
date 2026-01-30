@@ -58,7 +58,9 @@ class _MangaReaderScreenState extends ConsumerState<MangaReaderScreen> {
   Future<void> _loadNextChapter() async {
     if (_allChapters.isEmpty ||
         _currentChapter == null ||
-        _isLoadingNextChapter) return;
+        _isLoadingNextChapter) {
+      return;
+    }
 
     final currentIndex =
         _allChapters.indexWhere((c) => c.id == _currentChapter!.id);

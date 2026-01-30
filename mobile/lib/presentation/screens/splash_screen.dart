@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/router.dart';
 import '../../core/theme.dart';
 import '../../domain/providers/auth_provider.dart';
 
@@ -22,12 +21,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   Future<void> _checkAuth() async {
     // Artificial delay for splash animation
     await Future.delayed(const Duration(seconds: 2));
-    
+
     if (!mounted) return;
 
     // Check if user is authenticated by checking the auth state
     final authState = ref.read(authServiceProvider);
-    
+
     if (mounted) {
       // If we have user data in state, go to home, otherwise login
       authState.maybeWhen(

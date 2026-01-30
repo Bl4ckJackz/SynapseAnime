@@ -21,13 +21,14 @@ class ShareAnimeSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final shareText = 'Guarda questo anime: $animeTitle\n\n$description\n\nhttps://anime-player.app/anime/$animeId';
+    final shareText =
+        'Guarda questo anime: $animeTitle\n\n$description\n\nhttps://anime-player.app/anime/$animeId';
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppTheme.cardColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -42,13 +43,13 @@ class ShareAnimeSheet extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           Text(
             'Condividi $animeTitle',
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 24),
-          
+
           // Share options
           Wrap(
             spacing: 16,
@@ -58,7 +59,8 @@ class ShareAnimeSheet extends ConsumerWidget {
                 icon: Icons.share,
                 label: 'Tutti',
                 onTap: () async {
-                  await Share.share(shareText, subject: 'Condividi questo anime');
+                  await Share.share(shareText,
+                      subject: 'Condividi questo anime');
                   if (context.mounted) Navigator.pop(context);
                 },
               ),
@@ -85,7 +87,8 @@ class ShareAnimeSheet extends ConsumerWidget {
                   if (await canLaunchUrl(emailLaunchUri)) {
                     await launchUrl(emailLaunchUri);
                   } else {
-                    await Share.share(shareText, subject: 'Guarda questo anime: $animeTitle');
+                    await Share.share(shareText,
+                        subject: 'Guarda questo anime: $animeTitle');
                   }
                   if (context.mounted) Navigator.pop(context);
                 },
@@ -94,10 +97,12 @@ class ShareAnimeSheet extends ConsumerWidget {
                 icon: Icons.copy,
                 label: 'Copia Link',
                 onTap: () async {
-                  await Clipboard.setData(ClipboardData(text: 'https://anime-player.app/anime/$animeId'));
+                  await Clipboard.setData(ClipboardData(
+                      text: 'https://anime-player.app/anime/$animeId'));
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Link copiato negli appunti')),
+                      const SnackBar(
+                          content: Text('Link copiato negli appunti')),
                     );
                     Navigator.pop(context);
                   }
@@ -106,14 +111,14 @@ class ShareAnimeSheet extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 16),
-          
+
           // Close button
           SizedBox(
             width: double.infinity,
             child: OutlinedButton(
               onPressed: () => Navigator.pop(context),
               style: OutlinedButton.styleFrom(
-                side: BorderSide(color: AppTheme.textMuted),
+                side: const BorderSide(color: AppTheme.textMuted),
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
               child: const Text('Chiudi'),

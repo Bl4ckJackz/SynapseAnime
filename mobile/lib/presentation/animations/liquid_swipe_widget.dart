@@ -9,13 +9,13 @@ class LiquidSwipeWidget extends StatelessWidget {
   final Duration slideFactor;
 
   const LiquidSwipeWidget({
-    Key? key,
+    super.key,
     required this.pages,
     this.initialPage = 0,
     this.backgroundColor,
     this.fullSlide = true,
     this.slideFactor = const Duration(milliseconds: 500),
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -38,12 +38,12 @@ class LiquidSwipePage extends StatelessWidget {
   final IconData icon;
 
   const LiquidSwipePage({
-    Key? key,
+    super.key,
     required this.title,
     required this.description,
     required this.backgroundColor,
     required this.icon,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +70,7 @@ class LiquidSwipePage extends StatelessWidget {
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 30,
-                fontFamily: "Billy",
+                fontFamily: 'Billy',
                 fontWeight: FontWeight.w600,
                 color: Colors.white,
               ),
@@ -81,7 +81,7 @@ class LiquidSwipePage extends StatelessWidget {
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 16,
-                fontFamily: "Billy",
+                fontFamily: 'Billy',
                 fontWeight: FontWeight.w300,
                 color: Colors.white,
               ),

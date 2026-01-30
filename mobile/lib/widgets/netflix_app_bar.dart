@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 class NetflixAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const NetflixAppBar({Key? key}) : super(key: key);
+  const NetflixAppBar({super.key});
 
   @override
   Size get preferredSize => const Size.fromHeight(56.0);
@@ -32,7 +32,7 @@ class NetflixAppBar extends StatelessWidget implements PreferredSizeWidget {
             fit: BoxFit.contain,
           ),
           const Spacer(),
-          
+
           // Navigation icons
           IconButton(
             icon: const Icon(Icons.search, color: Colors.white),
@@ -48,12 +48,12 @@ class NetflixAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
           Container(
             margin: const EdgeInsets.only(left: 8.0),
-            child: CircleAvatar(
+            child: const CircleAvatar(
               radius: 16,
               backgroundImage: NetworkImage(
                 'https://example.com/user-avatar.jpg', // Placeholder for user avatar
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.person,
                 color: Colors.white,
                 size: 20,

@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme.dart';
 
 class ExternalStreamScreen extends ConsumerStatefulWidget {
   const ExternalStreamScreen({super.key});
 
   @override
-  ConsumerState<ExternalStreamScreen> createState() => _ExternalStreamScreenState();
+  ConsumerState<ExternalStreamScreen> createState() =>
+      _ExternalStreamScreenState();
 }
 
 class _ExternalStreamScreenState extends ConsumerState<ExternalStreamScreen> {
@@ -119,9 +119,9 @@ class _ExternalStreamScreenState extends ConsumerState<ExternalStreamScreen> {
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Error message
             if (_error != null)
               Container(
@@ -150,9 +150,9 @@ class _ExternalStreamScreenState extends ConsumerState<ExternalStreamScreen> {
                   ],
                 ),
               ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Video player
             if (_controller != null && _controller!.value.isInitialized)
               Expanded(

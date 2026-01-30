@@ -229,8 +229,9 @@ class _MangaDexResults extends ConsumerWidget {
 
     return asyncValue.when(
       data: (mangaList) {
-        if (mangaList.isEmpty)
+        if (mangaList.isEmpty) {
           return const Center(child: Text('Nessun risultato su MangaDex'));
+        }
         return _buildGrid(mangaList, (manga) => MangaCard(manga: manga));
       },
       loading: () => const Center(child: CircularProgressIndicator()),

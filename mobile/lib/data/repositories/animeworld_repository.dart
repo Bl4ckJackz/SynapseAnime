@@ -204,7 +204,7 @@ class AnimeWorldRepository {
   Anime _parseAnimeFromAnimeWorld(dynamic item) {
     // Ensure item is a Map before accessing its properties
     if (item is! Map<String, dynamic>) {
-      return Anime(
+      return const Anime(
         id: '',
         title: 'Unknown Title',
         description: '',
@@ -244,7 +244,7 @@ class AnimeWorldRepository {
   Anime _parseDetailedAnimeFromAnimeWorld(dynamic item) {
     // Ensure item is a Map before accessing its properties
     if (item is! Map<String, dynamic>) {
-      return Anime(
+      return const Anime(
         id: '',
         title: 'Unknown Title',
         description: '',

@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 class SubscriptionScreen extends StatelessWidget {
-  const SubscriptionScreen({Key? key}) : super(key: key);
+  const SubscriptionScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +37,7 @@ class SubscriptionScreen extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
-            
+
             // Free Plan
             Container(
               decoration: BoxDecoration(
@@ -69,7 +69,8 @@ class SubscriptionScreen extends StatelessWidget {
                     _buildFeature(Icons.clear, '720p max quality', false),
                     _buildFeature(Icons.clear, 'Ads included', false),
                     _buildFeature(Icons.clear, '1 screen at a time', false),
-                    _buildFeature(Icons.clear, 'Download to watch offline', false),
+                    _buildFeature(
+                        Icons.clear, 'Download to watch offline', false),
                     const SizedBox(height: 16),
                     Opacity(
                       opacity: 0.5,
@@ -86,9 +87,9 @@ class SubscriptionScreen extends StatelessWidget {
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Premium Plan
             Container(
               decoration: BoxDecoration(
@@ -152,9 +153,12 @@ class SubscriptionScreen extends StatelessWidget {
                     const SizedBox(height: 16),
                     _buildFeature(Icons.check, 'Up to 1080p quality', true),
                     _buildFeature(Icons.check, 'No ads, ever', true),
-                    _buildFeature(Icons.check, 'Watch on 4 screens at once', true),
-                    _buildFeature(Icons.check, 'Download to watch offline', true),
-                    _buildFeature(Icons.check, 'Access to exclusive content', true),
+                    _buildFeature(
+                        Icons.check, 'Watch on 4 screens at once', true),
+                    _buildFeature(
+                        Icons.check, 'Download to watch offline', true),
+                    _buildFeature(
+                        Icons.check, 'Access to exclusive content', true),
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: () {
@@ -181,9 +185,9 @@ class SubscriptionScreen extends StatelessWidget {
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             const Text(
               'Frequently Asked Questions',
               style: TextStyle(
@@ -193,7 +197,7 @@ class SubscriptionScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            
+
             _buildFAQItem(
               'What is the difference between Basic and Premium?',
               'Premium members can watch in 1080p, download content for offline viewing, and enjoy the experience without interruptions from ads.',

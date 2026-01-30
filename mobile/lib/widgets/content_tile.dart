@@ -6,9 +6,9 @@ class ContentTile extends StatelessWidget {
   final ContentItem contentItem;
 
   const ContentTile({
-    Key? key,
+    super.key,
     required this.contentItem,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

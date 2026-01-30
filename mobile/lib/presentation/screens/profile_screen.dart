@@ -51,7 +51,7 @@ class ProfileScreen extends ConsumerWidget {
                   CircleAvatar(
                     radius: 40,
                     backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
-                    child: Icon(
+                    child: const Icon(
                       Icons.person,
                       size: 40,
                       color: AppTheme.primaryColor,
@@ -64,16 +64,20 @@ class ProfileScreen extends ConsumerWidget {
                       children: [
                         Text(
                           user.nickname ?? user.email,
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineSmall
+                              ?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           user.email,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Colors.grey.shade400,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Colors.grey.shade400,
+                                  ),
                         ),
                       ],
                     ),
@@ -82,9 +86,9 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Edit profile button
           SizedBox(
             width: double.infinity,
@@ -102,9 +106,9 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Preferences section
           Card(
             color: AppTheme.cardColor,
@@ -120,14 +124,14 @@ class ProfileScreen extends ConsumerWidget {
                         ),
                   ),
                   const SizedBox(height: 16),
-                  if (user.preference?.preferredGenres != null && 
+                  if (user.preference?.preferredGenres != null &&
                       user.preference!.preferredGenres.isNotEmpty)
                     _buildPreferenceSection(
                       context,
                       'Generi Preferiti',
                       user.preference!.preferredGenres.join(', '),
                     ),
-                  if (user.preference?.preferredLanguages != null && 
+                  if (user.preference?.preferredLanguages != null &&
                       user.preference!.preferredLanguages.isNotEmpty)
                     _buildPreferenceSection(
                       context,
@@ -138,9 +142,9 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Stats section
           Card(
             color: AppTheme.cardColor,
@@ -168,7 +172,8 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildPreferenceSection(BuildContext context, String title, String value) {
+  Widget _buildPreferenceSection(
+      BuildContext context, String title, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: Column(

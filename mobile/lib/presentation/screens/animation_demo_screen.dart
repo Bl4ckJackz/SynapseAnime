@@ -5,7 +5,7 @@ import '../animations/liquid_swipe_widget.dart';
 import '../animations/crystalize_chart_widget.dart';
 
 class AnimationDemoScreen extends StatelessWidget {
-  const AnimationDemoScreen({Key? key}) : super(key: key);
+  const AnimationDemoScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -21,26 +21,26 @@ class AnimationDemoScreen extends StatelessWidget {
     // Pages for liquid swipe
     final liquidPages = [
       LiquidSwipePage(
-        title: "Welcome",
-        description: "Experience amazing animations in our app",
+        title: 'Welcome',
+        description: 'Experience amazing animations in our app',
         backgroundColor: Colors.blue.shade600,
         icon: Icons.animation,
       ),
       LiquidSwipePage(
-        title: "Rive Animations",
-        description: "Smooth vector animations powered by Rive",
+        title: 'Rive Animations',
+        description: 'Smooth vector animations powered by Rive',
         backgroundColor: Colors.green.shade600,
         icon: Icons.animation_outlined,
       ),
       LiquidSwipePage(
-        title: "Lottie Animations",
-        description: "Beautiful vector animations with Lottie",
+        title: 'Lottie Animations',
+        description: 'Beautiful vector animations with Lottie',
         backgroundColor: Colors.orange.shade600,
         icon: Icons.movie_creation,
       ),
       LiquidSwipePage(
-        title: "Data Visualization",
-        description: "Crystal clear data visualization",
+        title: 'Data Visualization',
+        description: 'Crystal clear data visualization',
         backgroundColor: Colors.purple.shade600,
         icon: Icons.bar_chart,
       ),

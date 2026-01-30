@@ -64,7 +64,7 @@ class _EmptyDownloadsView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
+          const Icon(
             Icons.download_outlined,
             size: 80,
             color: AppTheme.textMuted,
@@ -158,9 +158,10 @@ class _DownloadedEpisodeCard extends StatelessWidget {
                       if (episode.progress < 100)
                         Text(
                           '${episode.progress}%',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppTheme.warningColor,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppTheme.warningColor,
+                                  ),
                         ),
                     ],
                   ),

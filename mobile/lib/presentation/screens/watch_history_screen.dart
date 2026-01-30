@@ -16,7 +16,8 @@ class WatchHistoryScreen extends ConsumerWidget {
         anime: const Anime(
           id: 'a1',
           title: 'Attack on Titan',
-          description: 'Humanity fights for survival against giant humanoid Titans.',
+          description:
+              'Humanity fights for survival against giant humanoid Titans.',
           coverUrl: '',
           genres: ['Action', 'Drama'],
           status: AnimeStatus.completed,
@@ -41,7 +42,8 @@ class WatchHistoryScreen extends ConsumerWidget {
         anime: const Anime(
           id: 'a2',
           title: 'Demon Slayer',
-          description: 'A boy becomes a demon slayer to avenge his family and cure his sister.',
+          description:
+              'A boy becomes a demon slayer to avenge his family and cure his sister.',
           coverUrl: '',
           genres: ['Action', 'Fantasy'],
           status: AnimeStatus.ongoing,
@@ -66,7 +68,8 @@ class WatchHistoryScreen extends ConsumerWidget {
         anime: const Anime(
           id: 'a3',
           title: 'One Piece',
-          description: 'Follow the adventures of Monkey D. Luffy and his pirate crew.',
+          description:
+              'Follow the adventures of Monkey D. Luffy and his pirate crew.',
           coverUrl: '',
           genres: ['Adventure', 'Comedy'],
           status: AnimeStatus.ongoing,
@@ -115,7 +118,7 @@ class _EmptyHistoryView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
+          const Icon(
             Icons.history,
             size: 80,
             color: AppTheme.textMuted,

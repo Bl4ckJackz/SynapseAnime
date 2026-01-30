@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import '../../domain/entities/chat_message.dart';
-import '../../domain/entities/anime.dart';
 import 'anime_card.dart';
 
 class ChatBubble extends StatelessWidget {
@@ -12,8 +11,8 @@ class ChatBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = message.isUser;
-    final hasRecommendations = message.recommendations != null &&
-        message.recommendations!.isNotEmpty;
+    final hasRecommendations =
+        message.recommendations != null && message.recommendations!.isNotEmpty;
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -29,9 +28,7 @@ class ChatBubble extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isUser
-                    ? AppTheme.primaryColor
-                    : AppTheme.surfaceColor,
+                color: isUser ? AppTheme.primaryColor : AppTheme.surfaceColor,
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(16),
                   topRight: const Radius.circular(16),

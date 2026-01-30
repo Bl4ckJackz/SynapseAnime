@@ -9,13 +9,13 @@ class LottieAnimationWidget extends StatelessWidget {
   final bool reverse;
 
   const LottieAnimationWidget({
-    Key? key,
+    super.key,
     required this.animationPath,
     this.width = 200,
     this.height = 200,
     this.repeat = true,
     this.reverse = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -37,11 +37,11 @@ class SplashScreenLottie extends StatelessWidget {
   final double logoSize;
 
   const SplashScreenLottie({
-    Key? key,
+    super.key,
     required this.animationPath,
     required this.title,
     this.logoSize = 150,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -60,8 +60,8 @@ class SplashScreenLottie extends StatelessWidget {
             Text(
               title,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: Colors.white,
-              ),
+                    color: Colors.white,
+                  ),
             ),
           ],
         ),

@@ -7,10 +7,10 @@ class AnimatedBottomNavBar extends ConsumerWidget {
   final Function(int) onTap;
 
   const AnimatedBottomNavBar({
-    Key? key,
+    super.key,
     required this.currentIndex,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

@@ -10,11 +10,11 @@ class VideoPlayerScreen extends StatefulWidget {
   final bool isPremiumUser;
 
   const VideoPlayerScreen({
-    Key? key,
+    super.key,
     required this.videoUrl,
     required this.title,
     required this.isPremiumUser,
-  }) : super(key: key);
+  });
 
   @override
   State<VideoPlayerScreen> createState() => _VideoPlayerScreenState();
@@ -158,8 +158,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                 _controller.pause();
                               } else {
                                 // Check if we need to play an ad
-                                if (!widget.isPremiumUser && 
-                                    _controller.value.position.inMinutes % 10 == 0 && 
+                                if (!widget.isPremiumUser &&
+                                    _controller.value.position.inMinutes % 10 ==
+                                        0 &&
                                     _controller.value.position.inSeconds > 0) {
                                   _controller.pause();
                                   _playAd();
@@ -170,7 +171,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                               _startHideTimer();
                             },
                           ),
-                          
                           IconButton(
                             icon: const Icon(
                               Icons.skip_previous,
@@ -182,7 +182,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                               _startHideTimer();
                             },
                           ),
-                          
                           IconButton(
                             icon: const Icon(
                               Icons.skip_next,
@@ -194,7 +193,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                               _startHideTimer();
                             },
                           ),
-                          
                           PopupMenuButton<String>(
                             icon: const Icon(
                               Icons.hd,
@@ -221,19 +219,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                               ),
                               PopupMenuItem<String>(
                                 value: '1080p',
+                                enabled: widget.isPremiumUser,
                                 child: Text(
                                   '1080p',
                                   style: TextStyle(
-                                    color: widget.isPremiumUser 
-                                        ? Colors.white 
+                                    color: widget.isPremiumUser
+                                        ? Colors.white
                                         : Colors.grey,
                                   ),
                                 ),
-                                enabled: widget.isPremiumUser,
                               ),
                             ],
                           ),
-                          
                           IconButton(
                             icon: Icon(
                               _isFullscreen

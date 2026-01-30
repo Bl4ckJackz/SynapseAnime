@@ -5,7 +5,7 @@ import '../widgets/content_row.dart';
 import '../widgets/hero_banner.dart';
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -21,64 +21,64 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   // Hero banner with featured anime
                   const HeroBanner(),
-                  
+
                   const SizedBox(height: 20),
-                  
+
                   // Continue watching row
-                  ContentRow(
-                    title: "Continue Watching",
+                  const ContentRow(
+                    title: 'Continue Watching',
                     contentType: ContentType.continueWatching,
                   ),
-                  
+
                   const SizedBox(height: 20),
-                  
+
                   // Trending now
-                  ContentRow(
-                    title: "Trending Now",
+                  const ContentRow(
+                    title: 'Trending Now',
                     contentType: ContentType.trending,
                   ),
-                  
+
                   const SizedBox(height: 20),
-                  
+
                   // Top picks for you
-                  ContentRow(
-                    title: "Top Picks For You",
+                  const ContentRow(
+                    title: 'Top Picks For You',
                     contentType: ContentType.topPicks,
                   ),
-                  
+
                   const SizedBox(height: 20),
-                  
+
                   // New releases
-                  ContentRow(
-                    title: "New Releases",
+                  const ContentRow(
+                    title: 'New Releases',
                     contentType: ContentType.newReleases,
                   ),
-                  
+
                   const SizedBox(height: 20),
-                  
+
                   // Anime by genre
-                  ContentRow(
-                    title: "Action",
+                  const ContentRow(
+                    title: 'Action',
                     contentType: ContentType.genre,
-                    genre: "action",
+                    genre: 'action',
                   ),
-                  
+
                   const SizedBox(height: 20),
-                  
-                  ContentRow(
-                    title: "Comedy",
+
+                  const ContentRow(
+                    title: 'Comedy',
                     contentType: ContentType.genre,
-                    genre: "comedy",
+                    genre: 'comedy',
                   ),
-                  
+
                   const SizedBox(height: 20),
-                  
-                  ContentRow(
-                    title: "Drama",
+
+                  const ContentRow(
+                    title: 'Drama',
                     contentType: ContentType.genre,
-                    genre: "drama",
+                    genre: 'drama',
                   ),
-                  
+
                   const SizedBox(height: 20),
                 ],
               ),
