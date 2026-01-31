@@ -128,9 +128,7 @@ export class JikanSource implements AnimeSource {
       let scheduleData: any;
 
       if (dayFilter && dayMap[dayFilter]) {
-        scheduleData = await this.client.schedules.list(
-          dayMap[dayFilter] as any,
-        );
+        scheduleData = await this.client.schedules.list(dayMap[dayFilter]);
       } else {
         // Fetch today's schedule by default
         scheduleData = await this.client.schedules.list();

@@ -15,7 +15,7 @@ export class BackupService implements OnModuleInit {
     private historyRepo: Repository<WatchHistory>,
     @InjectRepository(User)
     private userRepo: Repository<User>,
-  ) { }
+  ) {}
 
   onModuleInit() {
     // Initialize Firebase only if credentials exist and not already initialized

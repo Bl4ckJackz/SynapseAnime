@@ -21,7 +21,7 @@ export class DefaultDbSource implements AnimeSource {
     private animeRepository: Repository<Anime>,
     @InjectRepository(Episode)
     private episodeRepository: Repository<Episode>,
-  ) { }
+  ) {}
 
   async getAnimeList(filters: AnimeFilters): Promise<PaginatedResult<Anime>> {
     // For now, return mock data to avoid database issues

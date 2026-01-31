@@ -261,7 +261,7 @@ export class JikanAnimeService {
     maxRetries: number = 3,
   ): Promise<T> {
     return this.circuitBreaker.execute(this.serviceName, async () => {
-      let lastError: Error | null = null;
+      const lastError: Error | null = null;
 
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {

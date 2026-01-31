@@ -24,7 +24,7 @@ export class AnimeService {
 
   async findById(id: string): Promise<Anime | null> {
     const source = this.sourceManager.getActiveSource();
-    let anime = await source.getAnimeById(id);
+    const anime = await source.getAnimeById(id);
 
     if (anime) {
       // If it's an external provider (not DB), try to enrichment with Jikan if possible

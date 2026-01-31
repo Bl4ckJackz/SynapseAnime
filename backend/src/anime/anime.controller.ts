@@ -28,12 +28,12 @@ export class AnimeController {
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 20,
     };
-    return this.animeService.findAll(filters);
+    return await this.animeService.findAll(filters);
   }
 
   @Get('genres')
   async getGenres() {
-    return this.animeService.getGenres();
+    return await this.animeService.getGenres();
   }
 
   @Get('new-releases')
@@ -41,7 +41,7 @@ export class AnimeController {
     @Query('limit') limit?: string,
     @Query('page') page?: string,
   ) {
-    return this.animeService.getNewReleases(
+    return await this.animeService.getNewReleases(
       limit ? parseInt(limit, 10) : 10,
       page ? parseInt(page, 10) : 1,
     );
@@ -53,7 +53,7 @@ export class AnimeController {
     @Query('page') page?: string,
     @Query('filter') filter?: string,
   ) {
-    return this.animeService.getTopRated(
+    return await this.animeService.getTopRated(
       limit ? parseInt(limit, 10) : 10,
       page ? parseInt(page, 10) : 1,
       filter,
@@ -61,12 +61,12 @@ export class AnimeController {
   }
 
   @Get('sources')
-  async getSources() {
+  getSources() {
     return this.animeService.getAvailableSources();
   }
 
   @Post('sources/:id/activate')
-  async setActiveSource(@Param('id') id: string) {
+  setActiveSource(@Param('id') id: string) {
     this.animeService.setActiveSource(id);
     return { success: true, activeSource: id };
   }
@@ -82,6 +82,6 @@ export class AnimeController {
 
   @Get(':id/episodes')
   async findEpisodes(@Param('id') id: string) {
-    return this.animeService.findEpisodes(id);
+    return await this.animeService.findEpisodes(id);
   }
 }
