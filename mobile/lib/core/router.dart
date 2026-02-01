@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 
 import '../presentation/screens/splash_screen.dart';
-import '../presentation/screens/login_screen.dart';
-import '../presentation/screens/register_screen.dart';
+import '../presentation/screens/auth_screen.dart';
 import '../presentation/screens/anime_detail_screen.dart';
 import '../presentation/screens/player_screen.dart';
 import '../presentation/screens/chat_screen.dart';
@@ -18,6 +18,7 @@ import '../presentation/screens/manga_detail_screen.dart';
 import '../presentation/screens/manga_reader_screen.dart';
 import '../presentation/screens/source_selection_screen.dart';
 import '../presentation/screens/calendar_screen.dart';
+import 'constants.dart';
 
 // Route names
 class AppRoutes {
@@ -33,6 +34,10 @@ class AppRoutes {
   static const mangaReader = '/manga/:mangaId/chapter/:chapterId';
   static const sourceSelection = '/source-selection';
   static const calendar = '/calendar';
+  static const intro = '/intro';
+
+  // Routes that don't require authentication
+  static const publicRoutes = ['/', '/login', '/register', '/intro'];
 }
 
 // Route provider
@@ -40,8 +45,23 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: true,
-    redirect: (context, state) {
-      // Can add auth redirect logic here
+    redirect: (context, state) async {
+      final currentPath = state.matchedLocation;
+
+      // Allow access to public routes
+      if (AppRoutes.publicRoutes.contains(currentPath)) {
+        return null;
+      }
+
+      // Check if user has a valid token
+      const storage = FlutterSecureStorage();
+      final token = await storage.read(key: AppConstants.accessTokenKey);
+
+      // If no token, redirect to login
+      if (token == null || token.isEmpty) {
+        return AppRoutes.login;
+      }
+
       return null;
     },
     routes: [
@@ -53,12 +73,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.login,
         name: 'login',
-        builder: (context, state) => const LoginScreen(),
+        // Start at Login page (index 4 in AuthScreen)
+        builder: (context, state) => const AuthScreen(initialPage: 4),
       ),
       GoRoute(
         path: AppRoutes.register,
         name: 'register',
-        builder: (context, state) => const RegisterScreen(),
+        // Start at Register page (index 5 in AuthScreen)
+        builder: (context, state) => const AuthScreen(initialPage: 5),
+      ),
+      GoRoute(
+        path: AppRoutes.intro,
+        name: 'intro',
+        builder: (context, state) => const AuthScreen(initialPage: 0),
       ),
       GoRoute(
         path: AppRoutes.home,

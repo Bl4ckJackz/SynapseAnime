@@ -6,11 +6,17 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthRepository {
   final ApiClient _apiClient;
-  final GoogleSignIn _googleSignIn;
+  GoogleSignIn? _googleSignIn;
 
-  AuthRepository(this._apiClient) : _googleSignIn = GoogleSignIn(
-    scopes: ['email', 'profile'],
-  );
+  AuthRepository(this._apiClient);
+
+  /// Lazy initialization of GoogleSignIn to prevent web startup errors
+  GoogleSignIn get googleSignIn {
+    _googleSignIn ??= GoogleSignIn(
+      scopes: ['email', 'profile'],
+    );
+    return _googleSignIn!;
+  }
 
   Future<User> login(String email, String password) async {
     try {
@@ -38,7 +44,7 @@ class AuthRepository {
 
   Future<User> loginWithGoogle() async {
     try {
-      final googleUser = await _googleSignIn.signIn();
+      final googleUser = await googleSignIn.signIn();
       if (googleUser == null) {
         throw Exception('Google Sign In aborted');
       }
@@ -73,7 +79,7 @@ class AuthRepository {
   Future<void> logout() async {
     await _apiClient.clearToken();
     try {
-        await _googleSignIn.signOut();
+      await _googleSignIn?.signOut();
     } catch (_) {}
   }
 

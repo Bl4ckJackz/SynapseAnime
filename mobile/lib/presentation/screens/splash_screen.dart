@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme.dart';
 import '../../domain/providers/auth_provider.dart';
 
@@ -24,23 +25,31 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
     if (!mounted) return;
 
-    // Check if user is authenticated by checking the auth state
-    final authState = ref.read(authServiceProvider);
+    // Check if there's a valid stored token
+    final authService = ref.read(authServiceProvider.notifier);
+    final isAuthenticated = await authService.checkStoredToken();
 
-    if (mounted) {
-      // If we have user data in state, go to home, otherwise login
-      authState.maybeWhen(
-        data: (user) {
-          if (user != null && mounted) {
-            context.goNamed('home');
-          } else if (mounted) {
-            context.goNamed('login');
-          }
-        },
-        orElse: () {
-          if (mounted) context.goNamed('login');
-        },
-      );
+    if (!mounted) return;
+
+    if (isAuthenticated) {
+      context.goNamed('home');
+    } else {
+      // Check onboarding status
+      // For now, let's just go to 'intro' which we will define,
+      // or we can use 'login' but we want to start at page 0 if not onboarded.
+      // Let's assume we want to force onboarding for now or check prefs.
+      // Since I don't want to add another file read here if I can avoid it,
+      // but I should checking persistent storage.
+
+      // I will update this file to read shared_prefs.
+      final prefs = await SharedPreferences.getInstance();
+      final onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
+
+      if (onboardingComplete) {
+        context.goNamed('login');
+      } else {
+        context.goNamed('intro');
+      }
     }
   }
 

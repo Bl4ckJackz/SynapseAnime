@@ -14,13 +14,20 @@ export class AuthService {
     @InjectRepository(User)
     private userRepository: Repository<User>,
     private jwtService: JwtService,
-  ) {}
+  ) { }
 
   async validateUser(email: string, pass: string): Promise<any> {
+    console.log('Attempting login for:', email);
     const user = await this.userRepository.findOne({ where: { email } });
-    if (user && user.password && (await bcrypt.compare(pass, user.password))) {
-      const { password, ...result } = user;
-      return result;
+    console.log('User found:', user ? 'yes' : 'no');
+
+    if (user && user.password) {
+      const passwordMatch = await bcrypt.compare(pass, user.password);
+      console.log('Password match:', passwordMatch);
+      if (passwordMatch) {
+        const { password, ...result } = user;
+        return result;
+      }
     }
     return null;
   }

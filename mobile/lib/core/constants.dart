@@ -2,13 +2,12 @@ class AppConstants {
   AppConstants._();
 
   // API Configuration
-  static const String apiBaseUrl =
-      'http://192.168.140.73:3010'; // For development (using LAN IP for compatibility)
-  static const String consumetBaseUrl =
-      'http://192.168.140.73:3002'; // For Consumet API
-  // static const String apiBaseUrl = 'http://localhost:3000';
-  // static const String apiBaseUrl = 'http://10.0.2.2:3000'; // Android emulator
-  // static const String apiBaseUrl = 'http://192.168.140.73:3000'; // Current LAN IP
+  // Use localhost for Flutter web development
+  static const String apiBaseUrl = 'http://localhost:3010';
+  static const String consumetBaseUrl = 'http://localhost:3002';
+  // For physical device testing, use your LAN IP:
+  // static const String apiBaseUrl = 'http://192.168.140.73:3010';
+  // static const String consumetBaseUrl = 'http://192.168.140.73:3002';
 
   // Storage Keys
   static const String accessTokenKey = 'access_token';

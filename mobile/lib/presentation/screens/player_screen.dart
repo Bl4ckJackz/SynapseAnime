@@ -107,10 +107,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         throw Exception(
             'Video non disponibile. Il server di streaming potrebbe essere temporaneamente irraggiungibile. Riprova più tardi.');
       }
-
-      final progressInfo = await ref
-          .read(userRepositoryProvider)
-          .getEpisodeProgress(widget.episodeId);
+      // Try to get saved progress, but don't fail if user is not authenticated
+      int startPosition = 0;
+      try {
+        final progressInfo = await ref
+            .read(userRepositoryProvider)
+            .getEpisodeProgress(widget.episodeId);
+        startPosition = progressInfo.progressSeconds;
+      } catch (e) {
+        // Ignore errors (e.g., 401 Unauthorized) - just start from beginning
+        print('Could not load progress (user may not be logged in): $e');
+      }
 
       // Determine referer based on source
       final activeSource = animeRepository.getActiveSource() ?? 'jikan';
@@ -145,9 +152,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
       await _videoPlayerController!.initialize();
 
-      if (progressInfo.progressSeconds > 0) {
-        await _videoPlayerController!
-            .seekTo(Duration(seconds: progressInfo.progressSeconds));
+      if (startPosition > 0) {
+        await _videoPlayerController!.seekTo(Duration(seconds: startPosition));
       }
 
       _chewieController = ChewieController(
@@ -189,13 +195,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   void _startProgressTracking() {
-    _progressTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+    _progressTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
       if (_videoPlayerController != null &&
           _videoPlayerController!.value.isPlaying) {
         final position = _videoPlayerController!.value.position.inSeconds;
-        ref
-            .read(userRepositoryProvider)
-            .updateProgress(widget.episodeId, position);
+        try {
+          await ref
+              .read(userRepositoryProvider)
+              .updateProgress(widget.episodeId, position);
+        } catch (e) {
+          // Silently ignore errors (e.g., 401 Unauthorized when not logged in)
+        }
       }
     });
   }
