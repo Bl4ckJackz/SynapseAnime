@@ -260,6 +260,9 @@ class AnimeRepository {
             _cleanTitle(jikanAnime.title),
           ].toSet().toList(); // Remove duplicates
 
+          // Track the number of ORIGINAL titles (before adding derived variants)
+          final originalTitleCount = titlesToTry.length;
+
           print('DEBUG: Search Variants: $titlesToTry');
 
           // Add variants for Shippuuden <-> Shippuden (handles common Consumet issues)
@@ -476,11 +479,13 @@ class AnimeRepository {
               }
 
               // EXACT title match bonus - but only for PRIMARY search variants
-              // (the first 2-3 items are original titles, the rest are derived variants)
+              // (original titles before derived variants were added)
               // We want to reward matching "Jujutsu Kaisen: The Culling Game Part 1"
               // but NOT matching just "Jujutsu Kaisen" when looking for a sequel
-              final primaryVariants = titlesToTry.take(3).toList();
-              final derivedVariants = titlesToTry.skip(3).toList();
+              final primaryVariants =
+                  titlesToTry.take(originalTitleCount).toList();
+              final derivedVariants =
+                  titlesToTry.skip(originalTitleCount).toList();
 
               bool isPrimaryMatch = false;
               for (final searchVariant in primaryVariants) {
