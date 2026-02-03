@@ -5,7 +5,8 @@ import '../../data/api_client.dart';
 import '../../core/constants.dart';
 
 // Provider for notification settings state
-final notificationSettingsProvider = StateNotifierProvider<NotificationSettingsNotifier, NotificationSettingsState>((ref) {
+final notificationSettingsProvider = StateNotifierProvider<
+    NotificationSettingsNotifier, NotificationSettingsState>((ref) {
   return NotificationSettingsNotifier(ref.read(apiClientProvider));
 });
 
@@ -33,10 +34,12 @@ class NotificationSettingsState {
   }
 }
 
-class NotificationSettingsNotifier extends StateNotifier<NotificationSettingsState> {
+class NotificationSettingsNotifier
+    extends StateNotifier<NotificationSettingsState> {
   final ApiClient _apiClient;
 
-  NotificationSettingsNotifier(this._apiClient) : super(NotificationSettingsState());
+  NotificationSettingsNotifier(this._apiClient)
+      : super(NotificationSettingsState());
 
   Future<void> loadSettings() async {
     state = state.copyWith(isLoading: true);

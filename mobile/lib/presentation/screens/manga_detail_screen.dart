@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../domain/entities/manga.dart';
 import '../../domain/entities/chapter.dart';
 import '../../domain/providers/manga_provider.dart';
+import '../widgets/app_loader.dart';
 
 class MangaDetailScreen extends ConsumerWidget {
   final String mangaId;
@@ -19,7 +20,7 @@ class MangaDetailScreen extends ConsumerWidget {
     return Scaffold(
       body: mangaAsync.when(
         data: (manga) => MangaDetailContent(manga: manga),
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(child: AppLoader()),
         error: (err, _) => Center(child: Text('Errore: $err')),
       ),
     );
@@ -331,7 +332,7 @@ class _MangaDetailContentState extends ConsumerState<MangaDetailContent> {
             child: Center(
               child: Padding(
                 padding: EdgeInsets.all(32),
-                child: CircularProgressIndicator(),
+                child: AppLoader(width: 60, height: 60),
               ),
             ),
           ),

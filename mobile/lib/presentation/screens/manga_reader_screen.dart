@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/chapter.dart';
 import '../../domain/providers/manga_provider.dart';
+import '../widgets/app_loader.dart';
 
 class MangaReaderScreen extends ConsumerStatefulWidget {
   final String mangaId;
@@ -182,9 +183,9 @@ class _MangaReaderScreenState extends ConsumerState<MangaReaderScreen> {
                 }
               });
 
-              return const Scaffold(
+              return Scaffold(
                 backgroundColor: Colors.black,
-                body: Center(child: CircularProgressIndicator()),
+                body: Center(child: AppLoader()),
               );
             }
 
@@ -257,9 +258,9 @@ class _MangaReaderScreenState extends ConsumerState<MangaReaderScreen> {
               ),
             );
           },
-          loading: () => const Scaffold(
+          loading: () => Scaffold(
             backgroundColor: Colors.black,
-            body: Center(child: CircularProgressIndicator()),
+            body: Center(child: AppLoader()),
           ),
           error: (err, _) => Scaffold(
             backgroundColor: Colors.black,
@@ -272,9 +273,9 @@ class _MangaReaderScreenState extends ConsumerState<MangaReaderScreen> {
           ),
         );
       },
-      loading: () => const Scaffold(
+      loading: () => Scaffold(
         backgroundColor: Colors.black,
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(child: AppLoader()),
       ),
       error: (err, _) => Scaffold(
         backgroundColor: Colors.black,

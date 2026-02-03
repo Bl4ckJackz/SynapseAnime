@@ -6,8 +6,9 @@ import 'package:anime_ai_player/domain/providers/auth_provider.dart';
 
 class LoginForm extends ConsumerStatefulWidget {
   final VoidCallback? onRegisterTap;
+  final VoidCallback? onLoginSuccess;
 
-  const LoginForm({super.key, this.onRegisterTap});
+  const LoginForm({super.key, this.onRegisterTap, this.onLoginSuccess});
 
   @override
   ConsumerState<LoginForm> createState() => _LoginFormState();
@@ -43,7 +44,12 @@ class _LoginFormState extends ConsumerState<LoginForm> {
           );
 
       if (mounted) {
-        context.goNamed('home');
+        if (widget.onLoginSuccess != null) {
+          widget.onLoginSuccess!();
+          await Future.delayed(
+              const Duration(seconds: 2)); // Show welcome animation
+        }
+        if (mounted) context.goNamed('home');
       }
     } catch (e) {
       if (mounted) {
@@ -248,7 +254,12 @@ class _LoginFormState extends ConsumerState<LoginForm> {
                             );
                             setState(() => _isLoading = false);
                           } else {
-                            context.goNamed('sourceSelection');
+                            if (widget.onLoginSuccess != null) {
+                              widget.onLoginSuccess!();
+                              await Future.delayed(const Duration(
+                                  seconds: 2)); // Show welcome animation
+                            }
+                            if (mounted) context.goNamed('sourceSelection');
                           }
                         }
                       },

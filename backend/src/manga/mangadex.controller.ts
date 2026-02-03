@@ -1,6 +1,15 @@
-import { Controller, Get, Param, Query, UseInterceptors } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Query,
+  UseInterceptors,
+  Res,
+} from '@nestjs/common';
 import { MangaDexService } from '../services/mangadex-api.service';
 import { ErrorHandlingInterceptor } from '../common/interceptors/error-handling.interceptor';
+import type { Response } from 'express';
+import axios from 'axios';
 
 @Controller('mangadex')
 @UseInterceptors(ErrorHandlingInterceptor)
@@ -33,6 +42,59 @@ export class MangaDexController {
   }
 
   /**
+   * Proxy external images to bypass CORS restrictions
+   * GET /mangadex/image-proxy?url=https://example.com/image.jpg
+   */
+  @Get('image-proxy')
+  async proxyImage(@Query('url') url: string, @Res() res: Response) {
+    if (!url) {
+      return res.status(400).json({ error: 'URL parameter is required' });
+    }
+
+    try {
+      // Decode URL if it's URL-encoded
+      const decodedUrl = decodeURIComponent(url);
+      console.log('Image proxy fetching:', decodedUrl);
+
+      const response = await axios.get(decodedUrl, {
+        responseType: 'arraybuffer',
+        timeout: 30000,
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          Accept:
+            'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          Referer: new URL(decodedUrl).origin + '/',
+          Origin: new URL(decodedUrl).origin,
+        },
+        validateStatus: (status) => status < 500, // Accept any status below 500
+      });
+
+      // Set CORS headers
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET');
+      res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+
+      // Set content type from response
+      const contentType =
+        (response.headers['content-type'] as string) || 'image/jpeg';
+      res.setHeader('Content-Type', contentType);
+
+      return res.send(Buffer.from(response.data));
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Image proxy error:', errMsg);
+      console.error('Failed URL:', url);
+      return res.status(500).json({
+        error: 'Failed to fetch image',
+        message: errMsg,
+        url: url.substring(0, 100),
+      });
+    }
+  }
+
+  /**
    * Search manga by query
    * GET /mangadex/manga/search?q=one+piece
    */
@@ -55,11 +117,14 @@ export class MangaDexController {
 
   /**
    * Get manga chapters
-   * GET /mangadex/manga/:id/chapters
+   * GET /mangadex/manga/:id/chapters?lang=it
    */
   @Get('manga/:id/chapters')
-  async getMangaChapters(@Param('id') id: string) {
-    return this.mangaDexService.getChapters(id);
+  async getMangaChapters(
+    @Param('id') id: string,
+    @Query('lang') language?: string,
+  ) {
+    return this.mangaDexService.getChapters(id, language);
   }
 
   /**

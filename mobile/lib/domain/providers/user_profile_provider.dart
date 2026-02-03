@@ -2,14 +2,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/user.dart';
 import '../../data/repositories/user_repository.dart';
 
-final userProfileProvider = StateNotifierProvider<UserProfileNotifier, AsyncValue<User>>(
+final userProfileProvider =
+    StateNotifierProvider<UserProfileNotifier, AsyncValue<User>>(
   (ref) => UserProfileNotifier(ref.watch(userRepositoryProvider)),
 );
 
 class UserProfileNotifier extends StateNotifier<AsyncValue<User>> {
   final UserRepository _userRepository;
 
-  UserProfileNotifier(this._userRepository) : super(const AsyncValue.loading()) {
+  UserProfileNotifier(this._userRepository)
+      : super(const AsyncValue.loading()) {
     loadProfile();
   }
 

@@ -14,6 +14,7 @@ class Manga {
   final int? volumes;
   final int? year;
   final String? source; // Which API this came from
+  final String? type; // manga, manhwa, manhua, novel
 
   const Manga({
     required this.id,
@@ -30,6 +31,7 @@ class Manga {
     this.volumes,
     this.year,
     this.source,
+    this.type,
   });
 
   factory Manga.fromJikanJson(Map<String, dynamic> json) {
@@ -92,6 +94,7 @@ class Manga {
       year:
           json['year'] as int? ?? json['published']?['prop']?['from']?['year'],
       source: 'jikan',
+      type: json['type']?.toString(),
     );
   }
 
@@ -110,6 +113,7 @@ class Manga {
       chapters: int.tryParse(
           json['chapter']?.toString().replaceAll(RegExp(r'[^0-9]'), '') ?? ''),
       source: 'mangahook',
+      type: json['type']?.toString(),
     );
   }
 
@@ -153,6 +157,9 @@ class Manga {
       score: (json['rating'] as num?)?.toDouble(),
       year: (json['year'] as num?)?.toInt(),
       source: 'mangadex',
+      type: json['type']?.toString(), // usually 'manga' or 'manhwa' if provided
+      chapters: (json['chapters'] is int) ? json['chapters'] : null,
+      volumes: (json['volumes'] is int) ? json['volumes'] : null,
     );
   }
 

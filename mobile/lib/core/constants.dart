@@ -4,7 +4,7 @@ class AppConstants {
   // API Configuration
   // Use localhost for Flutter web development
   static const String apiBaseUrl = 'http://localhost:3010';
-  static const String consumetBaseUrl = 'http://localhost:3002';
+  static const String consumetBaseUrl = 'http://localhost:3004';
   // For physical device testing, use your LAN IP:
   // static const String apiBaseUrl = 'http://192.168.140.73:3010';
   // static const String consumetBaseUrl = 'http://192.168.140.73:3002';

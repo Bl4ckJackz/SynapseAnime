@@ -4,19 +4,15 @@ import '../../domain/entities/entities.dart';
 import '../../data/repositories/anime_repository.dart';
 
 final activeSourceIdProvider =
-    StateNotifierProvider<ActiveSourceNotifier, String>((ref) {
-  return ActiveSourceNotifier(ref);
-});
+    NotifierProvider<ActiveSourceNotifier, String>(ActiveSourceNotifier.new);
 
-class ActiveSourceNotifier extends StateNotifier<String> {
-  final Ref ref;
+class ActiveSourceNotifier extends Notifier<String> {
+  @override
+  @override
+  String build() {
+    // Note: sourceProvider is AsyncValue<List<AnimeSource>>
+    final sourceState = ref.watch(sourceProvider); // Reactive watch
 
-  ActiveSourceNotifier(this.ref) : super('default_db') {
-    _initActiveSource();
-  }
-
-  Future<void> _initActiveSource() async {
-    final sourceState = ref.read(sourceProvider);
     if (sourceState.hasValue) {
       final sources = sourceState.value ?? [];
       final activeSource = sources.firstWhere(
@@ -26,8 +22,10 @@ class ActiveSourceNotifier extends StateNotifier<String> {
             : AnimeSource(
                 id: 'jikan', name: 'MAL', description: '', isActive: true),
       );
-      state = activeSource.id;
+      return activeSource.id;
     }
+
+    return 'default_db'; // Default fallback
   }
 
   Future<void> setActiveSource(String sourceId) async {

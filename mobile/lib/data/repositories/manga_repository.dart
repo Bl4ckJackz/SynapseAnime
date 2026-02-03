@@ -3,6 +3,7 @@ import '../../data/api_client.dart';
 import '../../core/constants.dart';
 import '../../domain/entities/manga.dart';
 import '../../domain/entities/chapter.dart';
+import '../../core/config/source_config.dart';
 
 /// Provider for manga repository
 final mangaRepositoryProvider = Provider<MangaRepository>((ref) {
@@ -14,6 +15,16 @@ class MangaRepository {
   final ApiClient _apiClient;
 
   MangaRepository(this._apiClient);
+
+  String? _activeSource;
+
+  Future<void> setActiveSource(String sourceId) async {
+    _activeSource = sourceId;
+  }
+
+  String getActiveSource() {
+    return _activeSource ?? 'jikan'; // Default to Jikan for metadata if not set
+  }
 
   /// Get top manga from Jikan
   Future<List<Manga>> getTopManga(
@@ -33,20 +44,44 @@ class MangaRepository {
         .toList();
   }
 
-  /// Search manga via Jikan
+  /// Search manga via Jikan or Active Source
   Future<List<Manga>> searchManga(String query, {int page = 1}) async {
-    final response = await _apiClient.get<Map<String, dynamic>>(
-      AppConstants.jikanMangaSearch,
-      queryParameters: {
-        'q': query,
-        'page': page,
-      },
-    );
+    final active = getActiveSource();
 
-    final data = response.data?['data'] as List<dynamic>? ?? [];
-    return data
-        .map((json) => Manga.fromJikanJson(json as Map<String, dynamic>))
-        .toList();
+    // If active source is Jikan, use Jikan (Metadata rich)
+    if (active == 'jikan') {
+      final response = await _apiClient.get<Map<String, dynamic>>(
+        AppConstants.jikanMangaSearch,
+        queryParameters: {
+          'q': query,
+          'page': page,
+        },
+      );
+
+      final data = response.data?['data'] as List<dynamic>? ?? [];
+      return data
+          .map((json) => Manga.fromJikanJson(json as Map<String, dynamic>))
+          .toList();
+    } else {
+      // Search on the active source (Consumet)
+      // This allows finding content specific to that source (e.g. Manhwa on MangaWorld)
+      final results = await _searchOnSource(active, query);
+
+      // Map generic results to Manga entities
+      return results.map((e) {
+        return Manga(
+          id: e['id'].toString(),
+          title: e['title'].toString(),
+          synopsis: e['description']?.toString() ?? '',
+          coverUrl: e['image']?.toString() ?? '',
+          genres: [],
+          status: MangaStatus.ongoing, // Unknown
+          score: 0.0,
+          authors: [],
+          source: active,
+        );
+      }).toList();
+    }
   }
 
   /// Get manga details from Jikan by MAL ID
@@ -86,16 +121,36 @@ class MangaRepository {
         .toList();
   }
 
-  /// Get manga chapters (Switching to MangaDex via search)
-  /// If [mangaId] is numeric (Jikan/MAL ID), we search MangaDex by [title] to get the correct ID.
-  /// Get manga chapters from Consumet Manga API with MangaReader fallback
-  /// Get available manga sources
-  List<String> get availableSources =>
-      ['mangadex', 'mangareader', 'mangakakalot'];
+  /// Get available manga sources - prioritized for EN content first
+  List<String> get availableSources {
+    final defaultOrder = [
+      'mangaworld', // Italian/Global
+      'mangakatana',
+      'mangasee',
+      'comick',
+      'mangahere',
+      'mangapill',
+      'asurascans',
+      'mangadex',
+      'mangareader',
+      'mangakakalot',
+      'weebcentral',
+    ];
+
+    return defaultOrder
+        .where((id) => SourceConfig.isMangaSourceEnabled(id))
+        .toList();
+  }
 
   /// Get manga chapters using multi-source fallback
   Future<List<MangaChapter>> getChapters(String mangaId,
       {String? title, String? titleEnglish, String? preferredSource}) async {
+    // Override preferredSource with active source if set and not 'jikan'
+    // 'jikan' is not a reading source, so we shouldn't force it as preference for chapters
+    final active = getActiveSource();
+    if (active != 'jikan') {
+      preferredSource = active;
+    }
     // 1. Determine titles to search
     final titlesToTry = <String>{};
     if (title != null && title.isNotEmpty) titlesToTry.add(title);
@@ -115,27 +170,106 @@ class MangaRepository {
     print('DEBUG: Sources order: $sources');
 
     // 3. Iterate through sources
-    for (final source in sources) {
-      try {
-        print('DEBUG: Trying source: $source');
-        final chapters =
-            await _getChaptersFromSource(source, mangaId, titlesToTry.toList());
+    // 3. Smart Fetch Strategy
+    // If strict preference, just use that.
+    if (preferredSource != null) {
+      return await _fetchFromOneSource(
+          preferredSource, mangaId, titlesToTry.toList());
+    }
 
-        if (chapters.isNotEmpty) {
-          print(
-              'DEBUG: SUCCESS - Fetched ${chapters.length} chapters from $source');
-          return chapters;
-        } else {
-          print('DEBUG: No chapters found on $source');
+    // Auto Mode: "Parallel Race" for top candidates
+    // We try the top 3 sources in parallel and pick the one with most chapters
+    int parallelCount = 3;
+    final primarySources = sources.take(parallelCount).toList();
+    final fallbackSources = sources.skip(parallelCount).toList();
+
+    print(
+        'DEBUG: Auto Mode - Probing top $parallelCount sources: $primarySources');
+
+    final results = await Future.wait(
+      primarySources.map((source) =>
+          _getChaptersFromSource(source, mangaId, titlesToTry.toList())),
+    );
+
+    // Filter results and find the best one
+    List<MangaChapter> bestChapters = [];
+    String bestSource = 'none';
+
+    for (int i = 0; i < results.length; i++) {
+      final chapters = _sanitizeChapters(results[i]); // Sanitize here
+      final source = primarySources[i];
+
+      if (chapters.isNotEmpty) {
+        print('DEBUG: Source $source found ${chapters.length} chapters');
+        if (chapters.length > bestChapters.length) {
+          bestChapters = chapters;
+          bestSource = source;
         }
-      } catch (e) {
-        print('DEBUG: Failed to fetch from $source: $e');
-        // Continue to next source
+      }
+    }
+
+    if (bestChapters.isNotEmpty) {
+      print(
+          'DEBUG: Winner source is $bestSource with ${bestChapters.length} chapters');
+      return bestChapters;
+    }
+
+    // If primary sources failed, try fallback sources sequentially
+    print(
+        'DEBUG: Primary sources failed. Trying fallback sources: $fallbackSources');
+    for (final source in fallbackSources) {
+      final chapters =
+          await _getChaptersFromSource(source, mangaId, titlesToTry.toList());
+      if (chapters.isNotEmpty) {
+        return _sanitizeChapters(chapters);
       }
     }
 
     print('DEBUG: All sources failed or returned empty.');
     return [];
+  }
+
+  Future<List<MangaChapter>> _fetchFromOneSource(
+      String source, String mangaId, List<String> titles) async {
+    try {
+      final chapters = await _getChaptersFromSource(source, mangaId, titles);
+      return _sanitizeChapters(chapters);
+    } catch (e) {
+      print("DEBUG: Single source fetch failed: $e");
+      return [];
+    }
+  }
+
+  /// Sanitize chapters: Remove duplicates and sort by number (descending)
+  List<MangaChapter> _sanitizeChapters(List<MangaChapter> chapters) {
+    if (chapters.isEmpty) return [];
+
+    // 1. Deduplicate by chapter number
+    final uniqueChapters = <double, MangaChapter>{};
+    for (final chapter in chapters) {
+      if (chapter.number != null) {
+        // If duplicate, keep the one with a shorter/cleaner title or existing logic
+        if (!uniqueChapters.containsKey(chapter.number) ||
+            (uniqueChapters[chapter.number]!.title.length >
+                chapter.title.length)) {
+          uniqueChapters[chapter.number!] = chapter;
+        }
+      } else {
+        // Keep chapters without numbers (rare)
+        // We'll use ID as key to fallback
+        uniqueChapters[-1.0 * chapter.hashCode] = chapter;
+      }
+    }
+
+    // 2. Sort by number descending (newest first)
+    final sorted = uniqueChapters.values.toList()
+      ..sort((a, b) {
+        final numA = a.number ?? 0;
+        final numB = b.number ?? 0;
+        return numB.compareTo(numA);
+      });
+
+    return sorted;
   }
 
   Future<List<MangaChapter>> _getChaptersFromSource(
@@ -155,23 +289,42 @@ class MangaRepository {
     } else {
       // Need to search
       print('DEBUG: Searching on $source with queries: $searchTitles');
+
+      Map<String, dynamic>? bestGlobalMatch;
+      int bestGlobalScore = -1;
+
       for (final query in searchTitles) {
         try {
           final results = await _searchOnSource(source, query);
           if (results.isNotEmpty) {
-            // Find best match
-            final exactMatch = results.firstWhere(
-              (m) => m['title'].toString().toLowerCase() == query.toLowerCase(),
-              orElse: () => results.first,
-            );
-            targetId = exactMatch['id'].toString();
+            // _searchOnSource returns List<Map<String, dynamic>> directly
+            final bestMatch = _findBestMatch(results, query);
+
+            final int score = bestMatch['_score'] as int? ?? 0;
             print(
-                'DEBUG: Found match on $source: ${exactMatch['title']} ($targetId)');
-            break;
+                'DEBUG: Match for "$query": ${bestMatch['title']} (score: $score)');
+
+            // Update global best if this is better
+            if (score > bestGlobalScore) {
+              bestGlobalScore = score;
+              bestGlobalMatch = bestMatch;
+            }
+
+            // If we found a perfect match, stop searching
+            if (score >= 1000) {
+              print('DEBUG: Found perfect match, stopping search');
+              break;
+            }
           }
         } catch (e) {
           print('DEBUG: Search failed on $source for $query: $e');
         }
+      }
+
+      if (bestGlobalMatch != null) {
+        targetId = bestGlobalMatch['id'].toString();
+        print(
+            'DEBUG: Best Global Match on $source: ${bestGlobalMatch['title']} (score: $bestGlobalScore) ($targetId)');
       }
     }
 
@@ -180,12 +333,38 @@ class MangaRepository {
       return [];
     }
 
-    if (targetId == null) {
-      print('DEBUG: Could not resolve ID for $source');
-      return [];
+    // Use backend endpoint for MangaDex (has full pagination)
+    if (source == 'mangadex') {
+      final url = '/mangadex/manga/$targetId/chapters?lang=en';
+      print('DEBUG: Fetching chapters from backend: $url');
+
+      final response = await _apiClient.get(url);
+      final data = response.data;
+
+      // Backend returns array of Chapter objects directly
+      final chaptersRaw = data is List
+          ? data
+          : (data['chapters'] ?? data['data'] ?? []) as List<dynamic>;
+
+      print('DEBUG: Backend returned ${chaptersRaw.length} chapters');
+
+      return chaptersRaw.map((json) {
+        final chapterNum = _parseChapterNumberFromBackend(json);
+        return MangaChapter(
+          id: 'mangadex:${json['mangadexChapterId'] ?? json['id']}',
+          mangaId: originalId,
+          title: json['title'] ?? 'Chapter $chapterNum',
+          number: chapterNum,
+          volume: json['volume'] != null
+              ? (json['volume'] is int
+                  ? json['volume']
+                  : int.tryParse(json['volume'].toString()))
+              : null,
+        );
+      }).toList();
     }
 
-    // Fetch Info (Chapters)
+    // For other sources, use Consumet API
     final url = _buildInfoUrl(source, targetId);
     print('DEBUG: Fetching info from $url');
 
@@ -194,32 +373,7 @@ class MangaRepository {
     final data = response.data;
     final chaptersRaw = data['chapters'] as List<dynamic>? ?? [];
 
-    // MangaDex specific filtering
-    if (source == 'mangadex') {
-      return chaptersRaw
-          .where((json) {
-            final lang = (json['language'] as String? ?? '').toLowerCase();
-            // Prefer IT, then EN
-            return lang == 'it' ||
-                lang == 'en' ||
-                lang == 'gb' ||
-                lang == ''; // relax filter
-          })
-          .map((json) {
-            return MangaChapter(
-              id: '$source:${json['id']}', // Prefix ID
-              mangaId: originalId,
-              title: json['title'] ??
-                  'Chapter ${json['chapterNumber'] ?? json['number']}',
-              number: _parseChapterNumber(json),
-            );
-          })
-          .toList()
-          .reversed
-          .toList();
-    }
-
-    // Generic mapping
+    // Generic mapping for non-MangaDex sources
     return chaptersRaw
         .map((json) {
           return MangaChapter(
@@ -233,6 +387,15 @@ class MangaRepository {
         .toList()
         .reversed
         .toList();
+  }
+
+  double _parseChapterNumberFromBackend(Map<String, dynamic> json) {
+    if (json['number'] != null) {
+      return (json['number'] is num)
+          ? (json['number'] as num).toDouble()
+          : double.tryParse(json['number'].toString()) ?? 0.0;
+    }
+    return 0.0;
   }
 
   double _parseChapterNumber(Map<String, dynamic> json) {
@@ -253,12 +416,50 @@ class MangaRepository {
     return 0.0;
   }
 
-  Future<List<dynamic>> _searchOnSource(String source, String query) async {
+  Future<List<Map<String, dynamic>>> _searchOnSource(
+      String source, String query) async {
+    // For MangaDex, use our Backend Controller
+    if (source == 'mangadex') {
+      try {
+        final response = await _apiClient.get('${AppConstants.mangadexSearch}',
+            queryParameters: {'q': query});
+        // The backend returns { data: Manga[], ... } or Manga[] directly depending on implementation
+        // Controller searchManga returns `this.mangaDexService.searchManga(query)` which returns `Promise<Manga[]>`
+        // So response.data is List<dynamic> (mangas).
+
+        final data = response.data;
+        final List<dynamic> list =
+            data is List ? data : (data['data'] as List<dynamic>? ?? []);
+
+        // Map to format expected by _findBestMatch (must have 'id' and 'title')
+        return list
+            .map((m) {
+              if (m is! Map) return <String, dynamic>{};
+              return <String, dynamic>{
+                'id': (m['mangadexId'] ?? m['id'])?.toString() ?? '',
+                'title': m['title']?.toString() ?? '',
+                'description': m['description']?.toString() ?? '',
+              };
+            })
+            .where((m) => m['id'].toString().isNotEmpty)
+            .toList();
+      } catch (e) {
+        print('DEBUG: Backend Mangadex Search failed: $e');
+        // Fallback to Consumet logic below? Or just return empty
+        return [];
+      }
+    }
+
     final provider = _mapSourceToProvider(source);
     final response = await _apiClient.get(
       '${AppConstants.consumetBaseUrl}/manga/$provider/${Uri.encodeComponent(query)}',
     );
-    return response.data['results'] as List<dynamic>? ?? [];
+    final results = response.data['results'] as List<dynamic>? ?? [];
+    // Convert to proper type
+    return results
+        .whereType<Map<dynamic, dynamic>>()
+        .map((r) => Map<String, dynamic>.from(r))
+        .toList();
   }
 
   Future<List<Manga>> searchMangaOnMangaDex(String query) async {
@@ -297,6 +498,17 @@ class MangaRepository {
       }
 
       print('Fetching pages for $actualChapterId from $source');
+
+      // Use Backend for MangaDex reading
+      if (source == 'mangadex') {
+        final url = '/mangadex/chapter/$actualChapterId/pages';
+        print('DEBUG: Fetching pages from backend: $url');
+        final response = await _apiClient.get(url);
+        final data = response.data;
+        // Backend returns { images: [...] }
+        final List<dynamic> images = (data['images'] as List<dynamic>?) ?? [];
+        return images.map((e) => e.toString()).toList();
+      }
 
       final url = _buildReadUrl(source, actualChapterId);
       print('DEBUG: Fetching pages from $url');
@@ -342,17 +554,28 @@ class MangaRepository {
 
   // Helper to map source names (fixing typos in API)
   String _mapSourceToProvider(String source) {
-    if (source == 'mangareader') return 'managreader'; // Fix API typo
+    if (source == 'mangareader')
+      return 'mangareader'; // Consumet usually uses 'mangareader'
     return source;
   }
 
   // Helper to build info URL based on provider
   String _buildInfoUrl(String source, String id) {
     final provider = _mapSourceToProvider(source);
-    if (source == 'mangadex') {
+
+    // Providers using path params: /info/{id}
+    const pathParamSources = {
+      'mangadex',
+      'comick',
+      'asurascans',
+      'weebcentral'
+    };
+
+    if (pathParamSources.contains(source)) {
       return '${AppConstants.consumetBaseUrl}/manga/$provider/info/$id';
     } else {
-      // MangaReader, MangaKakalot etc use query params
+      // Providers using query params: /info?id={id}
+      // mangareader, mangakakalot, mangahere, mangapill
       return '${AppConstants.consumetBaseUrl}/manga/$provider/info?id=$id';
     }
   }
@@ -360,10 +583,19 @@ class MangaRepository {
   // Helper to build read URL based on provider
   String _buildReadUrl(String source, String chapterId) {
     final provider = _mapSourceToProvider(source);
-    if (source == 'mangadex') {
+
+    // Providers using path params: /read/{chapterId}
+    const pathParamSources = {
+      'mangadex',
+      'comick',
+      'asurascans',
+      'weebcentral'
+    };
+
+    if (pathParamSources.contains(source)) {
       return '${AppConstants.consumetBaseUrl}/manga/$provider/read/$chapterId';
     } else {
-      // MangaReader, MangaKakalot etc use query params
+      // Providers using query params: /read?chapterId={chapterId}
       return '${AppConstants.consumetBaseUrl}/manga/$provider/read?chapterId=$chapterId';
     }
   }
@@ -419,5 +651,103 @@ class MangaRepository {
     return (response.data?['data'] as List<dynamic>? ?? [])
         .map((g) => g as Map<String, dynamic>)
         .toList();
+  }
+
+  /// Find best match from search results using scoring
+  Map<String, dynamic> _findBestMatch(
+      List<Map<String, dynamic>> results, String query) {
+    final queryLower = query.toLowerCase().trim();
+    final queryWords = queryLower.split(RegExp(r'\s+'));
+
+    int bestScore = -1;
+    Map<String, dynamic> bestMatch = results.first;
+
+    for (final result in results) {
+      final title = (result['title'] ?? '').toString().toLowerCase().trim();
+      int score = 0;
+
+      // Exact match gets highest score
+      if (title == queryLower) {
+        score += 1000;
+      }
+
+      // Title starts with query
+      if (title.startsWith(queryLower)) {
+        score += 500;
+      }
+
+      // Title contains full query
+      if (title.contains(queryLower)) {
+        score += 300;
+      }
+
+      // Query contains full title (for short titles like "GTO")
+      if (queryLower.contains(title)) {
+        score += 200;
+      }
+
+      // Word overlap scoring
+      final titleWords = title.split(RegExp(r'\s+'));
+      for (final qWord in queryWords) {
+        if (titleWords.any((tw) => tw == qWord)) {
+          score += 50; // Exact word match
+        } else if (titleWords.any((tw) => tw.contains(qWord))) {
+          score += 20; // Partial word match
+        }
+      }
+
+      // HEAVY PENALTY for Doujinshi, Anthology, Fan-made content
+      // These are fan-made and should never be preferred over official manga
+      final spinoffKeywords = [
+        'doujinshi',
+        'dj',
+        '(dj)',
+        'anthology',
+        'fan comic',
+        'fancomic',
+        'parody',
+        '4-koma',
+        'yonkoma',
+        'oneshot collection',
+        'extra',
+        'side story',
+        'gaiden',
+        'spinoff',
+        'spin-off'
+      ];
+      for (final keyword in spinoffKeywords) {
+        if (title.contains(keyword)) {
+          score -= 500; // Heavy penalty
+          break;
+        }
+      }
+
+      // Penalty for titles with dash/colon followed by subtitle (likely spinoff)
+      // e.g. "Haikyuu!! - Something Extra" vs "Haikyuu!!"
+      if (title.contains(' - ') && !queryLower.contains(' - ')) {
+        score -= 150;
+      }
+
+      // Penalty for much longer titles (indicates spinoff/sequel)
+      if (title.length > queryLower.length * 2) {
+        score -= 50;
+      }
+
+      // Bonus for similar length (main series usually has similar name)
+      if ((title.length - queryLower.length).abs() <= 3) {
+        score += 100;
+      } else if ((title.length - queryLower.length).abs() <= 6) {
+        score += 50;
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = result;
+      }
+    }
+
+    // Add score to result for debugging
+    bestMatch['_score'] = bestScore;
+    return bestMatch;
   }
 }

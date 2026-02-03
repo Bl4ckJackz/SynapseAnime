@@ -134,12 +134,14 @@ class ChapterListRequest {
   final String? title;
   final String? titleEnglish;
   final String? preferredSource;
+  final String? preferredLanguage;
 
   const ChapterListRequest({
     required this.mangaId,
     this.title,
     this.titleEnglish,
     this.preferredSource,
+    this.preferredLanguage,
   });
 
   @override
@@ -149,12 +151,14 @@ class ChapterListRequest {
           mangaId == other.mangaId &&
           title == other.title &&
           titleEnglish == other.titleEnglish &&
-          preferredSource == other.preferredSource;
+          preferredSource == other.preferredSource &&
+          preferredLanguage == other.preferredLanguage;
 
   @override
   int get hashCode =>
       mangaId.hashCode ^
       title.hashCode ^
       titleEnglish.hashCode ^
-      preferredSource.hashCode;
+      preferredSource.hashCode ^
+      preferredLanguage.hashCode;
 }

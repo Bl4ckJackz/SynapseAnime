@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../domain/entities/manga.dart';
 import '../../domain/providers/manga_provider.dart';
 import '../widgets/section_header.dart';
+import '../widgets/app_loader.dart';
 
 class MangaHomeScreen extends ConsumerStatefulWidget {
   const MangaHomeScreen({super.key});
@@ -103,7 +104,7 @@ class _MangaHomeScreenState extends ConsumerState<MangaHomeScreen> {
           itemBuilder: (context, index) => _buildMangaCard(mangaList[index]),
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => Center(child: AppLoader(width: 80, height: 80)),
       error: (err, _) => Center(child: Text('Errore: $err')),
     );
   }

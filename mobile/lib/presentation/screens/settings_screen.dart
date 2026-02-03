@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../domain/providers/notification_provider.dart';
+import '../../data/repositories/anime_repository.dart';
+import '../../data/repositories/manga_repository.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -35,7 +37,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 _buildSectionHeader(context, 'Notifiche'),
                 SwitchListTile(
                   title: const Text('Abilita notifiche push'),
-                  subtitle: const Text('Ricevi aggiornamenti sui nuovi episodi'),
+                  subtitle:
+                      const Text('Ricevi aggiornamenti sui nuovi episodi'),
                   value: state.globalEnabled,
                   activeThumbColor: AppTheme.primaryColor,
                   onChanged: (value) {
@@ -46,7 +49,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 if (!state.globalEnabled)
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Text(
                       'Le notifiche sono disabilitate globalmente. Attivale per gestire le singole serie.',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -57,12 +61,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const Divider(),
                 _buildSectionHeader(context, 'Account'),
                 ListTile(
-                  leading: const Icon(Icons.source),
+                  leading: const Icon(Icons.movie_filter),
                   title: const Text('Sorgente Anime'),
-                  subtitle: const Text('Demo Database'), // TODO: Fetch from API
+                  subtitle: Text(ref
+                          .read(animeRepositoryProvider)
+                          .getActiveSource()
+                          ?.toUpperCase() ??
+                      'JIKAN'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
-                    _showSourceSelectionDialog(context);
+                    _showAnimeSourceSelectionDialog(context);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.menu_book),
+                  title: const Text('Sorgente Manga'),
+                  subtitle: Text(ref
+                      .read(mangaRepositoryProvider)
+                      .getActiveSource()
+                      .toUpperCase()),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    _showMangaSourceSelectionDialog(context);
                   },
                 ),
                 ListTile(
@@ -120,33 +140,118 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  void _showSourceSelectionDialog(BuildContext context) {
-    // Mock sources list (in real implementation, fetch from ref.read(animeRepositoryProvider).getSources())
-    final sources = [
-      {'id': 'default_db', 'name': 'Demo Database (Mock)'},
-      {'id': 'local_files', 'name': 'Locale (Server Files)'},
-    ];
+  void _showAnimeSourceSelectionDialog(BuildContext context) async {
+    final repository = ref.read(animeRepositoryProvider);
+    final sources = await repository.getAvailableSources();
+    final activeSource = repository.getActiveSource();
+
+    if (!mounted) return;
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Seleziona Sorgente'),
+        title: const Text('Seleziona Sorgente Anime'),
         backgroundColor: AppTheme.cardColor,
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: sources.map((source) => ListTile(
-            title: Text(source['name']!),
-            onTap: () async {
-              // TODO: Call API to switch source
-              // await ref.read(animeRepositoryProvider).setSource(source['id']!);
-              Navigator.pop(context);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Sorgente cambiata in: ${source['name']}')),
-                );
-              }
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: sources.length,
+            itemBuilder: (context, index) {
+              final source = sources[index];
+              return ListTile(
+                title: Text(source.name),
+                subtitle: Text(source.description),
+                leading: Radio<String>(
+                  value: source.id,
+                  groupValue: activeSource,
+                  activeColor: AppTheme.primaryColor,
+                  onChanged: (value) async {
+                    if (value != null) {
+                      await repository.setActiveSource(value);
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        setState(() {});
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content:
+                                  Text('Sorgente cambiata in: ${source.name}')),
+                        );
+                      }
+                    }
+                  },
+                ),
+                trailing: source.id == activeSource
+                    ? const Icon(Icons.check, color: AppTheme.primaryColor)
+                    : null,
+                onTap: () async {
+                  await repository.setActiveSource(source.id);
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    setState(() {});
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content:
+                              Text('Sorgente cambiata in: ${source.name}')),
+                    );
+                  }
+                },
+              );
             },
-          )).toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showMangaSourceSelectionDialog(BuildContext context) async {
+    final repository = ref.read(mangaRepositoryProvider);
+    final sources = repository.availableSources;
+    final activeSource = repository.getActiveSource();
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Seleziona Sorgente Manga'),
+        backgroundColor: AppTheme.cardColor,
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: sources.length,
+            itemBuilder: (context, index) {
+              final sourceId = sources[index];
+              return ListTile(
+                title: Text(sourceId.toUpperCase()),
+                leading: Radio<String>(
+                  value: sourceId,
+                  groupValue: activeSource,
+                  activeColor: AppTheme.primaryColor,
+                  onChanged: (value) async {
+                    if (value != null) {
+                      await repository.setActiveSource(value);
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        setState(() {});
+                      }
+                    }
+                  },
+                ),
+                trailing: sourceId == activeSource
+                    ? const Icon(Icons.check, color: AppTheme.primaryColor)
+                    : null,
+                onTap: () async {
+                  await repository.setActiveSource(sourceId);
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    setState(() {});
+                  }
+                },
+              );
+            },
+          ),
         ),
       ),
     );
