@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/anime.dart';
-import '../../data/repositories/anime_repository.dart';
+import '../../features/anime/data/repositories/anime_repository.dart';
 import '../../domain/providers/active_source_provider.dart';
 
 import '../../domain/entities/episode.dart';
@@ -107,4 +107,64 @@ class AnimeFilter {
       status.hashCode ^
       search.hashCode ^
       page.hashCode;
+}
+
+final animeGenreProvider = AsyncNotifierProvider.autoDispose
+    .family<PaginatedGenreNotifier, List<Anime>, String>(
+        PaginatedGenreNotifier.new);
+
+class PaginatedGenreNotifier
+    extends AutoDisposeFamilyAsyncNotifier<List<Anime>, String> {
+  int _page = 1;
+  bool _hasMore = true;
+  bool _isLoadingMore = false;
+
+  @override
+  Future<List<Anime>> build(String arg) async {
+    _page = 1;
+    _hasMore = true;
+    _isLoadingMore = false;
+    ref.watch(activeSourceIdProvider);
+    return _fetchPage(arg, 1);
+  }
+
+  Future<List<Anime>> _fetchPage(String genre, int page) async {
+    final repository = ref.read(animeRepositoryProvider);
+    try {
+      final response = await repository.getAnimeList(
+        genre: genre,
+        page: page,
+      );
+      // If we got fewer items than limit (20), assume no more pages
+      if (response.data.length < 20) {
+        _hasMore = false;
+      }
+      return response.data;
+    } catch (e) {
+      // On error, if it's jikan 404/429 maybe stop?
+      // For now just return empty, but keep hasMore true to retry?
+      // Let's assume on error we stop only if specific conditions met
+      return [];
+    }
+  }
+
+  Future<void> loadMore() async {
+    if (!_hasMore || _isLoadingMore) return;
+
+    _isLoadingMore = true;
+    // Don't set state to loading, just append results
+    // We can't easily notify "loading more" without changing state type to compound object
+    // But simplistic approach: just append when done.
+
+    final newItems = await _fetchPage(arg, _page + 1);
+
+    if (newItems.isNotEmpty) {
+      _page++;
+      final currentList = state.value ?? [];
+      state = AsyncData([...currentList, ...newItems]);
+    } else {
+      _hasMore = false;
+    }
+    _isLoadingMore = false;
+  }
 }

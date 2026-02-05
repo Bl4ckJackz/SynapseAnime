@@ -21,7 +21,7 @@ class SourceConfig {
     'mangapill': true,
     'asurascans': true,
     'mangareader': true,
-    'mangakakalot': true,
+    'mangakakalot': false,
     'weebcentral': true,
   };
 

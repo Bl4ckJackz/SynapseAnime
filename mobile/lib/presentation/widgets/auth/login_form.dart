@@ -44,6 +44,15 @@ class _LoginFormState extends ConsumerState<LoginForm> {
           );
 
       if (mounted) {
+        // Check if login failed
+        final authState = ref.read(authServiceProvider);
+        if (authState.hasError) {
+          setState(() {
+            _errorMessage = 'Login fallito. Controlla le credenziali.';
+          });
+          return;
+        }
+
         if (widget.onLoginSuccess != null) {
           widget.onLoginSuccess!();
           await Future.delayed(
@@ -133,7 +142,9 @@ class _LoginFormState extends ConsumerState<LoginForm> {
               controller: _emailController,
               decoration: InputDecoration(
                 labelText: 'Email',
-                prefixIcon: const Icon(Icons.email_outlined),
+                labelStyle: const TextStyle(color: Colors.black87),
+                prefixIcon:
+                    const Icon(Icons.email_outlined, color: Colors.black87),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -159,11 +170,16 @@ class _LoginFormState extends ConsumerState<LoginForm> {
               controller: _passwordController,
               decoration: InputDecoration(
                 labelText: 'Password',
-                prefixIcon: const Icon(Icons.lock_outline),
+                labelStyle: const TextStyle(color: Colors.black87),
+                prefixIcon:
+                    const Icon(Icons.lock_outline, color: Colors.black87),
                 suffixIcon: IconButton(
-                  icon: Icon(_obscurePassword
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined),
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                    color: Colors.black87,
+                  ),
                   onPressed: () =>
                       setState(() => _obscurePassword = !_obscurePassword),
                 ),

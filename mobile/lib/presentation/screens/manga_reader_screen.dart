@@ -1,6 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+import '../../core/utils/image_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/chapter.dart';
 import '../../domain/providers/manga_provider.dart';
@@ -32,6 +34,13 @@ class _MangaReaderScreenState extends ConsumerState<MangaReaderScreen> {
   // Track current reading state
   MangaChapter? _currentChapter;
   List<MangaChapter> _allChapters = [];
+
+  String _getSourceFromId(String chapterId) {
+    if (chapterId.contains(':')) {
+      return chapterId.split(':')[0];
+    }
+    return 'mangadex';
+  }
 
   @override
   void initState() {
@@ -217,7 +226,12 @@ class _MangaReaderScreenState extends ConsumerState<MangaReaderScreen> {
                         }
 
                         return CachedNetworkImage(
-                          imageUrl: _loadedPages[index],
+                          imageUrl: ImageUtils
+                              .getProxiedUrl(_loadedPages[index], headers: {
+                            'Referer': ImageUtils.getRefererForSource(
+                                _getSourceFromId(
+                                    _currentChapter?.id ?? widget.chapterId)),
+                          }),
                           fit: BoxFit.fitWidth,
                           placeholder: (context, url) => const SizedBox(
                             height: 400,

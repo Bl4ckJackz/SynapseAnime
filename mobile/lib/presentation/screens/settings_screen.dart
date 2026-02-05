@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../domain/providers/notification_provider.dart';
-import '../../data/repositories/anime_repository.dart';
+import '../../features/anime/data/repositories/anime_repository.dart';
 import '../../data/repositories/manga_repository.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {

@@ -3,11 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../domain/entities/anime.dart';
-import '../../data/repositories/anime_repository.dart';
+import '../../features/anime/data/repositories/anime_repository.dart';
 import '../widgets/anime_card.dart';
 
 // Provider for schedule data per day
-final scheduleProvider = FutureProvider.family<List<Anime>, String>((ref, day) async {
+final scheduleProvider =
+    FutureProvider.family<List<Anime>, String>((ref, day) async {
   final repository = ref.read(animeRepositoryProvider);
   return repository.getSchedule(day);
 });
@@ -19,9 +20,10 @@ class CalendarScreen extends ConsumerStatefulWidget {
   ConsumerState<CalendarScreen> createState() => _CalendarScreenState();
 }
 
-class _CalendarScreenState extends ConsumerState<CalendarScreen> with SingleTickerProviderStateMixin {
+class _CalendarScreenState extends ConsumerState<CalendarScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  
+
   final List<String> _days = [
     'monday',
     'tuesday',
@@ -31,7 +33,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> with SingleTick
     'saturday',
     'sunday',
   ];
-  
+
   final Map<String, String> _dayLabels = {
     'monday': 'Lun',
     'tuesday': 'Mar',
@@ -80,7 +82,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> with SingleTick
           indicatorColor: AppTheme.primaryColor,
           labelColor: AppTheme.primaryColor,
           unselectedLabelColor: Colors.grey,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          labelStyle:
+              const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           tabs: _days.map((day) => Tab(text: _dayLabels[day])).toList(),
         ),
       ),
@@ -108,7 +111,8 @@ class _DayScheduleView extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.calendar_today, size: 64, color: Colors.grey.shade600),
+                Icon(Icons.calendar_today,
+                    size: 64, color: Colors.grey.shade600),
                 const SizedBox(height: 16),
                 Text(
                   'Nessun anime in programma',

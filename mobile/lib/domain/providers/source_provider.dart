@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/entities.dart';
-import '../../data/repositories/anime_repository.dart';
+import '../../features/anime/data/repositories/anime_repository.dart';
 
 final sourceProvider =
     StateNotifierProvider<SourceNotifier, AsyncValue<List<AnimeSource>>>((ref) {

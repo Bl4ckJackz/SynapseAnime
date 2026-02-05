@@ -5,6 +5,8 @@ import '../../core/theme.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/providers/user_profile_provider.dart';
 import '../../domain/providers/auth_provider.dart';
+import '../../domain/providers/watch_history_provider.dart';
+import '../animations/crystalize_chart_widget.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -12,6 +14,7 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileState = ref.watch(userProfileProvider);
+    final historyState = ref.watch(watchHistoryProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -57,17 +60,12 @@ class ProfileScreen extends ConsumerWidget {
           const SizedBox(height: 24),
 
           // Stats Cards Row
-          _buildStatsCards(context),
+          _buildStatsCards(context, ref),
 
           const SizedBox(height: 24),
 
-          // Activity Chart
-          _buildActivityChart(context),
-
-          const SizedBox(height: 24),
-
-          // Genre Distribution
-          _buildGenreChart(context, user),
+          // Charts
+          _buildCharts(context, ref),
 
           const SizedBox(height: 24),
 
@@ -149,21 +147,82 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatsCards(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-            child: _buildStatCard(
-                '12', 'Anime\nGuardati', Icons.play_circle, Colors.blue)),
-        const SizedBox(width: 12),
-        Expanded(
-            child: _buildStatCard(
-                '48', 'Episodi\nVisti', Icons.movie, Colors.green)),
-        const SizedBox(width: 12),
-        Expanded(
-            child: _buildStatCard(
-                '24h', 'Tempo\nTotale', Icons.timer, Colors.orange)),
-      ],
+  Widget _buildStatsCards(BuildContext context, WidgetRef ref) {
+    final historyState = ref.watch(watchHistoryProvider);
+
+    return historyState.when(
+      data: (history) {
+        final uniqueAnime = history.map((e) => e.anime?.id).toSet().length;
+        final totalEpisodes = history.length;
+        final totalSeconds =
+            history.fold(0, (sum, item) => sum + item.progressSeconds);
+
+        String timeDisplay;
+        if (totalSeconds < 3600) {
+          timeDisplay = '${(totalSeconds / 60).toStringAsFixed(0)}m';
+        } else {
+          timeDisplay = '${(totalSeconds / 3600).toStringAsFixed(1)}h';
+        }
+
+        return Row(
+          children: [
+            Expanded(
+                child: _buildStatCard('$uniqueAnime', 'Anime\nGuardati',
+                    Icons.play_circle, Colors.blue)),
+            const SizedBox(width: 12),
+            Expanded(
+                child: _buildStatCard('$totalEpisodes', 'Episodi\nVisti',
+                    Icons.movie, Colors.green)),
+            const SizedBox(width: 12),
+            Expanded(
+                child: _buildStatCard(
+                    timeDisplay, 'Tempo\nTotale', Icons.timer, Colors.orange)),
+          ],
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => const SizedBox(),
+    );
+  }
+
+  Widget _buildCharts(BuildContext context, WidgetRef ref) {
+    final historyState = ref.watch(watchHistoryProvider);
+
+    return historyState.when(
+      data: (history) {
+        // Calculate Weekly Activity
+        final now = DateTime.now();
+        final weeklyActivity = List<double>.filled(7, 0);
+
+        for (var item in history) {
+          final diff = now.difference(item.updatedAt).inDays;
+          if (diff < 7) {
+            // Map weekday (1=Mon..7=Sun) to index (0..6)
+            final weekdayIndex = item.updatedAt.weekday - 1;
+            if (weekdayIndex >= 0 && weekdayIndex < 7) {
+              weeklyActivity[weekdayIndex] += 1; // Count episodes
+            }
+          }
+        }
+
+        // Calculate Genre Distribution
+        final genreDistribution = <String, int>{};
+        for (var item in history) {
+          if (item.anime != null) {
+            for (var genre in item.anime!.genres) {
+              genreDistribution[genre] = (genreDistribution[genre] ?? 0) + 1;
+            }
+          }
+        }
+
+        return CrystalizeChartWidget(
+          weeklyActivity: weeklyActivity,
+          genreDistribution: genreDistribution,
+        );
+      },
+      loading: () => const SizedBox(
+          height: 200, child: Center(child: CircularProgressIndicator())),
+      error: (_, __) => const SizedBox(),
     );
   }
 
@@ -196,128 +255,6 @@ class ProfileScreen extends ConsumerWidget {
                 color: AppTheme.textMuted,
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActivityChart(BuildContext context) {
-    return Card(
-      color: AppTheme.cardColor,
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Attività Settimanale',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              height: 120,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  _buildBarChart('L', 0.4, Colors.blue),
-                  _buildBarChart('M', 0.7, Colors.blue),
-                  _buildBarChart('M', 0.3, Colors.blue),
-                  _buildBarChart('G', 0.9, AppTheme.primaryColor),
-                  _buildBarChart('V', 0.6, Colors.blue),
-                  _buildBarChart('S', 1.0, AppTheme.primaryColor),
-                  _buildBarChart('D', 0.8, AppTheme.primaryColor),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBarChart(String day, double height, Color color) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 500),
-          width: 28,
-          height: 80 * height,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(6),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(day,
-            style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
-      ],
-    );
-  }
-
-  Widget _buildGenreChart(BuildContext context, User user) {
-    final genres =
-        user.preference?.preferredGenres ?? ['Action', 'Comedy', 'Drama'];
-    final colors = [
-      Colors.red,
-      Colors.blue,
-      Colors.green,
-      Colors.orange,
-      Colors.purple
-    ];
-
-    return Card(
-      color: AppTheme.cardColor,
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Generi Preferiti',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            ...genres.asMap().entries.map((entry) {
-              final index = entry.key;
-              final genre = entry.value;
-              final percentage = (100 - index * 20).clamp(20, 100).toDouble();
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(genre, style: const TextStyle(fontSize: 14)),
-                        Text('${percentage.toInt()}%',
-                            style: TextStyle(
-                                color: colors[index % colors.length])),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: percentage / 100,
-                        backgroundColor: colors[index % colors.length]
-                            .withValues(alpha: 0.2),
-                        valueColor: AlwaysStoppedAnimation(
-                            colors[index % colors.length]),
-                        minHeight: 8,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }),
           ],
         ),
       ),

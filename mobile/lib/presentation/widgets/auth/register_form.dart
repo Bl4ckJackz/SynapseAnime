@@ -113,7 +113,9 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
             controller: _nicknameController,
             decoration: InputDecoration(
               labelText: 'Nickname',
-              prefixIcon: const Icon(Icons.person_outline),
+              labelStyle: const TextStyle(color: Colors.black87),
+              prefixIcon:
+                  const Icon(Icons.person_outline, color: Colors.black87),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
@@ -129,7 +131,9 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
             controller: _emailController,
             decoration: InputDecoration(
               labelText: 'Email',
-              prefixIcon: const Icon(Icons.email_outlined),
+              labelStyle: const TextStyle(color: Colors.black87),
+              prefixIcon:
+                  const Icon(Icons.email_outlined, color: Colors.black87),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
@@ -155,11 +159,15 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
             controller: _passwordController,
             decoration: InputDecoration(
               labelText: 'Password',
-              prefixIcon: const Icon(Icons.lock_outline),
+              labelStyle: const TextStyle(color: Colors.black87),
+              prefixIcon: const Icon(Icons.lock_outline, color: Colors.black87),
               suffixIcon: IconButton(
-                icon: Icon(_obscurePassword
-                    ? Icons.visibility_outlined
-                    : Icons.visibility_off_outlined),
+                icon: Icon(
+                  _obscurePassword
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  color: Colors.black87,
+                ),
                 onPressed: () =>
                     setState(() => _obscurePassword = !_obscurePassword),
               ),
@@ -188,11 +196,15 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
             controller: _confirmPasswordController,
             decoration: InputDecoration(
               labelText: 'Conferma Password',
-              prefixIcon: const Icon(Icons.lock_outline),
+              labelStyle: const TextStyle(color: Colors.black87),
+              prefixIcon: const Icon(Icons.lock_outline, color: Colors.black87),
               suffixIcon: IconButton(
-                icon: Icon(_obscureConfirmPassword
-                    ? Icons.visibility_outlined
-                    : Icons.visibility_off_outlined),
+                icon: Icon(
+                  _obscureConfirmPassword
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  color: Colors.black87,
+                ),
                 onPressed: () => setState(
                     () => _obscureConfirmPassword = !_obscureConfirmPassword),
               ),

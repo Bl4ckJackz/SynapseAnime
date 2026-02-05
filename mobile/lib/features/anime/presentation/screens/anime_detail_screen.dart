@@ -2,10 +2,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/theme.dart';
-import '../../core/constants.dart';
-import '../../domain/entities/episode.dart';
-import '../../domain/providers/anime_provider.dart';
+import '../../../../core/theme.dart';
+import '../../../../core/constants.dart';
+import '../../../../domain/entities/episode.dart';
+import '../../../../domain/providers/anime_provider.dart';
 
 class AnimeDetailScreen extends ConsumerStatefulWidget {
   final String animeId;
@@ -363,7 +363,8 @@ class _AnimeDetailScreenState extends ConsumerState<AnimeDetailScreen> {
   }
 
   String _getProxiedUrl(String? url) {
-    if (url == null || url.isEmpty) return 'https://via.placeholder.com/160x90';
+    if (url == null || url.isEmpty)
+      return 'https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png';
     if (url.contains('animeunity.so') ||
         url.contains('img.animeunity') ||
         url.contains('cdn.noitatnemucod.net')) {

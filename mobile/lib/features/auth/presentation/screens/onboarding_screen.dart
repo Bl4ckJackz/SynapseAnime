@@ -2,19 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:liquid_swipe/liquid_swipe.dart';
 import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:anime_ai_player/presentation/widgets/auth/login_form.dart';
-import 'package:anime_ai_player/presentation/screens/modern_auth_screen.dart';
+import 'auth_screen.dart';
 
-class AuthScreen extends StatefulWidget {
+class OnboardingScreen extends StatefulWidget {
   final int initialPage;
 
-  const AuthScreen({super.key, this.initialPage = 0});
+  const OnboardingScreen({super.key, this.initialPage = 0});
 
   @override
-  State<AuthScreen> createState() => _AuthScreenState();
+  State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _AuthScreenState extends State<AuthScreen> {
+class _OnboardingScreenState extends State<OnboardingScreen> {
   late LiquidController _liquidController;
   late int _currentPage;
 
@@ -68,12 +67,12 @@ class _AuthScreenState extends State<AuthScreen> {
         description: 'Crea il tuo account e inizia la tua avventura anime.',
         icon: Icons.login_rounded,
         onTap: () {
-          // Custom transition to Modern Auth Screen
+          // Custom transition to Auth Screen
           Navigator.push(
             context,
             PageRouteBuilder(
               pageBuilder: (context, animation, secondaryAnimation) =>
-                  const ModernAuthScreen(),
+                  const AuthScreen(),
               transitionsBuilder:
                   (context, animation, secondaryAnimation, child) {
                 const begin = Offset(0.0, 1.0);

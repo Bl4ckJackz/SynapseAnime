@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'source_provider.dart';
 import '../../domain/entities/entities.dart';
-import '../../data/repositories/anime_repository.dart';
+import '../../features/anime/data/repositories/anime_repository.dart';
 
 final activeSourceIdProvider =
     NotifierProvider<ActiveSourceNotifier, String>(ActiveSourceNotifier.new);

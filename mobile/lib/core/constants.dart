@@ -3,11 +3,12 @@ class AppConstants {
 
   // API Configuration
   // Use localhost for Flutter web development
-  static const String apiBaseUrl = 'http://localhost:3010';
-  static const String consumetBaseUrl = 'http://localhost:3004';
+  // static const String apiBaseUrl = 'http://localhost:3010';
+  // static const String consumetBaseUrl = 'http://localhost:3004';
+
   // For physical device testing, use your LAN IP:
-  // static const String apiBaseUrl = 'http://192.168.140.73:3010';
-  // static const String consumetBaseUrl = 'http://192.168.140.73:3002';
+  static const String apiBaseUrl = 'http://192.168.238.73:3010';
+  static const String consumetBaseUrl = 'http://192.168.238.73:3004';
 
   // Storage Keys
   static const String accessTokenKey = 'access_token';
@@ -22,6 +23,7 @@ class AppConstants {
 
   static const String animeList = '/jikan/anime/search';
   static const String animeDetails = '/jikan/anime'; // Will append /:id
+  static const String jikanSchedules = '/jikan/schedules';
   static const String animeGenres = '/jikan/anime/genres';
   static const String animeNewReleases = '/anime/new-releases';
   static const String animeTopRated = '/anime/top-rated';

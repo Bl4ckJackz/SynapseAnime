@@ -1,11 +1,7 @@
-/*
 import 'package:flutter/material.dart';
 import 'package:rive/rive.dart';
 
 class RiveAnimationWidget extends StatelessWidget {
-...
-}
-*/
   final String animationName;
   final double width;
   final double height;

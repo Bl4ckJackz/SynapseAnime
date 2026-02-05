@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
-import '../../core/constants.dart';
-import '../../domain/entities/user.dart';
-import '../api_client.dart';
+import '../../../../core/constants.dart';
+import '../../../../domain/entities/user.dart';
+import '../../../../data/api_client.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthRepository {

@@ -266,7 +266,7 @@ class MangaRepository {
       ..sort((a, b) {
         final numA = a.number ?? 0;
         final numB = b.number ?? 0;
-        return numB.compareTo(numA);
+        return numA.compareTo(numB);
       });
 
     return sorted;
@@ -535,7 +535,7 @@ class MangaRepository {
           pagesRaw = data['data'];
       }
 
-      return pagesRaw
+      final pages = pagesRaw
           .map((page) {
             if (page is String) return page;
             if (page is Map<String, dynamic>) {
@@ -546,6 +546,9 @@ class MangaRepository {
           })
           .where((url) => url.isNotEmpty)
           .toList();
+
+      print('DEBUG: Extracted ${pages.length} pages from response');
+      return pages;
     } catch (e) {
       print('Error fetching pages: $e');
       return [];
@@ -656,89 +659,139 @@ class MangaRepository {
   /// Find best match from search results using scoring
   Map<String, dynamic> _findBestMatch(
       List<Map<String, dynamic>> results, String query) {
-    final queryLower = query.toLowerCase().trim();
-    final queryWords = queryLower.split(RegExp(r'\s+'));
+    // Normalization helper
+    String _normalize(String s) {
+      return s
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9\s]'), ' ')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
+    }
 
-    int bestScore = -1;
+    final queryNorm = _normalize(query);
+    final queryLower = query.toLowerCase().trim();
+    final queryWords = queryNorm.split(' ');
+
+    int bestScore = -1000; // Allow negative scores
     Map<String, dynamic> bestMatch = results.first;
 
+    print('DEBUG: Scoring candidates for query: "$query" (norm: "$queryNorm")');
+
     for (final result in results) {
-      final title = (result['title'] ?? '').toString().toLowerCase().trim();
+      final title = (result['title'] ?? '').toString();
+      final titleLower = title.toLowerCase().trim();
+      final titleNorm = _normalize(title);
+
       int score = 0;
 
-      // Exact match gets highest score
-      if (title == queryLower) {
+      // 1. Exact Match (Normalized)
+      if (titleNorm == queryNorm) {
         score += 1000;
       }
-
-      // Title starts with query
-      if (title.startsWith(queryLower)) {
-        score += 500;
-      }
-
-      // Title contains full query
-      if (title.contains(queryLower)) {
-        score += 300;
-      }
-
-      // Query contains full title (for short titles like "GTO")
-      if (queryLower.contains(title)) {
+      // Exact Match (Case-insensitive raw) - Higher bonus
+      if (titleLower == queryLower) {
         score += 200;
       }
 
-      // Word overlap scoring
-      final titleWords = title.split(RegExp(r'\s+'));
-      for (final qWord in queryWords) {
-        if (titleWords.any((tw) => tw == qWord)) {
-          score += 50; // Exact word match
-        } else if (titleWords.any((tw) => tw.contains(qWord))) {
-          score += 20; // Partial word match
+      // 2. Starts With
+      if (titleNorm.startsWith(queryNorm)) {
+        // Only valid if query is reasonably long OR follows word boundary
+        if (queryNorm.length < 3) {
+          score += 50; // Very weak bonus for short queries
+        } else {
+          score += 300;
         }
       }
 
-      // HEAVY PENALTY for Doujinshi, Anthology, Fan-made content
-      // These are fan-made and should never be preferred over official manga
-      final spinoffKeywords = [
-        'doujinshi',
-        'dj',
-        '(dj)',
-        'anthology',
-        'fan comic',
-        'fancomic',
-        'parody',
-        '4-koma',
-        'yonkoma',
-        'oneshot collection',
-        'extra',
-        'side story',
-        'gaiden',
-        'spinoff',
-        'spin-off'
-      ];
-      for (final keyword in spinoffKeywords) {
-        if (title.contains(keyword)) {
-          score -= 500; // Heavy penalty
+      // 3. Contains (Normalized)
+      if (titleNorm.contains(queryNorm)) {
+        score += 200;
+      }
+
+      // 4. Word Overlap
+      final titleWords = titleNorm.split(' ');
+      int wordMatches = 0;
+      for (final qWord in queryWords) {
+        if (qWord.isEmpty) continue;
+        if (titleWords.contains(qWord)) {
+          score += 50;
+          wordMatches++;
+        }
+      }
+      if (wordMatches == queryWords.length && queryWords.isNotEmpty) {
+        score += 100;
+      }
+
+      // --- PENALTIES ---
+
+      // 1. Length/Ratio Penalty
+      // If title is significantly longer, it's less likely to be the main entry
+      // Normalized length used for reliability
+      if (queryNorm.isNotEmpty) {
+        final ratio = titleNorm.length / queryNorm.length;
+
+        // Only apply strict ratio penalty if title has enough words to be a "long" title
+        // This protects short synonyms like "86" -> "Eighty Six" (2 words) from being killed
+        final isTitleLongInWords = titleWords.length > 3;
+
+        if (queryNorm.length < 5) {
+          // Strict mode for short queries (e.g. "86")
+          if (isTitleLongInWords) {
+            if (ratio > 2.0) score -= 500;
+            if (ratio > 3.0) score -= 1000;
+          }
+        } else {
+          // Normal mode
+          if (ratio > 2.0) score -= 300;
+          if (ratio > 3.0) score -= 500;
+        }
+      }
+
+      // 2. Separators checking (Raw strings)
+      // Spinoffs often usage " - ", ": " etc.
+      // If title has separators that query doesn't, penalize.
+      final separators = [' - ', ' – ', ' — ', ': '];
+      bool hasExtraSeparator = false;
+      for (final sep in separators) {
+        if (title.contains(sep) && !query.contains(sep)) {
+          hasExtraSeparator = true;
           break;
         }
       }
-
-      // Penalty for titles with dash/colon followed by subtitle (likely spinoff)
-      // e.g. "Haikyuu!! - Something Extra" vs "Haikyuu!!"
-      if (title.contains(' - ') && !queryLower.contains(' - ')) {
-        score -= 150;
+      if (hasExtraSeparator) {
+        score -= 300; // Increased from 200
       }
 
-      // Penalty for much longer titles (indicates spinoff/sequel)
-      if (title.length > queryLower.length * 2) {
-        score -= 50;
+      // 3. Spinoff Keywords
+      final spinoffKeywords = [
+        'doujinshi', 'dj', '(dj)', 'anthology', 'fan comic', 'fancomic',
+        'parody', '4-koma', 'yonkoma', 'oneshot collection', 'extra',
+        'side story', 'gaiden', 'spinoff', 'spin-off'
+        // Removed 'official' as it often denotes main series on some sites
+      ];
+      for (final keyword in spinoffKeywords) {
+        if (titleLower.contains(keyword)) {
+          // If query ALSO contains it, don't penalize (user searching for spinoff)
+          if (!queryLower.contains(keyword)) {
+            score -= 500;
+          }
+        }
       }
 
-      // Bonus for similar length (main series usually has similar name)
-      if ((title.length - queryLower.length).abs() <= 3) {
-        score += 100;
-      } else if ((title.length - queryLower.length).abs() <= 6) {
-        score += 50;
+      // 4. Word Count Penalty
+      // If title has many more words than query
+      if (titleWords.length > queryWords.length + 2) {
+        // Changed +3 to +2
+        score -= 200; // Increased from 100
       }
+
+      // Penalize if it looks like a "Volume" or specific chapter entry
+      // e.g. "86 - Eighty Six - Volume 1"
+      if (titleLower.contains('volume') && !queryLower.contains('volume')) {
+        score -= 200;
+      }
+
+      print('DEBUG: Candidate "${result['title']}" -> Score: $score');
 
       if (score > bestScore) {
         bestScore = score;
@@ -746,7 +799,6 @@ class MangaRepository {
       }
     }
 
-    // Add score to result for debugging
     bestMatch['_score'] = bestScore;
     return bestMatch;
   }

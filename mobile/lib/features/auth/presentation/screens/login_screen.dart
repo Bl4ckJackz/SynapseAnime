@@ -1,22 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/theme.dart';
-import '../../domain/providers/auth_provider.dart';
+import '../../../../core/theme.dart';
+import '../../../../domain/providers/auth_provider.dart';
 
-class RegisterScreen extends ConsumerStatefulWidget {
-  const RegisterScreen({super.key});
+class LoginScreen extends ConsumerStatefulWidget {
+  const LoginScreen({super.key});
 
   @override
-  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _RegisterScreenState extends ConsumerState<RegisterScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
-  final _nicknameController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -24,12 +22,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _confirmPasswordController.dispose();
-    _nicknameController.dispose();
     super.dispose();
   }
 
-  Future<void> _register() async {
+  Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -38,10 +34,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     });
 
     try {
-      await ref.read(authServiceProvider.notifier).register(
-            _nicknameController.text.trim().isEmpty
-                ? 'User'
-                : _nicknameController.text.trim(),
+      await ref.read(authServiceProvider.notifier).login(
             _emailController.text.trim(),
             _passwordController.text,
           );
@@ -52,7 +45,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Registrazione fallita. Riprova più tardi.';
+          _errorMessage = 'Login fallito. Controlla le credenziali.';
         });
       }
     } finally {
@@ -67,9 +60,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Crea Account'),
-      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -80,9 +70,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const Icon(
+                    Icons.movie_filter_rounded,
+                    size: 80,
+                    color: AppTheme.primaryColor,
+                  ),
+                  const SizedBox(height: 32),
                   Text(
-                    'Unisciti a SynapseAnime',
-                    style: Theme.of(context).textTheme.headlineMedium,
+                    'Bentornato!',
+                    style: Theme.of(context).textTheme.displaySmall,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Accedi per continuare a guardare i tuoi anime preferiti',
+                    style: Theme.of(context).textTheme.bodyMedium,
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 32),
@@ -103,14 +105,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     ),
                     const SizedBox(height: 24),
                   ],
-                  TextFormField(
-                    controller: _nicknameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nickname (Opzionale)',
-                      prefixIcon: Icon(Icons.person_outline),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
                   TextFormField(
                     controller: _emailController,
                     decoration: const InputDecoration(
@@ -138,32 +132,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     obscureText: true,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Inserisci una password';
+                        return 'Inserisci la tua password';
                       }
                       if (value.length < 6) {
-                        return 'Minimo 6 caratteri';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _confirmPasswordController,
-                    decoration: const InputDecoration(
-                      labelText: 'Conferma Password',
-                      prefixIcon: Icon(Icons.lock_outline),
-                    ),
-                    obscureText: true,
-                    validator: (value) {
-                      if (value != _passwordController.text) {
-                        return 'Le password non coincidono';
+                        return 'Password troppo corta (min 6 caratteri)';
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: _isLoading ? null : _register,
+                    onPressed: _isLoading ? null : _login,
                     child: _isLoading
                         ? const SizedBox(
                             height: 20,
@@ -174,26 +153,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                   AlwaysStoppedAnimation<Color>(Colors.white),
                             ),
                           )
-                        : const Text('Registrati'),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      const Expanded(child: Divider()),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text('OPPURE',
-                            style: Theme.of(context).textTheme.bodySmall),
-                      ),
-                      const Expanded(child: Divider()),
-                    ],
+                        : const Text('Accedi'),
                   ),
                   const SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       icon: const Icon(Icons.g_mobiledata, size: 28),
-                      label: const Text('Registrati con Google'),
+                      label: const Text('Accedi con Google'),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         side: const BorderSide(color: Colors.grey),
@@ -214,11 +181,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                   );
                                   setState(() => _isLoading = false);
                                 } else {
-                                  context.goNamed('home');
+                                  context.goNamed('sourceSelection');
                                 }
                               }
                             },
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () => context.goNamed('register'),
+                    child: const Text('Non hai un account? Registrati'),
                   ),
                 ],
               ),

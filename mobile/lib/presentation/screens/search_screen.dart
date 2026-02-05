@@ -195,7 +195,8 @@ class _JikanAnimeResults extends ConsumerWidget {
     final asyncValue = ref.watch(animeListProvider(filter));
 
     return asyncValue.when(
-      data: (animes) => _buildGrid(animes, (anime) => AnimeCard(anime: anime)),
+      data: (animes) => _buildGrid(context, animes,
+          (anime) => AnimeCard(anime: anime, margin: EdgeInsets.zero)),
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Errore: $e')),
     );
@@ -212,7 +213,7 @@ class _JikanMangaResults extends ConsumerWidget {
 
     return asyncValue.when(
       data: (mangaList) =>
-          _buildGrid(mangaList, (manga) => MangaCard(manga: manga)),
+          _buildGrid(context, mangaList, (manga) => MangaCard(manga: manga)),
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Errore: $e')),
     );
@@ -232,7 +233,8 @@ class _MangaDexResults extends ConsumerWidget {
         if (mangaList.isEmpty) {
           return const Center(child: Text('Nessun risultato su MangaDex'));
         }
-        return _buildGrid(mangaList, (manga) => MangaCard(manga: manga));
+        return _buildGrid(
+            context, mangaList, (manga) => MangaCard(manga: manga));
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Errore: $e')),
@@ -240,17 +242,25 @@ class _MangaDexResults extends ConsumerWidget {
   }
 }
 
-Widget _buildGrid<T>(List<T> items, Widget Function(T) builder) {
+Widget _buildGrid<T>(
+    BuildContext context, List<T> items, Widget Function(T) builder) {
   if (items.isEmpty) {
     return const Center(child: Text('Nessun risultato'));
   }
+
+  // Responsive grid logic
+  final width = MediaQuery.of(context).size.width;
+  final crossAxisCount = width > 600 ? 5 : 3;
+  // Adjust aspect ratio based on card size (approx 220/320 = 0.68)
+  final childAspectRatio = 0.65;
+
   return GridView.builder(
     padding: const EdgeInsets.all(16),
-    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-      crossAxisCount: 2,
+    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: crossAxisCount,
       crossAxisSpacing: 12,
       mainAxisSpacing: 12,
-      childAspectRatio: 0.7,
+      childAspectRatio: childAspectRatio,
     ),
     itemCount: items.length,
     itemBuilder: (context, index) => builder(items[index]),

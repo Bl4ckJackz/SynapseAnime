@@ -9,6 +9,8 @@ class Episode extends Equatable {
   final String? thumbnail;
   final String streamUrl;
   final int? season; // Season number for grouping
+  final String? source;
+  final Map<String, String>? headers;
 
   const Episode({
     required this.id,
@@ -19,6 +21,8 @@ class Episode extends Equatable {
     this.thumbnail,
     required this.streamUrl,
     this.season,
+    this.source,
+    this.headers,
   });
 
   factory Episode.fromJson(Map<String, dynamic> json) {
@@ -31,6 +35,10 @@ class Episode extends Equatable {
       thumbnail: json['thumbnail'] as String?,
       streamUrl: json['streamUrl'] as String,
       season: json['season'] as int?,
+      source: json['source'] as String?,
+      headers: json['headers'] != null
+          ? Map<String, String>.from(json['headers'])
+          : null,
     );
   }
 
@@ -44,6 +52,8 @@ class Episode extends Equatable {
       'thumbnail': thumbnail,
       'streamUrl': streamUrl,
       'season': season,
+      'source': source,
+      'headers': headers,
     };
   }
 
@@ -56,6 +66,8 @@ class Episode extends Equatable {
     String? thumbnail,
     String? streamUrl,
     int? season,
+    String? source,
+    Map<String, String>? headers,
   }) {
     return Episode(
       id: id ?? this.id,
@@ -66,6 +78,8 @@ class Episode extends Equatable {
       thumbnail: thumbnail ?? this.thumbnail,
       streamUrl: streamUrl ?? this.streamUrl,
       season: season ?? this.season,
+      source: source ?? this.source,
+      headers: headers ?? this.headers,
     );
   }
 
@@ -76,6 +90,16 @@ class Episode extends Equatable {
   }
 
   @override
-  List<Object?> get props =>
-      [id, animeId, number, title, duration, thumbnail, streamUrl, season];
+  List<Object?> get props => [
+        id,
+        animeId,
+        number,
+        title,
+        duration,
+        thumbnail,
+        streamUrl,
+        season,
+        source,
+        headers
+      ];
 }

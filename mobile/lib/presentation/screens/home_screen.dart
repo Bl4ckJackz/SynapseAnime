@@ -10,6 +10,7 @@ import '../widgets/featured_slider.dart';
 import '../widgets/shimmer_loading.dart';
 import '../../domain/providers/active_source_provider.dart';
 import '../../data/repositories/user_repository.dart';
+import '../../domain/providers/watch_history_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -110,126 +111,129 @@ class HomeScreen extends ConsumerWidget {
               // Continue Watching Section
               Consumer(
                 builder: (context, ref, child) {
-                  final historyFuture =
-                      ref.watch(userRepositoryProvider).getContinueWatching();
-                  return FutureBuilder<List<WatchHistoryItem>>(
-                    future: historyFuture,
-                    builder: (context, snapshot) {
-                      if (snapshot.hasData && snapshot.data!.isNotEmpty) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SectionHeader(title: 'Continua a guardare'),
-                            SizedBox(
-                              height: 160,
-                              child: ListView.builder(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 16),
-                                scrollDirection: Axis.horizontal,
-                                itemCount: snapshot.data!.length,
-                                itemBuilder: (context, index) {
-                                  final item = snapshot.data![index];
-                                  final anime = item.anime;
-                                  if (anime == null) {
-                                    return const SizedBox.shrink();
-                                  }
+                  final historyAsync = ref.watch(watchHistoryProvider);
 
-                                  return GestureDetector(
-                                    onTap: () => context.pushNamed('player',
-                                        pathParameters: {
-                                          'animeId': anime.id,
-                                          'episodeId': item.episode.id
-                                        }),
-                                    child: Container(
-                                      width: 200,
-                                      margin: const EdgeInsets.only(right: 12),
-                                      child: Stack(
-                                        children: [
-                                          ClipRRect(
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                            child: CachedNetworkImage(
-                                              imageUrl: anime.coverUrl ?? '',
-                                              width: 200,
-                                              height: 120,
-                                              fit: BoxFit.cover,
+                  return historyAsync.when(
+                    data: (history) {
+                      if (history.isEmpty) return const SizedBox.shrink();
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SectionHeader(title: 'Continua a guardare'),
+                          SizedBox(
+                            height: 160,
+                            child: ListView.builder(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              scrollDirection: Axis.horizontal,
+                              itemCount: history.length,
+                              itemBuilder: (context, index) {
+                                final item = history[index];
+                                final anime = item.anime;
+                                if (anime == null) {
+                                  return const SizedBox.shrink();
+                                }
+
+                                return GestureDetector(
+                                  onTap: () => context.pushNamed('player',
+                                      pathParameters: {
+                                        'animeId': anime.id,
+                                        'episodeId': item.episode.id
+                                      }),
+                                  child: Container(
+                                    width: 200,
+                                    margin: const EdgeInsets.only(right: 12),
+                                    child: Stack(
+                                      children: [
+                                        ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          child: CachedNetworkImage(
+                                            imageUrl: anime.coverUrl ?? '',
+                                            width: 200,
+                                            height: 120,
+                                            fit: BoxFit.cover,
+                                            placeholder: (context, url) =>
+                                                Container(
+                                              color: AppTheme.surfaceColor,
                                             ),
                                           ),
-                                          Positioned(
-                                            bottom: 0,
-                                            left: 0,
-                                            right: 0,
-                                            child: Container(
-                                              padding: const EdgeInsets.all(8),
-                                              decoration: BoxDecoration(
-                                                gradient: LinearGradient(
-                                                  begin: Alignment.topCenter,
-                                                  end: Alignment.bottomCenter,
-                                                  colors: [
-                                                    Colors.transparent,
-                                                    Colors.black
-                                                        .withValues(alpha: 0.8),
-                                                  ],
-                                                ),
-                                                borderRadius:
-                                                    const BorderRadius.only(
-                                                  bottomLeft:
-                                                      Radius.circular(12),
-                                                  bottomRight:
-                                                      Radius.circular(12),
-                                                ),
-                                              ),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Text(
-                                                    anime.title,
-                                                    style: const TextStyle(
-                                                        color: Colors.white,
-                                                        fontSize: 12,
-                                                        fontWeight:
-                                                            FontWeight.bold),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                  Text(
-                                                    'Episodio ${item.episode.number}',
-                                                    style: const TextStyle(
-                                                        color: Colors.white70,
-                                                        fontSize: 10),
-                                                  ),
-                                                  const SizedBox(height: 4),
-                                                  LinearProgressIndicator(
-                                                    value: item.progressPercent,
-                                                    backgroundColor:
-                                                        Colors.white24,
-                                                    valueColor:
-                                                        const AlwaysStoppedAnimation<
-                                                                Color>(
-                                                            AppTheme
-                                                                .primaryColor),
-                                                    minHeight: 2,
-                                                  ),
+                                        ),
+                                        Positioned(
+                                          bottom: 0,
+                                          left: 0,
+                                          right: 0,
+                                          child: Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                begin: Alignment.topCenter,
+                                                end: Alignment.bottomCenter,
+                                                colors: [
+                                                  Colors.transparent,
+                                                  Colors.black
+                                                      .withValues(alpha: 0.8),
                                                 ],
                                               ),
+                                              borderRadius:
+                                                  const BorderRadius.only(
+                                                bottomLeft: Radius.circular(12),
+                                                bottomRight:
+                                                    Radius.circular(12),
+                                              ),
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  anime.title,
+                                                  style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.bold),
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                                Text(
+                                                  'Episodio ${item.episode.number}',
+                                                  style: const TextStyle(
+                                                      color: Colors.white70,
+                                                      fontSize: 10),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                LinearProgressIndicator(
+                                                  value: item.progressPercent,
+                                                  backgroundColor:
+                                                      Colors.white24,
+                                                  valueColor:
+                                                      const AlwaysStoppedAnimation<
+                                                              Color>(
+                                                          AppTheme
+                                                              .primaryColor),
+                                                  minHeight: 2,
+                                                ),
+                                              ],
                                             ),
                                           ),
-                                        ],
-                                      ),
+                                        ),
+                                      ],
                                     ),
-                                  );
-                                },
-                              ),
+                                  ),
+                                );
+                              },
                             ),
-                            const SizedBox(height: 24),
-                          ],
-                        );
-                      }
-                      return const SizedBox.shrink();
+                          ),
+                          const SizedBox(height: 24),
+                        ],
+                      );
                     },
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
                   );
                 },
               ),
@@ -243,7 +247,7 @@ class HomeScreen extends ConsumerWidget {
                 },
               ),
               SizedBox(
-                height: 320,
+                height: 400,
                 child: Consumer(
                   builder: (context, ref, child) {
                     final animeAsync = ref.watch(animeListProvider(
@@ -278,7 +282,7 @@ class HomeScreen extends ConsumerWidget {
                 },
               ),
               SizedBox(
-                height: 320,
+                height: 400,
                 child: Consumer(
                   builder: (context, ref, child) {
                     final animeAsync = ref.watch(animeListProvider(
@@ -329,7 +333,7 @@ class HomeScreen extends ConsumerWidget {
                 },
               ),
               SizedBox(
-                height: 320,
+                height: 400,
                 child: Consumer(
                   builder: (context, ref, child) {
                     final animeAsync = ref.watch(animeListProvider(
@@ -364,7 +368,7 @@ class HomeScreen extends ConsumerWidget {
                 },
               ),
               SizedBox(
-                height: 320,
+                height: 400,
                 child: Consumer(
                   builder: (context, ref, child) {
                     final animeAsync = ref.watch(animeListProvider(
@@ -399,7 +403,7 @@ class HomeScreen extends ConsumerWidget {
                 },
               ),
               SizedBox(
-                height: 320,
+                height: 400,
                 child: Consumer(
                   builder: (context, ref, child) {
                     final animeAsync = ref.watch(animeListProvider(
@@ -434,7 +438,7 @@ class HomeScreen extends ConsumerWidget {
                 },
               ),
               SizedBox(
-                height: 320,
+                height: 400,
                 child: Consumer(
                   builder: (context, ref, child) {
                     final animeAsync = ref.watch(animeListProvider(
@@ -461,35 +465,8 @@ class HomeScreen extends ConsumerWidget {
 
               const SizedBox(height: 24),
 
-              // Popular Genres
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  'Generi Popolari',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 48,
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    _buildGenreChip(context, 'Azione', Icons.flash_on),
-                    _buildGenreChip(context, 'Avventura', Icons.explore),
-                    _buildGenreChip(
-                        context, 'Commedia', Icons.sentiment_very_satisfied),
-                    _buildGenreChip(context, 'Drama', Icons.theater_comedy),
-                    _buildGenreChip(context, 'Fantasy', Icons.auto_stories),
-                    _buildGenreChip(context, 'Horror', Icons.dangerous),
-                    _buildGenreChip(context, 'Romance', Icons.favorite),
-                    _buildGenreChip(context, 'Sci-Fi', Icons.science),
-                  ],
-                ),
-              ),
+              // Genre Sections
+              ..._buildGenreSections(context, ref),
 
               const SizedBox(height: 40),
             ],
@@ -499,19 +476,61 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildGenreChip(BuildContext context, String label, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ActionChip(
-        avatar: Icon(icon, size: 16, color: AppTheme.primaryColor),
-        label: Text(label),
-        backgroundColor: AppTheme.surfaceColor,
-        onPressed: () {
-          // Navigate to search with genre filter
-          context.pushNamed('search');
-        },
-      ),
-    );
+  List<Widget> _buildGenreSections(BuildContext context, WidgetRef ref) {
+    final genres = [
+      'Azione',
+      'Avventura',
+      'Commedia',
+      'Drama',
+      'Fantasy',
+      'Horror',
+      'Romance',
+      'Sci-Fi',
+      'Sport'
+    ];
+
+    return genres.map((genre) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 24),
+          SectionHeader(
+            title: genre,
+            onSeeAll: () {
+              // Navigate to genre grid screen
+              context
+                  .pushNamed('genreGrid', pathParameters: {'genreName': genre});
+            },
+          ),
+          SizedBox(
+            height: 400, // Card height + padding + text space
+            child: Consumer(
+              builder: (context, ref, child) {
+                // We use a custom provider call for each genre
+                final animeAsync = ref.watch(animeListProvider(
+                    AnimeFilter(type: FilterType.list, genre: genre)));
+
+                return animeAsync.when(
+                  data: (animeList) {
+                    if (animeList.isEmpty) return const SizedBox.shrink();
+                    return ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      scrollDirection: Axis.horizontal,
+                      itemCount: animeList.length,
+                      itemBuilder: (context, index) {
+                        return AnimeCard(anime: animeList[index]);
+                      },
+                    );
+                  },
+                  loading: () => _buildLoadingList(),
+                  error: (err, stack) => const SizedBox.shrink(),
+                );
+              },
+            ),
+          ),
+        ],
+      );
+    }).toList();
   }
 
   Widget _buildLoadingList() {

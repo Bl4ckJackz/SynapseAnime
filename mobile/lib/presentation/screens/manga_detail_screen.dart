@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/utils/image_utils.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../domain/entities/manga.dart';
@@ -68,7 +69,9 @@ class _MangaDetailContentState extends ConsumerState<MangaDetailContent> {
               fit: StackFit.expand,
               children: [
                 CachedNetworkImage(
-                  imageUrl: widget.manga.coverUrl ?? '',
+                  imageUrl: ImageUtils.getProxiedUrl(
+                      widget.manga.coverUrl ?? '',
+                      headers: {'Referer': 'https://mangaworld.mx/'}),
                   fit: BoxFit.cover,
                   errorWidget: (context, url, error) => Container(
                     color: AppTheme.surfaceColor,
@@ -393,7 +396,7 @@ class _MangaDetailContentState extends ConsumerState<MangaDetailContent> {
         final sourceParam =
             _selectedSource != null ? '?source=$_selectedSource' : '';
         context.push(
-            '/manga/${widget.manga.id}/chapter/${chapter.id}$sourceParam');
+            '/manga/${widget.manga.id}/chapter/${Uri.encodeComponent(chapter.id)}$sourceParam');
       },
     );
   }

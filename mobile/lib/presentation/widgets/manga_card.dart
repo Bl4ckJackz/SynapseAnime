@@ -60,8 +60,8 @@ class MangaCard extends StatelessWidget {
                 child: Stack(
                   children: [
                     CachedNetworkImage(
-                      imageUrl:
-                          manga.coverUrl ?? 'https://via.placeholder.com/150',
+                      imageUrl: manga.coverUrl ??
+                          'https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png',
                       width: width,
                       height: height,
                       fit: BoxFit.cover,

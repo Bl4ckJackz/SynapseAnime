@@ -90,10 +90,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       if (currentEpisode.streamUrl.isEmpty) {
         // Resolve stream URL
         try {
-          final resolvedUrl =
-              await animeRepository.resolveStreamUrl(widget.episodeId);
-          if (resolvedUrl.isNotEmpty) {
-            currentEpisode = currentEpisode.copyWith(streamUrl: resolvedUrl);
+          final resolvedData = await animeRepository.resolveStreamUrl(
+              widget.episodeId,
+              source: currentEpisode.source);
+
+          final url = resolvedData['url'] as String;
+          // Cast explicitly to Map<String, String> if present
+          final headers = resolvedData['headers'] != null
+              ? Map<String, String>.from(resolvedData['headers'])
+              : null;
+
+          if (url.isNotEmpty) {
+            currentEpisode =
+                currentEpisode.copyWith(streamUrl: url, headers: headers);
           }
         } catch (e) {
           print('Failed to resolve stream: $e');
@@ -107,7 +116,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         throw Exception(
             'Video non disponibile. Il server di streaming potrebbe essere temporaneamente irraggiungibile. Riprova più tardi.');
       }
-      // Try to get saved progress, but don't fail if user is not authenticated
+      // Try to get saved progress
       int startPosition = 0;
       try {
         final progressInfo = await ref
@@ -115,26 +124,34 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             .getEpisodeProgress(widget.episodeId);
         startPosition = progressInfo.progressSeconds;
       } catch (e) {
-        // Ignore errors (e.g., 401 Unauthorized) - just start from beginning
-        print('Could not load progress (user may not be logged in): $e');
+        print('Could not load progress: $e');
       }
 
-      // Determine referer based on source
-      final activeSource = animeRepository.getActiveSource() ?? 'jikan';
-      String referer = 'https://www.animeworld.tv/';
-      if (activeSource.contains('unity')) {
-        referer = 'https://www.animeunity.to/';
-      } else if (activeSource.contains('saturn')) {
-        referer = 'https://www.animesaturn.tv/';
+      // Prepare headers
+      final Map<String, String> httpHeaders = {
+        'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      };
+
+      if (_episode!.headers != null && _episode!.headers!.isNotEmpty) {
+        httpHeaders.addAll(_episode!.headers!);
+      } else {
+        // Fallback legacy logic
+        final activeSource = currentEpisode.source ??
+            animeRepository.getActiveSource() ??
+            'jikan';
+        String referer = 'https://www.animeworld.tv/';
+        if (activeSource.contains('unity')) {
+          referer = 'https://www.animeunity.to/';
+        } else if (activeSource.contains('saturn')) {
+          referer = 'https://www.animesaturn.tv/';
+        }
+        httpHeaders['Referer'] = referer;
       }
 
       _videoPlayerController = VideoPlayerController.networkUrl(
         Uri.parse(_episode!.streamUrl),
-        httpHeaders: {
-          'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Referer': referer,
-        },
+        httpHeaders: httpHeaders,
       );
 
       // Add error listener to handle playback errors

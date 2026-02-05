@@ -4,8 +4,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 
 import '../presentation/screens/splash_screen.dart';
-import '../presentation/screens/auth_screen.dart';
-import '../presentation/screens/anime_detail_screen.dart';
+import '../features/auth/presentation/screens/auth_screen.dart';
+import '../features/anime/presentation/screens/anime_detail_screen.dart';
 import '../presentation/screens/player_screen.dart';
 import '../presentation/screens/chat_screen.dart';
 import '../presentation/screens/settings_screen.dart';
@@ -18,6 +18,7 @@ import '../presentation/screens/manga_detail_screen.dart';
 import '../presentation/screens/manga_reader_screen.dart';
 import '../presentation/screens/source_selection_screen.dart';
 import '../presentation/screens/calendar_screen.dart';
+import '../presentation/screens/genre_grid_screen.dart';
 import 'constants.dart';
 
 // Route names
@@ -172,6 +173,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.calendar,
         name: 'calendar',
         builder: (context, state) => const CalendarScreen(),
+      ),
+      GoRoute(
+        path: '/genre/:genreName',
+        name: 'genreGrid',
+        builder: (context, state) {
+          final genreName = state.pathParameters['genreName']!;
+          return GenreGridScreen(genre: genreName);
+        },
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

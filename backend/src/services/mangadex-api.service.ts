@@ -97,7 +97,7 @@ export class MangaDexService {
     private mangaRepository: Repository<Manga>,
     @InjectRepository(Chapter)
     private chapterRepository: Repository<Chapter>,
-  ) { }
+  ) {}
 
   async searchManga(
     query: string,
@@ -271,7 +271,9 @@ export class MangaDexService {
         'it',
         'en',
       ]);
-      console.log(`DEBUG: Fetched ${chapters.length} IT/EN chapters for ${mangadexId}`);
+      console.log(
+        `DEBUG: Fetched ${chapters.length} IT/EN chapters for ${mangadexId}`,
+      );
 
       // If no chapters found, try without language filter
       if (chapters.length === 0) {
@@ -279,12 +281,19 @@ export class MangaDexService {
           `No IT/EN chapters found for ${mangadexId}, fetching all languages...`,
         );
         chapters = await this.fetchChaptersWithLanguage(mangadexId, undefined);
-        console.log(`DEBUG: Fetched ${chapters.length} chapters (all languages) for ${mangadexId}`);
+        console.log(
+          `DEBUG: Fetched ${chapters.length} chapters (all languages) for ${mangadexId}`,
+        );
       }
 
       // Filter and deduplicate chapters by language preference
-      const filtered = this.filterChaptersByLanguage(chapters, preferredLanguage);
-      console.log(`DEBUG: After filter: ${filtered.length} chapters for ${mangadexId}`);
+      const filtered = this.filterChaptersByLanguage(
+        chapters,
+        preferredLanguage,
+      );
+      console.log(
+        `DEBUG: After filter: ${filtered.length} chapters for ${mangadexId}`,
+      );
       return filtered;
     } catch (error) {
       console.error(

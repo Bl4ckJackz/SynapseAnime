@@ -6,16 +6,17 @@ import 'package:lottie/lottie.dart';
 import 'package:anime_ai_player/presentation/widgets/auth/login_form.dart';
 import 'package:anime_ai_player/presentation/widgets/auth/register_form.dart';
 
-class ModernAuthScreen extends ConsumerStatefulWidget {
-  const ModernAuthScreen({super.key});
+class AuthScreen extends ConsumerStatefulWidget {
+  final int initialPage;
+  const AuthScreen({super.key, this.initialPage = 4});
 
   @override
-  ConsumerState<ModernAuthScreen> createState() => _ModernAuthScreenState();
+  ConsumerState<AuthScreen> createState() => _AuthScreenState();
 }
 
-class _ModernAuthScreenState extends ConsumerState<ModernAuthScreen>
+class _AuthScreenState extends ConsumerState<AuthScreen>
     with SingleTickerProviderStateMixin {
-  bool _isLogin = true;
+  late bool _isLogin;
   bool _isLoading = false;
   late AnimationController _flipController;
   late Animation<double> _flipAnimation;
@@ -23,11 +24,15 @@ class _ModernAuthScreenState extends ConsumerState<ModernAuthScreen>
   @override
   void initState() {
     super.initState();
+    _isLogin = widget.initialPage !=
+        5; // 5 is Register, others (4, 0) default to Login
+
     // Animation for Flip (0 to 1)
     // 0 = Login (Front), 1 = Register (Back)
     _flipController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
+      value: _isLogin ? 0.0 : 1.0, // Set initial value based on mode
     );
 
     _flipAnimation = Tween<double>(begin: 0, end: 1).animate(

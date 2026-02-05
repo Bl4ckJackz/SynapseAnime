@@ -1,10 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../domain/entities/anime.dart';
-import '../../domain/entities/episode.dart';
-import '../../domain/entities/anime_source.dart';
-import '../../core/constants.dart';
-import '../api_client.dart';
-import '../../core/config/source_config.dart';
+import '../../../../core/constants.dart';
+import '../../../../domain/entities/anime.dart';
+import '../../../../domain/entities/episode.dart';
+import '../../../../domain/entities/anime_source.dart';
+import '../../../../data/api_client.dart';
+import '../../../../core/config/source_config.dart';
 
 final animeRepositoryProvider = Provider<AnimeRepository>((ref) {
   return AnimeRepository(ref.read(apiClientProvider));
@@ -85,6 +85,14 @@ class AnimeRepository {
         'q': search ?? '',
       };
 
+      // Map genres if present
+      if (genre != null) {
+        final genreId = _getJikanGenreId(genre);
+        if (genreId != null) {
+          queryParams['genres'] = genreId;
+        }
+      }
+
       final response = await _apiClient.get(
         AppConstants.animeList,
         queryParameters: queryParams,
@@ -106,6 +114,9 @@ class AnimeRepository {
       );
     } else {
       // Use Consumet API for searching on a specific provider
+      // Note: Consumet generic search might not support genre filtering directly in the same way
+      // But we generally fallback to Jikan for genre lists anyway in the app logic logic
+      // if the user specifically requested a genre list.
       final response = await _apiClient.get(
         '${AppConstants.consumetBaseUrl}/anime/$active/$search',
         queryParameters: {'page': page},
@@ -138,6 +149,24 @@ class AnimeRepository {
         totalPages: page, // Simplification
       );
     }
+  }
+
+  String? _getJikanGenreId(String genre) {
+    final Map<String, int> genreMap = {
+      'azione': 1,
+      'avventura': 2,
+      'commedia': 4,
+      'drama': 8,
+      'fantasy': 10,
+      'horror': 14,
+      'romance': 22,
+      'sci-fi': 24,
+      'slice of life': 36,
+      'supernatural': 37,
+      'sport': 30,
+    };
+    final id = genreMap[genre.toLowerCase()];
+    return id?.toString();
   }
 
   Future<Anime> getAnimeById(String id) async {
@@ -280,6 +309,11 @@ class AnimeRepository {
             _cleanTitle(jikanAnime.titleEnglish!),
           _cleanTitle(jikanAnime.title),
         ].toSet().toList(); // Remove duplicates
+
+        // Explicitly add lowercase raw title if it contains semicolon (for Steins;Gate etc)
+        if (jikanAnime.title.contains(';')) {
+          titlesToTry.add(jikanAnime.title.toLowerCase());
+        }
 
         // Track the number of ORIGINAL titles (before adding derived variants)
         final originalTitleCount = titlesToTry.length;
@@ -560,15 +594,45 @@ class AnimeRepository {
                 // Check matches against primary/derived variants logic...
                 // (Simplified for brevity, reusing core logic logic operates same)
                 // ...
+                // Clean candidate title for fair comparison
+                final candTitleClean = _cleanTitle(candTitle).toLowerCase();
+
+                // Check matches against primary/derived variants logic...
+                // (Simplified for brevity, reusing core logic logic operates same)
+                // ...
                 final primaryVariants =
                     titlesToTry.take(originalTitleCount).toList();
 
                 bool isPrimaryMatch = false;
                 for (final searchVariant in primaryVariants) {
-                  if (candTitleLower == searchVariant.toLowerCase()) {
+                  final searchVariantClean =
+                      _cleanTitle(searchVariant).toLowerCase();
+
+                  // EXACT MATCH BONUS
+                  if (candTitleClean == searchVariantClean) {
                     score += 150;
                     isPrimaryMatch = true;
+                    print('DEBUG: $candId - Exact Match Bonus (+150)');
                     break;
+                  }
+
+                  // Check for extra words/numbers in candidate that are NOT in search variant
+                  // e.g. Search: "Steins Gate", Candidate: "Steins Gate 0"
+                  // This prevents "Steins Gate 0" from matching "Steins Gate" too strongly
+                  if (candTitleClean.startsWith(searchVariantClean)) {
+                    final suffix = candTitleClean
+                        .substring(searchVariantClean.length)
+                        .trim();
+                    // If suffix contains numbers, it's likely a sequel/different season
+                    if (RegExp(r'\d+').hasMatch(suffix)) {
+                      score -= 50; // Penalize mismatching number suffix
+                      print(
+                          'DEBUG: $candId - Penalized for extra number suffix (-50): "$suffix"');
+                    } else if (suffix.isNotEmpty) {
+                      score -= 10; // Penalize text suffix slightly
+                    } else {
+                      // Suffix is empty, so it's a match? (handled by exact match above usually)
+                    }
                   }
                 }
 
@@ -582,6 +646,8 @@ class AnimeRepository {
                       .split(' - ')
                       .first
                       .trim();
+
+                  // Clean base title too if needed, but simple contains is often enough for fallback
                   if (candTitleLower.contains(baseSearchTitle)) {
                     score += 10;
                   }
@@ -632,6 +698,7 @@ class AnimeRepository {
                               thumbnail: e['image'] ?? coverImage,
                               duration: 0,
                               streamUrl: '',
+                              source: source,
                             ))
                         .toList() ??
                     [];
@@ -747,32 +814,13 @@ class AnimeRepository {
             caseSensitive: false),
         (Match m) => '${m.group(1)}');
 
-    // keep alphanumeric, spaces, hyphens, slashes, colons, and apostrophes. Remove brackets and special symbols.
+    // keep alphanumeric, spaces, hyphens, slashes, colons, apostrophes AND SEMICOLONS. Remove brackets and special symbols.
     // e.g. "One Piece (TV)" -> "One Piece"
     // Preserve "/" for titles like "Fate/strange Fake", "Fate/stay night"
     cleaned = cleaned.replaceAll(RegExp(r'\s*\([^)]*\)'), ''); // Remove (...)
-    cleaned = cleaned.replaceAll(RegExp(r"[^a-zA-Z0-9\s\-/:']"),
-        ' '); // Replace special chars with space (allow colon, apostrophe, slash)
+    cleaned = cleaned.replaceAll(RegExp(r"[^a-zA-Z0-9\s\-/:';]"),
+        ' '); // Replace special chars with space (allow colon, apostrophe, slash, semicolon)
     return cleaned.replaceAll(RegExp(r'\s+'), ' ').trim(); // Collapse spaces
-  }
-
-  Future<String> resolveStreamUrl(String episodeId) async {
-    final active =
-        getActiveSource() == 'jikan' ? 'animeunity' : getActiveSource();
-    // Encode ID: slashes should be encoded (2549-demon-slayer/44417 -> 2549-demon-slayer%2F44417)
-    final encodedId = Uri.encodeComponent(episodeId);
-
-    // Consumet Watch API: http://localhost:3002/anime/[provider]/watch/[encoded_id]
-    final response = await _apiClient.get(
-      '${AppConstants.consumetBaseUrl}/anime/$active/watch/$encodedId',
-    );
-
-    final sources = response.data['sources'] as List<dynamic>?;
-    if (sources != null && sources.isNotEmpty) {
-      // Prefer highest quality or just the first one
-      return sources.first['url'];
-    }
-    return '';
   }
 
   Future<List<String>> getGenres() async {
@@ -886,27 +934,6 @@ class AnimeRepository {
     }
   }
 
-  /// Fetches anime schedule for a specific day of the week
-  Future<List<Anime>> getSchedule(String day) async {
-    try {
-      final response = await _apiClient.get(
-        '/jikan/anime/schedule',
-        queryParameters: {'day': day.toLowerCase()},
-      );
-
-      final List<dynamic> results = response.data is List
-          ? response.data as List<dynamic>
-          : (response.data['data'] as List<dynamic>? ?? []);
-
-      return results
-          .map((e) => Anime.fromJson(e as Map<String, dynamic>))
-          .toList();
-    } catch (e) {
-      print('Error fetching schedule for $day: $e');
-      return [];
-    }
-  }
-
   /// Extract season number from title strings
   int? _extractSeasonNumber(
       String title, String? titleEnglish, String? titleRomaji) {
@@ -991,6 +1018,83 @@ class AnimeRepository {
     }
 
     return null; // Season 1 or unknown
+  }
+
+  /// Get anime schedule for a specific day
+  Future<List<Anime>> getSchedule(String day) async {
+    try {
+      // If using Jikan
+      if (getActiveSource() == 'jikan') {
+        final response = await _apiClient.get(
+          '${AppConstants.jikanSchedules}/$day',
+        );
+
+        if (response.statusCode == 200) {
+          final data = response.data['data'] as List<dynamic>?;
+          if (data != null) {
+            return data
+                .map((e) => Anime.fromJson(e as Map<String, dynamic>))
+                .toList();
+          }
+        }
+      }
+      // Fallback or implementation for other sources if available
+      // For now returning empty list if not Jikan as other sources might not support schedule
+      return [];
+    } catch (e) {
+      print('Error fetching schedule for $day: $e');
+      return [];
+    }
+  }
+
+  /// Resolve the actual stream URL for a given episode
+  Future<Map<String, dynamic>> resolveStreamUrl(String episodeId,
+      {String? source}) async {
+    final activeSource = source ?? getActiveSource();
+
+    // For Animeworld/AnimeUnity scenarios
+    try {
+      final response = await _apiClient.get(
+        '${AppConstants.consumetBaseUrl}/anime/$activeSource/watch/$episodeId',
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+
+        // Handle potentially different response structures
+        if (data is Map<String, dynamic>) {
+          String? url;
+          Map<String, String>? headers;
+
+          if (data['sources'] is List && (data['sources'] as List).isNotEmpty) {
+            final sources = data['sources'] as List;
+            // Try to find auto or best quality
+            final bestSource = sources.firstWhere(
+              (s) => s['quality'] == 'auto' || s['quality'] == 'default',
+              orElse: () => sources.first,
+            );
+            url = bestSource['url'].toString();
+          } else if (data['url'] != null) {
+            url = data['url'].toString();
+          }
+
+          if (data['headers'] is Map) {
+            headers = Map<String, String>.from(data['headers']);
+          }
+
+          if (url != null) {
+            return {
+              'url': url,
+              'headers': headers,
+            };
+          }
+        }
+      }
+    } catch (e) {
+      print('Error resolving stream URL: $e');
+    }
+
+    return {'url': '', 'headers': null};
   }
 }
 

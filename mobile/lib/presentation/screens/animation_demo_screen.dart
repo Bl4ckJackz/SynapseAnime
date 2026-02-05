@@ -212,10 +212,14 @@ class AnimationDemoScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       CrystalizeChartWidget(
-                        data: sampleData,
-                        xField: 'month',
-                        yField: 'value',
-                        chartType: 'bar',
+                        weeklyActivity: const [20, 35, 30, 45, 40, 25, 30],
+                        genreDistribution: const {
+                          'Action': 40,
+                          'Adventure': 30,
+                          'Comedy': 15,
+                          'Drama': 10,
+                          'Fantasy': 5,
+                        },
                       ),
                     ],
                   ),
