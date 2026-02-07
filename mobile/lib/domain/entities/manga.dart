@@ -1,4 +1,6 @@
 /// Manga entity representing a manga from various APIs (Jikan, MangaHook, MangaDex)
+import 'media_relation.dart';
+
 class Manga {
   final String id;
   final String title;
@@ -8,6 +10,7 @@ class Manga {
   final String? synopsis;
   final List<String> authors;
   final List<String> genres;
+  final List<MediaRelation> relations;
   final MangaStatus status;
   final double? score;
   final int? chapters;
@@ -25,6 +28,7 @@ class Manga {
     this.synopsis,
     this.authors = const [],
     this.genres = const [],
+    this.relations = const [],
     this.status = MangaStatus.unknown,
     this.score,
     this.chapters,
@@ -33,6 +37,29 @@ class Manga {
     this.source,
     this.type,
   });
+
+  factory Manga.fromJson(Map<String, dynamic> json) {
+    return Manga(
+      id: json['id']?.toString() ?? '',
+      title: json['title'] ?? '',
+      coverUrl: json['coverUrl'] ?? json['imageUrl'],
+      synopsis: json['synopsis'],
+      authors: (json['authors'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      genres: (json['genres'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      status: _parseStatus(json['status']),
+      chapters: json['chapters'] as int?,
+      volumes: json['volumes'] as int?,
+      year: json['year'] as int?,
+      score: (json['score'] as num?)?.toDouble(),
+      source: json['sourceId'] ?? 'backend', // Assuming 'sourceId' or default
+    );
+  }
 
   factory Manga.fromJikanJson(Map<String, dynamic> json) {
     // Handle both raw Jikan format and backend transformed DTO format
@@ -69,6 +96,14 @@ class Manga {
       }
     }
 
+    // Parse relations
+    List<MediaRelation> relations = [];
+    if (json['relations'] != null && json['relations'] is List) {
+      relations = (json['relations'] as List)
+          .map((e) => MediaRelation.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+
     // Parse cover URL - can be imageUrl (transformed) or images.jpg.large_image_url (raw)
     String? coverUrl = json['imageUrl']?.toString();
     if (coverUrl == null || coverUrl.isEmpty) {
@@ -87,6 +122,7 @@ class Manga {
       synopsis: json['synopsis']?.toString(),
       authors: authors,
       genres: genres,
+      relations: relations,
       status: _parseStatus(json['status']?.toString()),
       score: (json['score'] as num?)?.toDouble(),
       chapters: json['chapters'] as int?,

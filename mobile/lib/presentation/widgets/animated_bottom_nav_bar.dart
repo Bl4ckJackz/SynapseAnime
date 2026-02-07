@@ -25,8 +25,6 @@ class _AnimatedBottomNavBarState extends State<AnimatedBottomNavBar>
   static const List<NavItem> _items = [
     NavItem(icon: Icons.home_outlined, activeIcon: Icons.home, label: 'Home'),
     NavItem(
-        icon: Icons.search_outlined, activeIcon: Icons.search, label: 'Cerca'),
-    NavItem(
         icon: Icons.menu_book_outlined,
         activeIcon: Icons.menu_book,
         label: 'Manga'),

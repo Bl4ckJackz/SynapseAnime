@@ -18,7 +18,7 @@ class FeaturedSlider extends StatelessWidget {
       children: [
         CarouselSlider(
           options: CarouselOptions(
-            height: 220,
+            height: 400,
             viewportFraction: 0.9,
             enlargeCenterPage: true,
             autoPlay: true,
@@ -74,9 +74,9 @@ class FeaturedSlider extends StatelessWidget {
                             ),
                           ),
                           Positioned(
-                            bottom: 16,
-                            left: 16,
-                            right: 16,
+                            bottom: 24,
+                            left: 24,
+                            right: 24,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -84,7 +84,7 @@ class FeaturedSlider extends StatelessWidget {
                                   anime.title,
                                   style: const TextStyle(
                                     color: Colors.white,
-                                    fontSize: 18,
+                                    fontSize: 24,
                                     fontWeight: FontWeight.bold,
                                   ),
                                   maxLines: 1,

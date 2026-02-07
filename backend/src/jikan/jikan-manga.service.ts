@@ -72,6 +72,24 @@ export class JikanMangaService {
     }
 
     const result = await this.executeWithRetry<JikanMangaResponse>(
+      () => this.client.get(`manga/${malId}`),
+      cacheKey,
+    );
+
+    const transformed = transformJikanManga(result.data);
+    this.cacheService.set(cacheKey, transformed, this.serviceName);
+    return transformed;
+  }
+
+  async getMangaFullById(malId: number): Promise<MangaDto> {
+    const cacheKey = `jikan:manga:${malId}:full`;
+
+    const cached = this.cacheService.get<MangaDto>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const result = await this.executeWithRetry<JikanMangaResponse>(
       () => this.client.get(`manga/${malId}/full`),
       cacheKey,
     );

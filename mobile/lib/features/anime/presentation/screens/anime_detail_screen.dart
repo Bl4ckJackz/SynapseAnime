@@ -5,7 +5,17 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/constants.dart';
 import '../../../../domain/entities/episode.dart';
+import '../../../../domain/entities/media_relation.dart';
 import '../../../../domain/providers/anime_provider.dart';
+import '../../../../presentation/widgets/related_media_card.dart';
+import '../../../../presentation/widgets/app_navigation_drawer.dart';
+import '../../../../data/repositories/user_repository.dart';
+import '../../../../domain/providers/watchlist_provider.dart';
+
+final isInWatchlistProvider =
+    FutureProvider.family<bool, String>((ref, animeId) {
+  return ref.watch(userRepositoryProvider).isInWatchlist(animeId);
+});
 
 class AnimeDetailScreen extends ConsumerStatefulWidget {
   final String animeId;
@@ -19,6 +29,7 @@ class AnimeDetailScreen extends ConsumerStatefulWidget {
 class _AnimeDetailScreenState extends ConsumerState<AnimeDetailScreen> {
   int _selectedSeason = 1;
   int _selectedRangeIndex = 0;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   // Group episodes by season ONLY if they have season data from API
   // If no season data, return single group with all episodes
@@ -44,8 +55,42 @@ class _AnimeDetailScreenState extends ConsumerState<AnimeDetailScreen> {
   Widget build(BuildContext context) {
     final animeAsync = ref.watch(animeDetailsProvider(widget.animeId));
     final episodesAsync = ref.watch(animeEpisodesProvider(widget.animeId));
+    final isInWatchlistAsync = ref.watch(isInWatchlistProvider(widget.animeId));
 
     return Scaffold(
+      key: _scaffoldKey,
+      endDrawer: const AppNavigationDrawer(),
+      floatingActionButton: animeAsync.asData?.value != null
+          ? FloatingActionButton(
+              onPressed: () {
+                final isInWatchlist = isInWatchlistAsync.value ?? false;
+                if (isInWatchlist) {
+                  ref
+                      .read(userRepositoryProvider)
+                      .removeFromWatchlist(widget.animeId)
+                      .then((_) {
+                    ref.refresh(isInWatchlistProvider(widget.animeId));
+                    ref.invalidate(watchlistProvider);
+                  });
+                } else {
+                  ref
+                      .read(userRepositoryProvider)
+                      .addToWatchlist(widget.animeId)
+                      .then((_) {
+                    ref.refresh(isInWatchlistProvider(widget.animeId));
+                    ref.invalidate(watchlistProvider);
+                  });
+                }
+              },
+              child: isInWatchlistAsync.isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : Icon(
+                      isInWatchlistAsync.value == true
+                          ? Icons.favorite
+                          : Icons.favorite_border,
+                    ),
+            )
+          : null,
       body: animeAsync.when(
         data: (anime) {
           debugPrint('DEBUG: Selected Anime Titles:');
@@ -58,6 +103,14 @@ class _AnimeDetailScreenState extends ConsumerState<AnimeDetailScreen> {
               SliverAppBar(
                 expandedHeight: 300,
                 pinned: true,
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.menu),
+                    onPressed: () {
+                      _scaffoldKey.currentState?.openEndDrawer();
+                    },
+                  ),
+                ],
                 flexibleSpace: FlexibleSpaceBar(
                   title: Text(
                     anime.title,
@@ -139,6 +192,40 @@ class _AnimeDetailScreenState extends ConsumerState<AnimeDetailScreen> {
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 24),
+                      if (anime.relations.isNotEmpty) ...[
+                        Text(
+                          'Correlati',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          height: 180,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: anime.relations.length,
+                            itemBuilder: (context, index) {
+                              final relation = anime.relations[index];
+                              // Check if we have valid entries
+                              if (relation.entries.isEmpty)
+                                return const SizedBox.shrink();
+
+                              // Use the first entry to display
+                              final entry = relation.entries.first;
+
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 12),
+                                child: RelatedMediaCard(
+                                  malId: entry.malId,
+                                  type: entry.type,
+                                  title: entry.title,
+                                  relationType: relation.relationType,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -146,10 +233,7 @@ class _AnimeDetailScreenState extends ConsumerState<AnimeDetailScreen> {
                             'Episodi',
                             style: Theme.of(context).textTheme.titleLarge,
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.bookmark_border),
-                            onPressed: () {},
-                          ),
+                          // IconButton removed: Use FAB for watchlist
                         ],
                       ),
                     ],

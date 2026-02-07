@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/anime.dart';
 import '../../domain/entities/episode.dart';
 import '../../domain/entities/user.dart';
+import '../../domain/entities/manga.dart';
 import '../../core/constants.dart';
 import '../api_client.dart';
 
@@ -58,6 +59,21 @@ class UserRepository {
     return (response.data as Map<String, dynamic>)['inWatchlist'] as bool;
   }
 
+  // Manga Watchlist
+  Future<void> addMangaToWatchlist(String mangaId) async {
+    await _apiClient.post('${AppConstants.usersWatchlist}/manga/$mangaId');
+  }
+
+  Future<void> removeMangaFromWatchlist(String mangaId) async {
+    await _apiClient.delete('${AppConstants.usersWatchlist}/manga/$mangaId');
+  }
+
+  Future<bool> isMangaInWatchlist(String mangaId) async {
+    final response = await _apiClient
+        .get('${AppConstants.usersWatchlist}/manga/$mangaId/check');
+    return (response.data as Map<String, dynamic>)['inWatchlist'] as bool;
+  }
+
   // Watch History & Continue Watching
   Future<List<WatchHistoryItem>> getContinueWatching({int limit = 10}) async {
     final response = await _apiClient.get(
@@ -69,10 +85,33 @@ class UserRepository {
         .toList();
   }
 
-  Future<void> updateProgress(String episodeId, int progressSeconds) async {
+  Future<void> updateProgress({
+    required String episodeId,
+    required int progressSeconds,
+    required String? animeId,
+    required String? animeTitle,
+    required String? animeCover,
+    required int? animeTotalEpisodes,
+    required int? episodeNumber,
+    required String? episodeTitle,
+    required String? episodeThumbnail,
+    required int duration,
+  }) async {
     await _apiClient.post(
       AppConstants.usersProgress,
-      data: {'episodeId': episodeId, 'progressSeconds': progressSeconds},
+      data: {
+        'episodeId': episodeId,
+        'progressSeconds': progressSeconds,
+        'duration': duration,
+        if (animeId != null) 'animeId': animeId,
+        if (animeTitle != null) 'animeTitle': animeTitle,
+        if (animeCover != null) 'animeCover': animeCover,
+        if (animeTotalEpisodes != null)
+          'animeTotalEpisodes': animeTotalEpisodes,
+        if (episodeNumber != null) 'episodeNumber': episodeNumber,
+        if (episodeTitle != null) 'episodeTitle': episodeTitle,
+        if (episodeThumbnail != null) 'episodeThumbnail': episodeThumbnail,
+      },
     );
   }
 
@@ -90,7 +129,8 @@ class UserRepository {
     await _apiClient.put(
       AppConstants.usersPreferences,
       data: {
-        if (preferredLanguages != null) 'preferredLanguages': preferredLanguages,
+        if (preferredLanguages != null)
+          'preferredLanguages': preferredLanguages,
         if (preferredGenres != null) 'preferredGenres': preferredGenres,
       },
     );
@@ -99,15 +139,31 @@ class UserRepository {
 
 class WatchlistItem {
   final String id;
-  final Anime anime;
+  final Anime? anime;
+  final Manga? manga;
+  // Wait, we need Manga entity import.
+  // Actually, we should import Manga entity from domain.
   final DateTime addedAt;
 
-  WatchlistItem({required this.id, required this.anime, required this.addedAt});
+  WatchlistItem(
+      {required this.id, this.anime, this.manga, required this.addedAt});
 
   factory WatchlistItem.fromJson(Map<String, dynamic> json) {
     return WatchlistItem(
       id: json['id'] as String,
-      anime: Anime.fromJson(json['anime'] as Map<String, dynamic>),
+      anime: json['anime'] != null
+          ? Anime.fromJson(json['anime'] as Map<String, dynamic>)
+          : null,
+      // Assuming Manga entity has fromJson.
+      // We need to check if Manga entity is available in this file context or import it.
+      // We will likely need to cast it to dynamic map.
+      // Since I haven't imported Manga entity here yet, I should checkimports.
+      // But let's assume I will fix imports in next step or use dynamic for now if needed.
+      // Better: Add import at top and use it.
+      manga: json['manga'] != null
+          ? Manga.fromJson(json['manga'] as Map<String, dynamic>)
+          : null, // Error: LocalAnime is for files.
+      // We need the Domain Manga entity.
       addedAt: DateTime.parse(json['addedAt'] as String),
     );
   }

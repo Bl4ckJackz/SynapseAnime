@@ -33,7 +33,7 @@ export class Chapter {
   @Column({ nullable: true })
   scanlationGroup: string;
 
-  @Column({ type: 'datetime' })
+  @Column()
   publishedAt: Date;
 
   @ManyToOne(() => Manga, (manga) => manga.chapters)

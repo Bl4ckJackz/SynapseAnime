@@ -44,10 +44,10 @@ export class Ad {
   @Column({ type: 'float', default: 0 })
   ctr: number; // Click-through rate
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   startDate: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   endDate: Date;
 
   @Column({ default: true })

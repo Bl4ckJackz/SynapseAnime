@@ -18,7 +18,7 @@ export class ReleaseSchedule {
   @Column({ type: 'int' })
   episodeNumber: number;
 
-  @Column({ type: 'datetime' })
+  @Column()
   releaseDate: Date;
 
   @Column({ default: false })

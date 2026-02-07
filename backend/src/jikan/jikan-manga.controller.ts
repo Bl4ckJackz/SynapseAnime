@@ -52,6 +52,15 @@ export class JikanMangaController {
   }
 
   /**
+   * Get full manga details by MAL ID (including relations)
+   * GET /jikan/manga/:malId/full
+   */
+  @Get(':malId/full')
+  getMangaFullById(@Param('malId', ParseIntPipe) malId: number) {
+    return this.jikanMangaService.getMangaFullById(malId);
+  }
+
+  /**
    * Get manga characters
    * GET /jikan/manga/:malId/characters
    */

@@ -77,6 +77,15 @@ export interface JikanManga {
   explicit_genres: JikanMalEntity[];
   themes: JikanMalEntity[];
   demographics: JikanMalEntity[];
+  relations?: Array<{
+    relation: string;
+    entry: Array<{
+      mal_id: number;
+      type: string;
+      name: string;
+      url: string;
+    }>;
+  }>;
 }
 
 export interface JikanMangaResponse {
@@ -143,6 +152,7 @@ export interface MangaDto {
   type: string | null;
   chapters: number | null;
   volumes: number | null;
+  year: number | null;
   status: string;
   publishing: boolean;
   score: number | null;
@@ -152,6 +162,15 @@ export interface MangaDto {
   authors: string[];
   genres: string[];
   themes: string[];
+  relations?: Array<{
+    relation: string;
+    entry: Array<{
+      malId: number;
+      type: string;
+      name: string;
+      url: string;
+    }>;
+  }>;
 }
 
 export interface MangaListDto {
@@ -177,6 +196,7 @@ export function transformJikanManga(manga: JikanManga): MangaDto {
     type: manga.type,
     chapters: manga.chapters,
     volumes: manga.volumes,
+    year: manga.published.prop.from.year,
     status: manga.status,
     publishing: manga.publishing,
     score: manga.score,
@@ -186,6 +206,15 @@ export function transformJikanManga(manga: JikanManga): MangaDto {
     authors: manga.authors.map((a) => a.name),
     genres: manga.genres.map((g) => g.name),
     themes: manga.themes.map((t) => t.name),
+    relations: manga.relations?.map((r) => ({
+      relation: r.relation,
+      entry: r.entry.map((e) => ({
+        malId: e.mal_id,
+        type: e.type,
+        name: e.name,
+        url: e.url,
+      })),
+    })),
   };
 }
 

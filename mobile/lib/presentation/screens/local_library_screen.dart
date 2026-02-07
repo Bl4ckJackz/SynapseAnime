@@ -1,31 +1,49 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path/path.dart' as path;
-import '../../domain/entities/anime.dart';
+import '../../core/constants.dart';
+import '../../core/theme.dart';
+import '../../data/api_client.dart';
+import '../../domain/providers/library_settings_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
-class LocalLibraryScreen extends StatefulWidget {
+class LocalLibraryScreen extends ConsumerStatefulWidget {
   const LocalLibraryScreen({super.key});
 
   @override
-  State<LocalLibraryScreen> createState() => _LocalLibraryScreenState();
+  ConsumerState<LocalLibraryScreen> createState() => _LocalLibraryScreenState();
 }
 
-class _LocalLibraryScreenState extends State<LocalLibraryScreen> {
+class _LocalLibraryScreenState extends ConsumerState<LocalLibraryScreen> {
   List<LocalAnime> _localAnimes = [];
+  List<ServerAnime> _serverAnimes = [];
   bool _isLoading = false;
   String? _selectedDirectory;
 
   @override
   void initState() {
     super.initState();
-    // Load last selected directory from prefs? (TODO)
+    // Load saved settings
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final settings = ref.read(librarySettingsProvider);
+      if (settings.localFolderPath != null) {
+        setState(() {
+          _selectedDirectory = settings.localFolderPath;
+        });
+        _scanDirectory(settings.localFolderPath!);
+      }
+      if (settings.source == LibrarySource.server) {
+        _loadServerLibrary();
+      }
+    });
   }
 
   Future<void> _pickDirectory() async {
     // Request storage permission on Android
-    if (Platform.isAndroid) {
+    if (!kIsWeb && Platform.isAndroid) {
       final status = await Permission.storage.request();
       if (!status.isGranted) {
         if (mounted) {
@@ -43,6 +61,9 @@ class _LocalLibraryScreenState extends State<LocalLibraryScreen> {
       setState(() {
         _selectedDirectory = selectedDirectory;
       });
+      ref
+          .read(librarySettingsProvider.notifier)
+          .setLocalFolderPath(selectedDirectory);
       _scanDirectory(selectedDirectory);
     }
   }
@@ -63,7 +84,7 @@ class _LocalLibraryScreenState extends State<LocalLibraryScreen> {
       for (var entity in entities) {
         if (entity is File) {
           final ext = path.extension(entity.path).toLowerCase();
-          if (['.mp4', '.mkv', '.avi', '.mov'].contains(ext)) {
+          if (['.mp4', '.mkv', '.avi', '.mov', '.webm'].contains(ext)) {
             final filename = path.basename(entity.path);
             final parsed = _parseFilename(filename);
 
@@ -84,9 +105,6 @@ class _LocalLibraryScreenState extends State<LocalLibraryScreen> {
       }
 
       final List<LocalAnime> newAnimes = groupedEpisodes.entries.map((entry) {
-        // Find best cover image in the folder?
-        // For now, generate a placeholder or try to find 'cover.jpg' in the same dir
-
         return LocalAnime(
           title: entry.key,
           episodes: entry.value..sort((a, b) => a.number.compareTo(b.number)),
@@ -94,7 +112,6 @@ class _LocalLibraryScreenState extends State<LocalLibraryScreen> {
         );
       }).toList();
 
-      // Sort animes by title
       newAnimes.sort((a, b) => a.title.compareTo(b.title));
 
       setState(() {
@@ -116,9 +133,53 @@ class _LocalLibraryScreenState extends State<LocalLibraryScreen> {
     }
   }
 
+  Future<void> _loadServerLibrary() async {
+    setState(() {
+      _isLoading = true;
+      _serverAnimes = [];
+    });
+
+    try {
+      final apiClient = ref.read(apiClientProvider);
+      final response = await apiClient.get('/library/folder/default/videos');
+
+      final List<dynamic> data = response.data as List<dynamic>? ?? [];
+
+      final List<ServerAnime> animes = data.map((item) {
+        final episodes = (item['episodes'] as List<dynamic>? ?? [])
+            .map((ep) => ServerEpisode(
+                  id: ep['id'] ?? '',
+                  filename: ep['filename'] ?? '',
+                  episode: ep['episode'] ?? 0,
+                ))
+            .toList();
+
+        return ServerAnime(
+          title: item['title'] ?? 'Unknown',
+          episodes: episodes,
+        );
+      }).toList();
+
+      setState(() {
+        _serverAnimes = animes;
+      });
+    } catch (e) {
+      debugPrint('Error loading server library: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Errore nel caricamento dal server: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   ({String title, int episode}) _parseFilename(String filename) {
-    // Try standard format: [Group] Title - 01 [1080p].ext
-    // Regex: (?:\[.*?\]\s*)?([^-]+?)\s*-\s*(\d+)
     final regex =
         RegExp(r'(?:\[.*?\]\s*)?([^-]+?)\s*-\s*(\d+)', caseSensitive: false);
     final match = regex.firstMatch(filename);
@@ -129,29 +190,117 @@ class _LocalLibraryScreenState extends State<LocalLibraryScreen> {
       return (title: title, episode: episode);
     }
 
-    // If no match, use parent folder name?
-    // fallback
     return (title: filename, episode: 0);
   }
 
   @override
   Widget build(BuildContext context) {
+    final librarySettings = ref.watch(librarySettingsProvider);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Libreria Locale'),
+        title: const Text('Libreria'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.folder_open),
-            onPressed: _pickDirectory,
-            tooltip: 'Seleziona Cartella',
+          if (librarySettings.source == LibrarySource.local)
+            IconButton(
+              icon: const Icon(Icons.folder_open),
+              onPressed: _pickDirectory,
+              tooltip: 'Seleziona Cartella',
+            ),
+          if (librarySettings.source == LibrarySource.server)
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _loadServerLibrary,
+              tooltip: 'Aggiorna',
+            ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Source Selector
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildSourceButton(
+                      'Locale',
+                      Icons.folder,
+                      LibrarySource.local,
+                      librarySettings.source == LibrarySource.local,
+                    ),
+                  ),
+                  Expanded(
+                    child: _buildSourceButton(
+                      'Server',
+                      Icons.cloud,
+                      LibrarySource.server,
+                      librarySettings.source == LibrarySource.server,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Content
+          Expanded(
+            child: librarySettings.source == LibrarySource.local
+                ? _buildLocalBody()
+                : _buildServerBody(),
           ),
         ],
       ),
-      body: _buildBody(),
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildSourceButton(
+    String label,
+    IconData icon,
+    LibrarySource source,
+    bool isSelected,
+  ) {
+    return GestureDetector(
+      onTap: () {
+        ref.read(librarySettingsProvider.notifier).setSource(source);
+        if (source == LibrarySource.server) {
+          _loadServerLibrary();
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primaryColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? Colors.white : Colors.grey,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.grey,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLocalBody() {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -206,6 +355,43 @@ class _LocalLibraryScreenState extends State<LocalLibraryScreen> {
     );
   }
 
+  Widget _buildServerBody() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_serverAnimes.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.cloud_off, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            const Text(
+              'Nessun contenuto trovato sul server',
+              style: TextStyle(fontSize: 18, color: Colors.grey),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadServerLibrary,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Riprova'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _serverAnimes.length,
+      itemBuilder: (context, index) {
+        final anime = _serverAnimes[index];
+        return _buildServerAnimeTile(anime);
+      },
+    );
+  }
+
   Widget _buildLocalAnimeTile(LocalAnime anime) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -216,7 +402,10 @@ class _LocalLibraryScreenState extends State<LocalLibraryScreen> {
         leading: Container(
           width: 50,
           height: 70,
-          color: Colors.grey[800],
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceColor,
+            borderRadius: BorderRadius.circular(8),
+          ),
           child: const Icon(Icons.movie, color: Colors.white54),
         ),
         children: anime.episodes.map((ep) {
@@ -225,8 +414,7 @@ class _LocalLibraryScreenState extends State<LocalLibraryScreen> {
             title: Text(ep.filename),
             subtitle: Text('Episodio ${ep.number}'),
             onTap: () {
-              // Play video
-              _playVideo(ep.path);
+              _playLocalVideo(ep.path);
             },
           );
         }).toList(),
@@ -234,12 +422,54 @@ class _LocalLibraryScreenState extends State<LocalLibraryScreen> {
     );
   }
 
-  void _playVideo(String filePath) {
+  Widget _buildServerAnimeTile(ServerAnime anime) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: ExpansionTile(
+        title: Text(anime.title,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text('${anime.episodes.length} Episodi'),
+        leading: Container(
+          width: 50,
+          height: 70,
+          decoration: BoxDecoration(
+            color: AppTheme.primaryColor.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Icon(Icons.cloud, color: Colors.white54),
+        ),
+        children: anime.episodes.map((ep) {
+          return ListTile(
+            leading: const Icon(Icons.play_circle_outline),
+            title: Text(ep.filename),
+            subtitle: Text('Episodio ${ep.episode}'),
+            onTap: () {
+              _playServerVideo(ep.id);
+            },
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  void _playLocalVideo(String filePath) {
     // TODO: Navigate to player with file path
-    // Need to update PlayerScreen to handle local files
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Playing: $filePath')),
     );
+  }
+
+  void _playServerVideo(String videoId) {
+    // HLS stream URL
+    final hlsUrl =
+        '${AppConstants.apiBaseUrl}/library/stream/$videoId/playlist.m3u8';
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Playing HLS: $hlsUrl')),
+    );
+
+    // TODO: Navigate to player with HLS URL
+    // context.push('/player?url=$hlsUrl');
   }
 }
 
@@ -258,4 +488,20 @@ class LocalEpisode {
 
   LocalEpisode(
       {required this.path, required this.filename, required this.number});
+}
+
+class ServerAnime {
+  final String title;
+  final List<ServerEpisode> episodes;
+
+  ServerAnime({required this.title, required this.episodes});
+}
+
+class ServerEpisode {
+  final String id;
+  final String filename;
+  final int episode;
+
+  ServerEpisode(
+      {required this.id, required this.filename, required this.episode});
 }

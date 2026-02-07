@@ -1,60 +1,93 @@
-
-version: '3.8'
-
 services:
+  # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
-    container_name: anime_postgres
-    restart: always
+    container_name: openanime_db
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
-      POSTGRES_DB: ${POSTGRES_DB:-anime_player}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: anime_player
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
+  # Redis for caching
   redis:
-    image: redis:alpine
-    container_name: anime_redis
-    restart: always
+    image: redis:7-alpine
+    container_name: openanime_redis
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
 
-  consumet:
-    build: ./consumet-api
-    container_name: anime_consumet
-    restart: always
-    ports:
-      - "3000:3000"
-    environment:
-      - REDIS_URL=redis://redis:6379
-    depends_on:
-      - redis
-
+  # Backend API (NestJS)
   backend:
-    build: ./backend
-    container_name: anime_backend
-    restart: always
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: openanime_backend
     ports:
-      - "3010:3010"
+      - "3005:3005"
     environment:
       - NODE_ENV=production
+      - PORT=3005
       - DB_TYPE=postgres
       - DB_HOST=postgres
       - DB_PORT=5432
-      - DB_USERNAME=${POSTGRES_USER:-admin}
-      - DB_PASSWORD=${POSTGRES_PASSWORD:-admin123}
-      - DB_DATABASE=${POSTGRES_DB:-anime_player}
-      - GOOGLE_APPLICATION_CREDENTIALS=./serviceAccountKey.json
-      # Helper to let backend reach Consumet internally
-      - CONSUMET_URL=http://consumet:3000
-    depends_on:
-      - postgres
-      - consumet
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+      - DB_DATABASE=anime_player
+      - CONSUMET_API_URL=http://consumet:3004
+      - MANGAHOOK_API_URL=http://mangahook:5000/api
+      - JWT_SECRET=${JWT_SECRET:-e5a43253255837da402a1cf144c61f5a}
+      - JWT_EXPIRES_IN=7d
     volumes:
-      - ./backend/serviceAccountKey.json:/app/serviceAccountKey.json
+      - ./backend/serviceAccountKey.json:/app/serviceAccountKey.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  # Consumet API (anime provider)
+  consumet:
+    build:
+      context: ./consumet-api
+      dockerfile: Dockerfile
+    container_name: openanime_consumet
+    ports:
+      - "3004:3004"
+    environment:
+      - PORT=3004
+      - NODE_ENV=production
+    restart: unless-stopped
+
+  # MangaHook API (manga provider)
+  mangahook:
+    build:
+      context: ./mangahook-api/server
+      dockerfile: Dockerfile
+    container_name: openanime_mangahook
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - NODE_ENV=production
+    restart: unless-stopped
 
 volumes:
-  pgdata:
+  postgres_data:
+  redis_data:
+
+networks:
+  default:
+    name: openanime_network

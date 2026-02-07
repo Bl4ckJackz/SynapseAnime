@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'episode.dart';
+import 'media_relation.dart';
 
 enum AnimeStatus { ongoing, completed, upcoming }
 
@@ -12,6 +13,7 @@ class Anime extends Equatable {
   final String description;
   final String? coverUrl;
   final List<String> genres;
+  final List<MediaRelation> relations;
   final AnimeStatus status;
   final int releaseYear;
   final double rating;
@@ -21,6 +23,7 @@ class Anime extends Equatable {
   final String? duration;
   final DateTime? airedFrom;
   final DateTime? airedTo;
+  final String? type;
 
   const Anime({
     required this.id,
@@ -31,6 +34,7 @@ class Anime extends Equatable {
     required this.description,
     this.coverUrl,
     required this.genres,
+    this.relations = const [],
     required this.status,
     required this.releaseYear,
     required this.rating,
@@ -40,6 +44,7 @@ class Anime extends Equatable {
     this.duration,
     this.airedFrom,
     this.airedTo,
+    this.type,
   });
 
   factory Anime.fromJson(Map<String, dynamic> json) {
@@ -59,6 +64,14 @@ class Anime extends Equatable {
     // Aired Dates Parsing
     DateTime? airedFrom;
     DateTime? airedTo;
+
+    // Parse relations
+    List<MediaRelation> relations = [];
+    if (json['relations'] != null && json['relations'] is List) {
+      relations = (json['relations'] as List)
+          .map((e) => MediaRelation.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
     if (json['aired'] != null && json['aired'] is Map) {
       final aired = json['aired'];
       if (aired['from'] != null) {
@@ -85,6 +98,7 @@ class Anime extends Equatable {
               ?.map((e) => e.toString())
               .toList() ??
           [],
+      relations: relations,
       status: status,
       releaseYear: json['releaseYear'] as int? ?? 0,
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
@@ -96,6 +110,7 @@ class Anime extends Equatable {
       duration: json['duration']?.toString(),
       airedFrom: airedFrom,
       airedTo: airedTo,
+      type: json['type']?.toString(),
     );
   }
 
@@ -111,6 +126,7 @@ class Anime extends Equatable {
       'rating': rating,
       'totalEpisodes': totalEpisodes,
       'source': source,
+      'type': type,
     };
   }
 
@@ -128,5 +144,6 @@ class Anime extends Equatable {
         releaseYear,
         rating,
         totalEpisodes,
+        type,
       ];
 }

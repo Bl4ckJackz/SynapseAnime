@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +6,7 @@ import '../../domain/entities/manga.dart';
 import '../../domain/providers/manga_provider.dart';
 import '../widgets/section_header.dart';
 import '../widgets/app_loader.dart';
+import '../widgets/manga_card.dart';
 
 class MangaHomeScreen extends ConsumerStatefulWidget {
   const MangaHomeScreen({super.key});
@@ -95,13 +95,19 @@ class _MangaHomeScreenState extends ConsumerState<MangaHomeScreen> {
         return GridView.builder(
           padding: const EdgeInsets.all(16),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
+            crossAxisCount: 2,
             childAspectRatio: 0.55,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
           ),
           itemCount: mangaList.length,
-          itemBuilder: (context, index) => _buildMangaCard(mangaList[index]),
+          itemBuilder: (context, index) => MangaCard(
+            manga: mangaList[index],
+            width: double.infinity,
+            height: double.infinity,
+            showTitle: true,
+            margin: EdgeInsets.zero,
+          ),
         );
       },
       loading: () => Center(child: AppLoader(width: 80, height: 80)),
@@ -121,11 +127,14 @@ class _MangaHomeScreenState extends ConsumerState<MangaHomeScreen> {
           SectionHeader(
             title: 'Top Manga',
             onSeeAll: () {
-              // TODO: Navigate to full list
+              context.pushNamed('mangaList', queryParameters: {
+                'title': 'Top Manga',
+                'type': 'top',
+              });
             },
           ),
           SizedBox(
-            height: 260,
+            height: 400,
             child: topMangaAsync.when(
               data: (mangaList) {
                 if (mangaList.isEmpty) {
@@ -136,10 +145,7 @@ class _MangaHomeScreenState extends ConsumerState<MangaHomeScreen> {
                   scrollDirection: Axis.horizontal,
                   itemCount: mangaList.length,
                   itemBuilder: (context, index) {
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 12),
-                      child: _buildMangaCard(mangaList[index]),
-                    );
+                    return MangaCard(manga: mangaList[index]);
                   },
                 );
               },
@@ -154,11 +160,14 @@ class _MangaHomeScreenState extends ConsumerState<MangaHomeScreen> {
           SectionHeader(
             title: 'Manga di Tendenza',
             onSeeAll: () {
-              // TODO: Navigate to full list
+              context.pushNamed('mangaList', queryParameters: {
+                'title': 'Manga di Tendenza',
+                'type': 'trending',
+              });
             },
           ),
           SizedBox(
-            height: 260,
+            height: 400,
             child: Consumer(
               builder: (context, ref, child) {
                 final trendingAsync = ref.watch(trendingMangaProvider);
@@ -173,10 +182,7 @@ class _MangaHomeScreenState extends ConsumerState<MangaHomeScreen> {
                       scrollDirection: Axis.horizontal,
                       itemCount: mangaList.length,
                       itemBuilder: (context, index) {
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 12),
-                          child: _buildMangaCard(mangaList[index]),
-                        );
+                        return MangaCard(manga: mangaList[index]);
                       },
                     );
                   },
@@ -193,11 +199,14 @@ class _MangaHomeScreenState extends ConsumerState<MangaHomeScreen> {
           SectionHeader(
             title: 'Ultimi Aggiornamenti',
             onSeeAll: () {
-              // TODO: Navigate to full list
+              context.pushNamed('mangaList', queryParameters: {
+                'title': 'Ultimi Aggiornamenti',
+                'type': 'updated',
+              });
             },
           ),
           SizedBox(
-            height: 260,
+            height: 400,
             child: Consumer(
               builder: (context, ref, child) {
                 final updatedAsync = ref.watch(recentlyUpdatedMangaProvider);
@@ -212,10 +221,85 @@ class _MangaHomeScreenState extends ConsumerState<MangaHomeScreen> {
                       scrollDirection: Axis.horizontal,
                       itemCount: mangaList.length,
                       itemBuilder: (context, index) {
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 12),
-                          child: _buildMangaCard(mangaList[index]),
-                        );
+                        return MangaCard(manga: mangaList[index]);
+                      },
+                    );
+                  },
+                  loading: () => _buildLoadingList(),
+                  error: (err, _) => Center(child: Text('Errore: $err')),
+                );
+              },
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Top Manhwa Section
+          SectionHeader(
+            title: 'Top Manhwa (Coreani)',
+            onSeeAll: () {
+              context.pushNamed('mangaList', queryParameters: {
+                'title': 'Top Manhwa (Coreani)',
+                'type': 'manhwa',
+              });
+            },
+          ),
+          SizedBox(
+            height: 400,
+            child: Consumer(
+              builder: (context, ref, child) {
+                final manhwaAsync = ref.watch(manhwaMangaProvider);
+                return manhwaAsync.when(
+                  data: (mangaList) {
+                    if (mangaList.isEmpty) {
+                      return const Center(
+                          child: Text('Nessun Manhwa disponibile'));
+                    }
+                    return ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      scrollDirection: Axis.horizontal,
+                      itemCount: mangaList.length,
+                      itemBuilder: (context, index) {
+                        return MangaCard(manga: mangaList[index]);
+                      },
+                    );
+                  },
+                  loading: () => _buildLoadingList(),
+                  error: (err, _) => Center(child: Text('Errore: $err')),
+                );
+              },
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Top Manhua Section
+          SectionHeader(
+            title: 'Top Manhua (Cinesi)',
+            onSeeAll: () {
+              context.pushNamed('mangaList', queryParameters: {
+                'title': 'Top Manhua (Cinesi)',
+                'type': 'manhua',
+              });
+            },
+          ),
+          SizedBox(
+            height: 400,
+            child: Consumer(
+              builder: (context, ref, child) {
+                final manhuaAsync = ref.watch(manhuaMangaProvider);
+                return manhuaAsync.when(
+                  data: (mangaList) {
+                    if (mangaList.isEmpty) {
+                      return const Center(
+                          child: Text('Nessun Manhua disponibile'));
+                    }
+                    return ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      scrollDirection: Axis.horizontal,
+                      itemCount: mangaList.length,
+                      itemBuilder: (context, index) {
+                        return MangaCard(manga: mangaList[index]);
                       },
                     );
                   },
@@ -251,67 +335,14 @@ class _MangaHomeScreenState extends ConsumerState<MangaHomeScreen> {
                 _buildGenreChip('Horror'),
                 _buildGenreChip('Romance'),
                 _buildGenreChip('Sci-Fi'),
+                _buildGenreChip('Slice of Life'),
+                _buildGenreChip('Isekai'),
               ],
             ),
           ),
 
           const SizedBox(height: 24),
         ],
-      ),
-    );
-  }
-
-  Widget _buildMangaCard(Manga manga) {
-    return GestureDetector(
-      onTap: () {
-        context.push('/manga/${manga.id}');
-      },
-      child: SizedBox(
-        width: 120,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: CachedNetworkImage(
-                imageUrl: manga.coverUrl ?? '',
-                height: 170,
-                width: 120,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  color: AppTheme.surfaceColor,
-                  child: const Center(
-                      child: CircularProgressIndicator(strokeWidth: 2)),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  color: AppTheme.surfaceColor,
-                  child: const Icon(Icons.broken_image, color: Colors.grey),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              manga.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-                fontSize: 13,
-              ),
-            ),
-            if (manga.score != null)
-              Row(
-                children: [
-                  const Icon(Icons.star, color: Colors.amber, size: 14),
-                  const SizedBox(width: 2),
-                  Text(
-                    manga.score!.toStringAsFixed(1),
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
-              ),
-          ],
-        ),
       ),
     );
   }

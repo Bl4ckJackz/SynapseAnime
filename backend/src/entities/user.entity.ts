@@ -64,7 +64,7 @@ export class User {
   })
   subscriptionStatus: SubscriptionStatus;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   subscriptionExpiresAt: Date;
 
   @Column('simple-array', { nullable: true })

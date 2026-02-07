@@ -18,6 +18,7 @@ import { CommonModule } from './common/common.module';
 import { JikanModule } from './jikan/jikan.module';
 import { MangaHookModule } from './mangahook/mangahook.module';
 import { CoreModule } from './core/core.module';
+import { LibraryModule } from './library/library.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { CoreModule } from './core/core.module';
             ? configService.get<string>('DB_PASSWORD')
             : undefined,
           entities: [__dirname + '/**/*.entity{.ts,.js}'],
+          // autoLoadEntities: true, 
           synchronize: true, // Disable in production
           logging: process.env.NODE_ENV !== 'production',
         };
@@ -74,8 +76,9 @@ import { CoreModule } from './core/core.module';
     JikanModule,
     MangaHookModule,
     BackupModule,
+    LibraryModule,
   ],
   controllers: [AppController, AdController, NewsController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

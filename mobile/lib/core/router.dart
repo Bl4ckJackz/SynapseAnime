@@ -5,11 +5,13 @@ import 'package:go_router/go_router.dart';
 
 import '../presentation/screens/splash_screen.dart';
 import '../features/auth/presentation/screens/auth_screen.dart';
+import '../features/auth/presentation/screens/onboarding_screen.dart';
 import '../features/anime/presentation/screens/anime_detail_screen.dart';
 import '../presentation/screens/player_screen.dart';
 import '../presentation/screens/chat_screen.dart';
 import '../presentation/screens/settings_screen.dart';
 import '../presentation/screens/profile_screen.dart';
+import '../presentation/screens/watch_history_screen.dart';
 import '../presentation/screens/search_screen.dart';
 import '../presentation/screens/main_navigation_screen.dart';
 import '../presentation/screens/external_stream_screen.dart';
@@ -19,6 +21,12 @@ import '../presentation/screens/manga_reader_screen.dart';
 import '../presentation/screens/source_selection_screen.dart';
 import '../presentation/screens/calendar_screen.dart';
 import '../presentation/screens/genre_grid_screen.dart';
+import '../presentation/screens/watchlist_screen.dart';
+import '../presentation/screens/recent_episodes_screen.dart';
+import '../presentation/screens/paginated_anime_list_screen.dart';
+import '../presentation/screens/paginated_manga_list_screen.dart';
+import '../domain/providers/anime_provider.dart'; // for FilterType and AnimeFilter
+import '../domain/providers/manga_provider.dart'; // for MangaFilterType and MangaFilter
 import 'constants.dart';
 
 // Route names
@@ -86,7 +94,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.intro,
         name: 'intro',
-        builder: (context, state) => const AuthScreen(initialPage: 0),
+        builder: (context, state) => const OnboardingScreen(),
       ),
       GoRoute(
         path: AppRoutes.home,
@@ -141,6 +149,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AnimationDemoScreen(),
       ),
       GoRoute(
+        path: '/history',
+        name: 'history',
+        builder: (context, state) => const WatchHistoryScreen(),
+      ),
+      GoRoute(
         path: AppRoutes.mangaDetail,
         name: 'mangaDetail',
         builder: (context, state) {
@@ -180,6 +193,80 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final genreName = state.pathParameters['genreName']!;
           return GenreGridScreen(genre: genreName);
+        },
+      ),
+      GoRoute(
+        path: '/watchlist',
+        name: 'watchlist',
+        builder: (context, state) => const WatchlistScreen(),
+      ),
+      GoRoute(
+        path: '/recent-episodes',
+        builder: (context, state) => const RecentEpisodesScreen(),
+      ),
+      GoRoute(
+        path: '/anime-list',
+        name: 'animeList',
+        builder: (context, state) {
+          final title = state.uri.queryParameters['title'] ?? 'Anime List';
+          final typeStr = state.uri.queryParameters['type'] ?? 'list';
+
+          FilterType type = FilterType.list;
+          switch (typeStr) {
+            case 'newReleases':
+              type = FilterType.newReleases;
+              break;
+            case 'topRated':
+              type = FilterType.topRated;
+              break;
+            case 'airing':
+              type = FilterType.airing;
+              break;
+            case 'classics':
+              type = FilterType.classics;
+              break;
+            case 'popular':
+              type = FilterType.popular;
+              break;
+            case 'upcoming':
+              type = FilterType.upcoming;
+              break;
+          }
+
+          final filter = AnimeFilter(type: type);
+
+          // Must import PaginatedAnimeListScreen
+          return PaginatedAnimeListScreen(filter: filter, title: title);
+        },
+      ),
+      GoRoute(
+        path: '/manga-list',
+        name: 'mangaList',
+        builder: (context, state) {
+          final title = state.uri.queryParameters['title'] ?? 'Manga List';
+          final typeStr = state.uri.queryParameters['type'] ?? 'top';
+
+          MangaFilterType type = MangaFilterType.top;
+          switch (typeStr) {
+            case 'top':
+              type = MangaFilterType.top;
+              break;
+            case 'trending':
+              type = MangaFilterType.trending;
+              break;
+            case 'updated':
+              type = MangaFilterType.updated;
+              break;
+            case 'manhwa':
+              type = MangaFilterType.manhwa;
+              break;
+            case 'manhua':
+              type = MangaFilterType.manhua;
+              break;
+          }
+
+          final filter = MangaFilter(type: type, title: title);
+          return PaginatedMangaListScreen(filter: filter, title: title);
         },
       ),
     ],

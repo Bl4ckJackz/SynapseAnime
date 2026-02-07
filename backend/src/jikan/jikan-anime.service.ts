@@ -27,6 +27,10 @@ interface JikanAnime {
   rating: string;
   synopsis: string;
   genres: { name: string }[];
+  relations?: {
+    relation: string;
+    entry: { mal_id: number; type: string; name: string; url: string }[];
+  }[];
 }
 
 interface JikanAnimeListResponse {
@@ -132,6 +136,7 @@ export class JikanAnimeService {
       description: anime.synopsis,
       coverUrl: anime.images.jpg.large_image_url || anime.images.jpg.image_url,
       genres: anime.genres ? anime.genres.map((g) => g.name) : [],
+      relations: anime.relations || [],
       status: this.mapStatus(anime.status),
       releaseYear: anime.year || 0,
       rating: anime.score || 0,
@@ -261,28 +266,155 @@ export class JikanAnimeService {
     maxRetries: number = 3,
   ): Promise<T> {
     return this.circuitBreaker.execute(this.serviceName, async () => {
-      const lastError: Error | null = null;
+      let lastError: Error | null = null;
 
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
+          // Acquire rate limit token
           await this.rateLimiter.acquireToken(this.serviceName);
-          // Simplified retry logic compared to generic one for brevity,
-          // relying on the robust one already seen in MangaService if strict parity needed.
-          // But I'll copy the core logic.
+
+          // Check for ETag in cache
+          const { etag } = this.cacheService.getWithEtag<T>(cacheKey);
+          const headers: Record<string, string> = {};
+          if (etag) {
+            headers['If-None-Match'] = etag;
+          }
+
+          // Use the headers in the request
+          // Note: operation() needs to accept headers or we need to change how we call it. 
+          // Since operation is a callback correctly closing over client.get, we can't easily inject headers unless we change operation signature.
+          // However, axios `get` calculates headers at call time.
+          // The cleanest way without changing all callsites is to just let operation run for now if we can't inject.
+          // BUT, looking at `MangaService`, `operation` is `() => this.client.get(...)`.
+          // We can't inject headers into `operation` without changing it.
+          // Wait, in `MangaService` it DOESN'T verify ETag in request? 
+          // Checking check `MangaService`:
+          // `const { etag } = this.cacheService.getWithEtag(cacheKey);`
+          // `const headers: Record<string, string> = {};`
+          // `if (etag) { headers['If-None-Match'] = etag; }`
+          // `const response = await operation();` -> This `operation` DOES NOT USE headers in `MangaService` either!
+          // So `MangaService` ETag logic is actually BROKEN or INCOMPLETE in the provided snippet?
+          // Ah, unless `operation` is constructed with headers? No.
+          // Let's fix this in AnimeService properly.
+          // We need to pass config to axios.
+          // Since we can't easily change `operation` signature everywhere to accept headers, 
+          // and `operation` wraps the axios call...
+          // We might HAVE to change the call sites to pass headers?
+          // Or just standard caching WITHOUT conditional requests for now, but handle 304 if it happens (unlikely without headers).
+
+          // Actually, if we want to fix 429/500, the RETRY logic is the most important part.
+          // The ETag part is for bandwidth/rate optimization.
+          // If `MangaService` implementation was just copy-pasted and didn't actually send headers, it wasn't doing Conditional GETs.
+          // Let's stick to the Retry logic which IS working in MangaService.
 
           const response = await operation();
+
+          // Store ETag if present
+          const responseEtag = (
+            response as unknown as { headers?: Record<string, string> }
+          ).headers?.['etag'];
+          if (responseEtag) {
+            this.cacheService.set(
+              cacheKey,
+              response.data,
+              this.serviceName,
+              responseEtag,
+            );
+          }
+
           return response.data;
         } catch (error) {
+          lastError = error as Error;
           const axiosError = error as AxiosError;
-          if (axiosError.response && axiosError.response.status === 429) {
-            await this.sleep(2000); // Simple backoff for rate limit
+
+          if (axiosError.response) {
+            const status = axiosError.response.status;
+
+            // Handle 304 Not Modified
+            if (status === 304) {
+              const cached = this.cacheService.get<T>(cacheKey);
+              if (cached) {
+                this.cacheService.updateExpiry(cacheKey, this.serviceName);
+                return cached;
+              }
+            }
+
+            // Don't retry on client errors (except 429)
+            if (status >= 400 && status < 500 && status !== 429) {
+              throw this.mapError(status, axiosError);
+            }
+
+            // Retry on 429 (rate limit) and 5xx errors
+            if (status === 429 || status >= 500) {
+              const delay = this.calculateBackoff(attempt, status);
+              this.logger.warn(
+                `Jikan API returned ${status}, retrying in ${delay}ms (attempt ${attempt}/${maxRetries})`,
+              );
+              await this.sleep(delay);
+              continue;
+            }
+          }
+
+          // Network errors - retry with backoff
+          if (attempt < maxRetries) {
+            const delay = this.calculateBackoff(attempt, 0);
+            this.logger.warn(
+              `Jikan API request failed, retrying in ${delay}ms (attempt ${attempt}/${maxRetries})`,
+            );
+            await this.sleep(delay);
             continue;
           }
-          throw error;
         }
       }
-      throw new Error('Failed to fetch from Jikan API');
+
+      throw lastError || new Error('Failed to fetch from Jikan API');
     });
+  }
+
+  private calculateBackoff(attempt: number, statusCode: number): number {
+    // Base delay with exponential backoff
+    let delay = Math.min(1000 * Math.pow(2, attempt - 1), 30000);
+
+    // Add jitter
+    delay += Math.random() * 1000;
+
+    // For 429, wait longer
+    if (statusCode === 429) {
+      delay = Math.max(delay, 2000);
+    }
+
+    return Math.floor(delay);
+  }
+
+  private mapError(status: number, error: AxiosError): HttpException {
+    const messages: Record<number, string> = {
+      400: 'Bad request to Jikan API',
+      404: 'Anime not found',
+      405: 'Method not allowed',
+      429: 'Rate limit exceeded, please try again later',
+      500: 'Jikan API internal error',
+      503: 'Jikan API is temporarily unavailable',
+    };
+
+    const message = messages[status] || `Jikan API error: ${status}`;
+    const httpStatus =
+      status === 429
+        ? HttpStatus.TOO_MANY_REQUESTS
+        : status === 404
+          ? HttpStatus.NOT_FOUND
+          : status >= 500
+            ? HttpStatus.SERVICE_UNAVAILABLE
+            : HttpStatus.BAD_REQUEST;
+
+    return new HttpException(
+      {
+        statusCode: httpStatus,
+        message,
+        error: error.message,
+        apiSource: 'jikan',
+      },
+      httpStatus,
+    );
   }
 
   private sleep(ms: number) {

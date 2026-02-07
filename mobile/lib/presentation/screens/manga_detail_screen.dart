@@ -6,8 +6,18 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../domain/entities/manga.dart';
 import '../../domain/entities/chapter.dart';
+import '../../domain/entities/media_relation.dart';
 import '../../domain/providers/manga_provider.dart';
 import '../widgets/app_loader.dart';
+import '../widgets/related_media_card.dart';
+import '../widgets/app_navigation_drawer.dart';
+import '../../data/repositories/user_repository.dart';
+import '../../domain/providers/watchlist_provider.dart';
+
+final isMangaInWatchlistProvider =
+    FutureProvider.family<bool, String>((ref, mangaId) {
+  return ref.watch(userRepositoryProvider).isMangaInWatchlist(mangaId);
+});
 
 class MangaDetailScreen extends ConsumerWidget {
   final String mangaId;
@@ -18,7 +28,42 @@ class MangaDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final mangaAsync = ref.watch(mangaDetailsProvider(mangaId));
 
+    final isMangaInWatchlistAsync =
+        ref.watch(isMangaInWatchlistProvider(mangaId));
+
     return Scaffold(
+      endDrawer: const AppNavigationDrawer(),
+      floatingActionButton: mangaAsync.asData?.value != null
+          ? FloatingActionButton(
+              onPressed: () {
+                final isInWatchlist = isMangaInWatchlistAsync.value ?? false;
+                if (isInWatchlist) {
+                  ref
+                      .read(userRepositoryProvider)
+                      .removeMangaFromWatchlist(mangaId)
+                      .then((_) {
+                    ref.refresh(isMangaInWatchlistProvider(mangaId));
+                    ref.invalidate(watchlistProvider);
+                  });
+                } else {
+                  ref
+                      .read(userRepositoryProvider)
+                      .addMangaToWatchlist(mangaId)
+                      .then((_) {
+                    ref.refresh(isMangaInWatchlistProvider(mangaId));
+                    ref.invalidate(watchlistProvider);
+                  });
+                }
+              },
+              child: isMangaInWatchlistAsync.isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : Icon(
+                      isMangaInWatchlistAsync.value == true
+                          ? Icons.favorite
+                          : Icons.favorite_border,
+                    ),
+            )
+          : null,
       body: mangaAsync.when(
         data: (manga) => MangaDetailContent(manga: manga),
         loading: () => Center(child: AppLoader()),
@@ -54,6 +99,14 @@ class _MangaDetailContentState extends ConsumerState<MangaDetailContent> {
         SliverAppBar(
           expandedHeight: 300,
           pinned: true,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () {
+                Scaffold.of(context).openEndDrawer();
+              },
+            ),
+          ],
           flexibleSpace: FlexibleSpaceBar(
             title: Text(
               widget.manga.title,
@@ -169,6 +222,39 @@ class _MangaDetailContentState extends ConsumerState<MangaDetailContent> {
                 ),
                 const SizedBox(height: 24),
 
+                // Related Content
+                if (widget.manga.relations.isNotEmpty) ...[
+                  Text(
+                    'Correlati',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 180,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: widget.manga.relations.length,
+                      itemBuilder: (context, index) {
+                        final relation = widget.manga.relations[index];
+                        if (relation.entries.isEmpty)
+                          return const SizedBox.shrink();
+                        final entry = relation.entries.first;
+
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 12),
+                          child: RelatedMediaCard(
+                            malId: entry.malId,
+                            type: entry.type,
+                            title: entry.title,
+                            relationType: relation.relationType,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+
                 // Chapters Section Header
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -202,16 +288,7 @@ class _MangaDetailContentState extends ConsumerState<MangaDetailContent> {
                                 _selectedSource = val;
                               });
                             }),
-                        IconButton(
-                          icon: const Icon(Icons.bookmark_border),
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Aggiunto alla lista di lettura'),
-                              ),
-                            );
-                          },
-                        ),
+                        // IconButton removed: Use FAB for watchlist
                       ],
                     ),
                   ],

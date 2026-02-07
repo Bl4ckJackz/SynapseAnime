@@ -41,10 +41,10 @@ export class Subscription {
   })
   status: SubscriptionStatus;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   startDate: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   endDate: Date;
 
   @Column({ nullable: true })

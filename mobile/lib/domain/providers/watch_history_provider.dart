@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/repositories/user_repository.dart';
+import '../../core/services/socket_service.dart';
 
 final watchHistoryProvider = StateNotifierProvider<WatchHistoryNotifier,
     AsyncValue<List<WatchHistoryItem>>>((ref) {
@@ -9,9 +10,25 @@ final watchHistoryProvider = StateNotifierProvider<WatchHistoryNotifier,
 class WatchHistoryNotifier
     extends StateNotifier<AsyncValue<List<WatchHistoryItem>>> {
   final UserRepository _repository;
+  final _socketService = SocketService();
 
   WatchHistoryNotifier(this._repository) : super(const AsyncValue.loading()) {
     refresh();
+    _initSocket();
+  }
+
+  Future<void> _initSocket() async {
+    await _socketService.connect();
+    _socketService.on('history_updated', (_) {
+      print('History update received via socket');
+      refresh();
+    });
+  }
+
+  @override
+  void dispose() {
+    _socketService.off('history_updated');
+    super.dispose();
   }
 
   Future<void> refresh() async {

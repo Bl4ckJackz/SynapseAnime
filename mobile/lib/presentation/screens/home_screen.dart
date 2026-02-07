@@ -11,6 +11,22 @@ import '../widgets/shimmer_loading.dart';
 import '../../domain/providers/active_source_provider.dart';
 import '../../data/repositories/user_repository.dart';
 import '../../domain/providers/watch_history_provider.dart';
+import '../../domain/providers/watchlist_provider.dart';
+import '../widgets/episode_card.dart';
+import '../../core/constants.dart';
+
+// Helper function to proxy animeunity URLs
+String _getProxiedImageUrl(String? url) {
+  if (url == null || url.isEmpty) {
+    return 'https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png';
+  }
+  if (url.contains('img.animeunity') ||
+      url.contains('animeunity.so') ||
+      url.contains('cdn.noitatnemucod.net')) {
+    return '${AppConstants.apiBaseUrl}/stream/proxy-image?url=${Uri.encodeComponent(url)}';
+  }
+  return url;
+}
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -43,6 +59,13 @@ class HomeScreen extends ConsumerWidget {
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: 'Cerca',
+            onPressed: () {
+              context.pushNamed('search');
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.source),
             tooltip: 'Cambia Sorgente',
@@ -150,7 +173,8 @@ class HomeScreen extends ConsumerWidget {
                                           borderRadius:
                                               BorderRadius.circular(12),
                                           child: CachedNetworkImage(
-                                            imageUrl: anime.coverUrl ?? '',
+                                            imageUrl: _getProxiedImageUrl(
+                                                anime.coverUrl),
                                             width: 200,
                                             height: 120,
                                             fit: BoxFit.cover,
@@ -172,8 +196,7 @@ class HomeScreen extends ConsumerWidget {
                                                 end: Alignment.bottomCenter,
                                                 colors: [
                                                   Colors.transparent,
-                                                  Colors.black
-                                                      .withValues(alpha: 0.8),
+                                                  Colors.black.withOpacity(0.8),
                                                 ],
                                               ),
                                               borderRadius:
@@ -238,12 +261,85 @@ class HomeScreen extends ConsumerWidget {
                 },
               ),
 
+              // Episodi Usciti in Settimana (Latest Episodes)
+              Consumer(
+                builder: (context, ref, child) {
+                  final recentEpisodesAsync = ref.watch(recentEpisodesProvider);
+
+                  return recentEpisodesAsync.when(
+                    data: (episodes) {
+                      print('Recent episodes loaded: ${episodes.length}');
+                      if (episodes.isEmpty) return const SizedBox.shrink();
+
+                      return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SectionHeader(
+                              title: 'Episodi Usciti in Settimana',
+                              onSeeAll: () {
+                                context.pushNamed('recentEpisodes');
+                              },
+                            ),
+                            SizedBox(
+                              height: 180,
+                              child: ListView.builder(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                scrollDirection: Axis.horizontal,
+                                itemCount: episodes.length,
+                                itemBuilder: (context, index) {
+                                  return EpisodeCard(
+                                    episode: episodes[index],
+                                  );
+                                },
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                          ]);
+                    },
+                    loading: () => Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16),
+                          child: ShimmerAnimeCard(width: 200, height: 24),
+                        ),
+                        SizedBox(height: 16),
+                        SizedBox(
+                          height: 180,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            padding: EdgeInsets.symmetric(horizontal: 16),
+                            children: [
+                              ShimmerAnimeCard(width: 200, height: 112),
+                              SizedBox(width: 12),
+                              ShimmerAnimeCard(width: 200, height: 112),
+                              SizedBox(width: 12),
+                              ShimmerAnimeCard(width: 200, height: 112),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 24),
+                      ],
+                    ),
+                    error: (err, stack) {
+                      print('Error loading recent episodes: $err');
+                      return const SizedBox.shrink();
+                    },
+                  );
+                },
+              ),
+
+              const SizedBox(height: 24),
+
               // In Arrivo Section (Upcoming)
               SectionHeader(
                 title: 'In Arrivo',
                 onSeeAll: () {
-                  // Navigate to search with upcoming filter?
-                  // context.pushNamed('search', queryParameters: {'filter': 'upcoming'});
+                  context.pushNamed('animeList', queryParameters: {
+                    'type': 'upcoming',
+                    'title': 'In Arrivo'
+                  });
                 },
               ),
               SizedBox(
@@ -274,62 +370,14 @@ class HomeScreen extends ConsumerWidget {
 
               const SizedBox(height: 24),
 
-              // Novità Uscite Section (Recent Releases < 30 days)
-              SectionHeader(
-                title: 'Novità Uscite',
-                onSeeAll: () {
-                  context.pushNamed('search');
-                },
-              ),
-              SizedBox(
-                height: 400,
-                child: Consumer(
-                  builder: (context, ref, child) {
-                    final animeAsync = ref.watch(animeListProvider(
-                        const AnimeFilter(
-                            type: FilterType.newReleases))); // maps to 'airing'
-
-                    return animeAsync.when(
-                      data: (animeList) {
-                        // Filter specifically for items released in last 30 days
-                        final recent = animeList.where((a) {
-                          if (a.airedFrom == null) return false;
-                          final diff =
-                              DateTime.now().difference(a.airedFrom!).inDays;
-                          return diff >= 0 && diff <= 30;
-                        }).toList();
-
-                        if (recent.isEmpty) {
-                          // Fallback to first few items if filter is too strict?
-                          // Or just show message
-                          // return const Center(child: Text('Nessuna uscita recente (<30gg)'));
-                          // Actually user requested specific logic. If empty, empty list.
-                        }
-
-                        return ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          scrollDirection: Axis.horizontal,
-                          itemCount: recent.length,
-                          itemBuilder: (context, index) {
-                            return AnimeCard(anime: recent[index]);
-                          },
-                        );
-                      },
-                      loading: () => _buildLoadingList(),
-                      error: (err, stack) =>
-                          Center(child: Text('Errore: $err')),
-                    );
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
               // Top Rated Section
               SectionHeader(
                 title: 'I più votati',
                 onSeeAll: () {
-                  context.pushNamed('search');
+                  context.pushNamed('animeList', queryParameters: {
+                    'type': 'topRated',
+                    'title': 'I più votati'
+                  });
                 },
               ),
               SizedBox(
@@ -364,7 +412,10 @@ class HomeScreen extends ConsumerWidget {
               SectionHeader(
                 title: 'Tendenza ora',
                 onSeeAll: () {
-                  context.pushNamed('search');
+                  context.pushNamed('animeList', queryParameters: {
+                    'type': 'popular',
+                    'title': 'Tendenza ora'
+                  });
                 },
               ),
               SizedBox(
@@ -399,7 +450,10 @@ class HomeScreen extends ConsumerWidget {
               SectionHeader(
                 title: 'I più attesi (In corso)',
                 onSeeAll: () {
-                  context.pushNamed('search');
+                  context.pushNamed('animeList', queryParameters: {
+                    'type': 'airing',
+                    'title': 'I più attesi (In corso)'
+                  });
                 },
               ),
               SizedBox(
@@ -434,7 +488,10 @@ class HomeScreen extends ConsumerWidget {
               SectionHeader(
                 title: 'Grandi Classici',
                 onSeeAll: () {
-                  context.pushNamed('search');
+                  context.pushNamed('animeList', queryParameters: {
+                    'type': 'classics',
+                    'title': 'Grandi Classici'
+                  });
                 },
               ),
               SizedBox(

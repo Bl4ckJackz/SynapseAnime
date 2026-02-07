@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart';
 import '../../../../core/constants.dart';
 import '../../../../domain/entities/anime.dart';
 import '../../../../domain/entities/episode.dart';
@@ -184,7 +185,7 @@ class AnimeRepository {
     // use Consumet API to get anime info
 
     // Determine effective source - use animeunity as default if source is jikan
-    final effectiveSource = active == 'jikan' ? 'animeunity' : active;
+    final effectiveSource = active == 'jikan' ? 'animesaturn' : active;
 
     // Consumet Info API: http://localhost:3002/anime/[provider]/info?id=[id]
     final List<dynamic> allEpisodes = [];
@@ -246,10 +247,26 @@ class AnimeRepository {
   }
 
   Future<Anime> _getJikanAnimeById(String id) async {
-    final response = await _apiClient.get('${AppConstants.animeDetails}/$id');
-    // Ensure data is correctly mapped from Jikan response
-    final data = response.data['data'] ?? response.data;
-    return Anime.fromJson(data as Map<String, dynamic>);
+    // For full details including relations, we need to use the 'full' endpoint or just ensure main endpoint includes it
+    try {
+      final response =
+          await _apiClient.get('${AppConstants.animeDetails}/$id/full');
+      // Ensure data is correctly mapped from Jikan response
+      final data = response.data['data'] ?? response.data;
+      return Anime.fromJson(data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        // Fallback to non-full endpoint
+        final response =
+            await _apiClient.get('${AppConstants.animeDetails}/$id');
+        final data = response.data?['data'] ?? response.data;
+        if (data == null) {
+          throw Exception('Anime data not found in fallback');
+        }
+        return Anime.fromJson(data as Map<String, dynamic>);
+      }
+      rethrow;
+    }
   }
 
   /// Fetches ALL episodes by loading all pages automatically.
@@ -262,9 +279,9 @@ class AnimeRepository {
         final activeSource = getActiveSource();
         // Define sources to try, prioritizing the active source
         final List<String> availableSources = [
+          'animesaturn',
           'animeunity',
           'hianime',
-          'animesaturn',
           'kickassanime',
           'animekai'
         ].where((s) => SourceConfig.isAnimeSourceEnabled(s)).toList();
@@ -591,6 +608,51 @@ class AnimeRepository {
                   score -= 30;
                 }
 
+                // YEAR CHECK (Strong Signal)
+                // If candidate has a release date, compare with Jikan year
+                if (candidate['releaseDate'] != null &&
+                    jikanAnime.releaseYear != null &&
+                    jikanAnime.releaseYear! > 0) {
+                  // Clean candidate year (could be "2020", "2020-01-01", etc.)
+                  final candYearStr =
+                      candidate['releaseDate'].toString().split('-').first;
+                  final candYear = int.tryParse(candYearStr);
+                  if (candYear != null) {
+                    if (candYear == jikanAnime.releaseYear) {
+                      score += 50; // Year match bonus
+                    } else if ((candYear - jikanAnime.releaseYear!).abs() > 2) {
+                      // Significant year mismatch (more than 2 years diff)
+                      // Be careful as re-releases or mismatched metadata happen
+                      // But generally, a 2013 anime shouldn't match a 2023 one
+                      score -= 100;
+                      print(
+                          'DEBUG: $candId - Year mismatch ($candYear vs ${jikanAnime.releaseYear}) punishable (-100)');
+                    }
+                  }
+                }
+
+                // TYPE CHECK (Medium Signal)
+                // If Jikan says "Movie", prioritize candidates that look like movies
+                if (jikanAnime.type?.toLowerCase() == 'movie') {
+                  // Check if candidate title suggests movie
+                  if (candTitleLower.contains('movie') ||
+                      candTitleLower.contains('film')) {
+                    score += 50;
+                  } else if (candTitleLower.contains('season')) {
+                    // Determines if it's explicitly a series when we want a movie
+                    score -= 50;
+                  }
+                } else if (jikanAnime.type?.toLowerCase() == 'tv' ||
+                    jikanAnime.type?.toLowerCase() == 'tv_special') {
+                  // If Jikan says TV, penalize "Movie" unless title actually contains "Movie"
+                  if ((candTitleLower.contains('movie') ||
+                          candTitleLower.contains('film')) &&
+                      !titlesToTry
+                          .any((t) => t.toLowerCase().contains('movie'))) {
+                    score -= 50;
+                  }
+                }
+
                 // Check matches against primary/derived variants logic...
                 // (Simplified for brevity, reusing core logic logic operates same)
                 // ...
@@ -660,6 +722,13 @@ class AnimeRepository {
               }
 
               if (bestCandidate != null) {
+                // Strict threshold check
+                if (bestScore < 100) {
+                  print(
+                      'DEBUG: Best candidate ${bestCandidate['title']} (${bestCandidate['id']}) rejected due to low score ($bestScore)');
+                  continue; // Skip this source, try next
+                }
+
                 bestMatchId = bestCandidate['id'].toString();
                 print(
                     'Selected best match on $source: ${bestCandidate['title']} ($bestMatchId) with score $bestScore');
@@ -934,6 +1003,48 @@ class AnimeRepository {
     }
   }
 
+  /// Get recently released episodes (raw from provider)
+  Future<List<Episode>> getRecentEpisodes({int page = 1}) async {
+    final activeSource = getActiveSource() ?? 'animesaturn';
+    // Use 'animesaturn' if 'jikan' is active, as Jikan doesn't provide streamable links directly
+    // in the format we want for "new releases" usually.
+    final sourceToUse = activeSource == 'jikan' ? 'animesaturn' : activeSource;
+
+    try {
+      final response = await _apiClient.get(
+        '${AppConstants.consumetBaseUrl}/anime/$sourceToUse/recent-episodes',
+        queryParameters: {'page': page},
+      );
+
+      final results = response.data['results'] as List<dynamic>? ?? [];
+
+      return results.map((e) {
+        // Consumet recent-episodes structure usually:
+        // {
+        //   "id": "anime-id",
+        //   "episodeId": "anime-id-episode-1",
+        //   "episodeNumber": 1,
+        //   "title": "Anime Title", (Note: this is usually ANIME title, not episode title)
+        //   "image": "url",
+        //   "url": "..."
+        // }
+        return Episode(
+          id: e['episodeId']?.toString() ?? '',
+          animeId: e['id']?.toString() ?? '',
+          number: (e['episodeNumber'] as num?)?.toInt() ?? 0,
+          title: e['title'] ?? 'Episode ${(e['episodeNumber'] ?? '?')}',
+          thumbnail: e['image'],
+          duration: 0,
+          streamUrl: e['url'] ?? '',
+          source: sourceToUse,
+        );
+      }).toList();
+    } catch (e) {
+      print('Error fetching recent episodes from $sourceToUse: $e');
+      return [];
+    }
+  }
+
   /// Extract season number from title strings
   int? _extractSeasonNumber(
       String title, String? titleEnglish, String? titleRomaji) {
@@ -1005,9 +1116,7 @@ class AnimeRepository {
     for (final t in allTitles) {
       // Common sequel subtitle patterns
       if (t.toLowerCase().contains('shippuden') ||
-          t.toLowerCase().contains('next generation') ||
-          t.toLowerCase().contains('the final season') ||
-          t.toLowerCase().contains('final season')) {
+          t.toLowerCase().contains('next generation')) {
         return 2; // These are typically "second" iterations
       }
 
@@ -1050,7 +1159,10 @@ class AnimeRepository {
   /// Resolve the actual stream URL for a given episode
   Future<Map<String, dynamic>> resolveStreamUrl(String episodeId,
       {String? source}) async {
-    final activeSource = source ?? getActiveSource();
+    var activeSource = source ?? getActiveSource();
+    if (activeSource == 'jikan') {
+      activeSource = 'animesaturn';
+    }
 
     // For Animeworld/AnimeUnity scenarios
     try {

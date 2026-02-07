@@ -37,7 +37,7 @@ export class News {
   @Column('simple-array', { nullable: true })
   tags: string[];
 
-  @Column({ type: 'datetime' })
+  @Column()
   publishedAt: Date;
 
   @Column({ nullable: true })

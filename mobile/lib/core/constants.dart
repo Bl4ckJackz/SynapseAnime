@@ -7,8 +7,12 @@ class AppConstants {
   // static const String consumetBaseUrl = 'http://localhost:3004';
 
   // For physical device testing, use your LAN IP:
-  static const String apiBaseUrl = 'http://192.168.238.73:3010';
-  static const String consumetBaseUrl = 'http://192.168.238.73:3004';
+  // For physical device testing, use your LAN IP:
+  // static const String apiBaseUrl = 'http://192.168.191.73:3005';
+  // static const String consumetBaseUrl = 'http://192.168.191.73:3004';
+
+  static const String apiBaseUrl = 'http://localhost:3005';
+  static const String consumetBaseUrl = 'http://localhost:3004';
 
   // Storage Keys
   static const String accessTokenKey = 'access_token';

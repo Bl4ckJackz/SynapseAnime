@@ -274,7 +274,7 @@ class ProfileScreen extends ConsumerWidget {
           icon: Icons.favorite_border,
           title: 'Preferiti',
           subtitle: 'I tuoi anime preferiti',
-          onTap: () {},
+          onTap: () => context.pushNamed('watchlist'),
         ),
         _buildActionTile(
           icon: Icons.logout,

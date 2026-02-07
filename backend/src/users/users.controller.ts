@@ -19,7 +19,7 @@ import { UpdateProgressDto } from './dto/update-progress.dto';
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) { }
 
   // --- Profile ---
   @Get('profile')
@@ -55,7 +55,7 @@ export class UsersController {
     @CurrentUser() user: User,
     @Param('animeId') animeId: string,
   ) {
-    return this.usersService.addToWatchlist(user.id, animeId);
+    return this.usersService.addToWatchlist(user.id, animeId, 'anime');
   }
 
   @Delete('watchlist/:animeId')
@@ -63,7 +63,7 @@ export class UsersController {
     @CurrentUser() user: User,
     @Param('animeId') animeId: string,
   ) {
-    return this.usersService.removeFromWatchlist(user.id, animeId);
+    return this.usersService.removeFromWatchlist(user.id, animeId, 'anime');
   }
 
   @Get('watchlist/:animeId/check')
@@ -71,7 +71,32 @@ export class UsersController {
     @CurrentUser() user: User,
     @Param('animeId') animeId: string,
   ) {
-    return this.usersService.isInWatchlist(user.id, animeId);
+    return this.usersService.isInWatchlist(user.id, animeId, 'anime');
+  }
+
+  // Manga Endpoints
+  @Post('watchlist/manga/:mangaId')
+  async addMangaToWatchlist(
+    @CurrentUser() user: User,
+    @Param('mangaId') mangaId: string,
+  ) {
+    return this.usersService.addToWatchlist(user.id, mangaId, 'manga');
+  }
+
+  @Delete('watchlist/manga/:mangaId')
+  async removeMangaFromWatchlist(
+    @CurrentUser() user: User,
+    @Param('mangaId') mangaId: string,
+  ) {
+    return this.usersService.removeFromWatchlist(user.id, mangaId, 'manga');
+  }
+
+  @Get('watchlist/manga/:mangaId/check')
+  async isMangaInWatchlist(
+    @CurrentUser() user: User,
+    @Param('mangaId') mangaId: string,
+  ) {
+    return this.usersService.isInWatchlist(user.id, mangaId, 'manga');
   }
 
   // --- Watch History ---
@@ -105,9 +130,11 @@ export class UsersController {
     return this.usersService.updateProgress(user.id, dto);
   }
 
-  @Get('progress/*')
-  async getEpisodeProgress(@CurrentUser() user: User, @Param() params: any) {
-    const episodeId = params['0'];
+  @Get('progress/:episodeId')
+  async getEpisodeProgress(
+    @CurrentUser() user: User,
+    @Param('episodeId') episodeId: string,
+  ) {
     return this.usersService.getEpisodeProgress(user.id, episodeId);
   }
 }

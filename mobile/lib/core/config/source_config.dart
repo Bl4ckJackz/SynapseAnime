@@ -14,10 +14,10 @@ class SourceConfig {
   static const Map<String, bool> mangaSources = {
     'mangaworld': true,
     'mangakatana': true,
-    'mangasee': false,
+    'mangasee': true,
     'comick': true,
     'mangadex': true,
-    'mangahere': true,
+    'mangahere': false, // Disabled: Consumet scraper broken (500 error)
     'mangapill': true,
     'asurascans': true,
     'mangareader': true,

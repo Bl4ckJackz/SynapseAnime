@@ -2,6 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  console.log('Current directory (__dirname):', __dirname);
+  console.log('Glob pattern:', __dirname + '/**/*.entity{.ts,.js}');
   const app = await NestFactory.create(AppModule);
 
   // Enable CORS for development
@@ -16,6 +18,8 @@ async function bootstrap() {
     next();
   });
 
-  await app.listen(3010, '0.0.0.0');
+  const port = process.env.PORT || 3005;
+  await app.listen(port, '0.0.0.0');
+  console.log(`Application running on port ${port}`);
 }
 bootstrap();

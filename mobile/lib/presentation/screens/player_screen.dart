@@ -6,6 +6,7 @@ import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import '../../core/theme.dart';
 import '../../domain/entities/episode.dart';
+import '../../domain/entities/anime.dart';
 import '../../data/repositories/repositories.dart';
 import '../../domain/providers/anime_provider.dart';
 
@@ -29,6 +30,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool _initialized = false;
   Timer? _progressTimer;
   Episode? _episode;
+  Anime? _anime;
+  List<Episode> _episodes = [];
+  double _volume = 1.0;
+  bool _showControls = true;
 
   @override
   void initState() {
@@ -55,6 +60,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     try {
       final animeRepository = ref.read(animeRepositoryProvider);
 
+      // Try to fetch anime details for metadata (important for watch history)
+      try {
+        _anime = await ref.read(animeDetailsProvider(widget.animeId).future);
+      } catch (e) {
+        print('Failed to load anime metadata: $e');
+      }
+
       // Get episodes from provider state (preserves loaded pages)
       final episodesAsync = ref.read(animeEpisodesProvider(widget.animeId));
       var episodesList = episodesAsync.valueOrNull ?? [];
@@ -63,6 +75,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         // Fallback fetch if provider is empty - fetch ALL episodes
         episodesList = await animeRepository.getAllEpisodes(widget.animeId);
       }
+      _episodes = episodesList;
+
       Episode? episode;
       try {
         episode = episodesList.firstWhere(
@@ -155,23 +169,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       );
 
       // Add error listener to handle playback errors
-      _videoPlayerController!.addListener(() {
-        if (_videoPlayerController!.value.hasError) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                  content: Text(
-                      'Errore video: ${_videoPlayerController!.value.errorDescription}')),
-            );
-          }
-        }
-      });
+      _videoPlayerController!.addListener(_videoListener);
 
       await _videoPlayerController!.initialize();
 
       if (startPosition > 0) {
         await _videoPlayerController!.seekTo(Duration(seconds: startPosition));
       }
+
+      // Initialize volume
+      await _videoPlayerController!.setVolume(_volume);
 
       _chewieController = ChewieController(
         videoPlayerController: _videoPlayerController!,
@@ -214,17 +221,88 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   void _startProgressTracking() {
     _progressTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
       if (_videoPlayerController != null &&
-          _videoPlayerController!.value.isPlaying) {
+          _videoPlayerController!.value.isPlaying &&
+          _episode != null) {
         final position = _videoPlayerController!.value.position.inSeconds;
         try {
-          await ref
-              .read(userRepositoryProvider)
-              .updateProgress(widget.episodeId, position);
+          await ref.read(userRepositoryProvider).updateProgress(
+                episodeId: widget.episodeId,
+                progressSeconds: position,
+                animeId: widget.animeId,
+                animeTitle: _anime?.title ?? 'Unknown Anime',
+                animeCover: _anime?.coverUrl,
+                animeTotalEpisodes: _anime?.totalEpisodes,
+                episodeNumber: _episode?.number,
+                episodeTitle: _episode?.title,
+                episodeThumbnail: _episode?.thumbnail,
+                duration: _videoPlayerController!.value.duration.inSeconds,
+              );
         } catch (e) {
           // Silently ignore errors (e.g., 401 Unauthorized when not logged in)
+          print('Progress update failed: $e');
         }
       }
     });
+  }
+
+  void _videoListener() {
+    if (_videoPlayerController == null) return;
+
+    if (_videoPlayerController!.value.hasError) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  'Errore video: ${_videoPlayerController!.value.errorDescription}')),
+        );
+      }
+    }
+
+    // Auto-next logic: check if video is finished
+    if (_videoPlayerController!.value.isInitialized &&
+        !_videoPlayerController!.value.isPlaying &&
+        _videoPlayerController!.value.position >=
+            _videoPlayerController!.value.duration &&
+        _videoPlayerController!.value.duration.inSeconds > 0) {
+      _playNextEpisode();
+    }
+  }
+
+  void _playNextEpisode() {
+    if (_episodes.isEmpty || _episode == null) return;
+
+    // Sort episodes by number just in case
+    // Assuming episode.number is reliable. If it's a string or irregular, index-based might be safer
+    // But since the list comes from provider/repo, let's use list index.
+
+    final currentIndex = _episodes.indexWhere((e) => e.id == _episode!.id);
+    if (currentIndex != -1 && currentIndex < _episodes.length - 1) {
+      final nextEpisode = _episodes[currentIndex + 1];
+
+      // Navigate to new player screen (to reset everything cleanly)
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => PlayerScreen(
+            animeId: widget.animeId,
+            episodeId: nextEpisode.id,
+          ),
+        ),
+      );
+    } else {
+      // Last episode, maybe exit or show toast?
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Non ci sono altri episodi.')),
+        );
+      }
+    }
+  }
+
+  void _changeVolume(double value) {
+    setState(() {
+      _volume = value;
+    });
+    _videoPlayerController?.setVolume(_volume);
   }
 
   @override
@@ -248,9 +326,42 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               top: 16,
               left: 16,
               child: SafeArea(
-                child: IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => Navigator.of(context).pop(),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                    const SizedBox(width: 16),
+                    // Volume Slider
+                    SizedBox(
+                      width: 150,
+                      child: Slider(
+                        value: _volume,
+                        min: 0.0,
+                        max: 1.0,
+                        activeColor: AppTheme.primaryColor,
+                        inactiveColor: Colors.white24,
+                        onChanged: _changeVolume,
+                      ),
+                    ),
+                    const Icon(Icons.volume_up, color: Colors.white, size: 20),
+                  ],
+                ),
+              ),
+            ),
+            Positioned(
+              top: 16,
+              right: 16,
+              child: SafeArea(
+                child: TextButton.icon(
+                  onPressed: _playNextEpisode,
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.black54,
+                    foregroundColor: Colors.white,
+                  ),
+                  icon: const Icon(Icons.skip_next),
+                  label: const Text('Next Ep'),
                 ),
               ),
             ),

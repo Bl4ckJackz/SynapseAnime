@@ -464,16 +464,14 @@ class _AnimeCardState extends ConsumerState<AnimeCard>
 
                     // Description (Synopsis)
                     if (widget.anime.description.isNotEmpty)
-                      Expanded(
-                        child: Text(
-                          widget.anime.description,
-                          maxLines: 6,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.8),
-                            fontSize: 11,
-                            height: 1.4,
-                          ),
+                      Text(
+                        widget.anime.description,
+                        maxLines: 6,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.8),
+                          fontSize: 11,
+                          height: 1.4,
                         ),
                       ),
 
