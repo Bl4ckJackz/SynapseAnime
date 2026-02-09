@@ -19,6 +19,10 @@ import { JikanModule } from './jikan/jikan.module';
 import { MangaHookModule } from './mangahook/mangahook.module';
 import { CoreModule } from './core/core.module';
 import { LibraryModule } from './library/library.module';
+import { DownloadModule } from './download/download.module';
+import { CommentsModule } from './comments/comments.module';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 
 @Module({
   imports: [
@@ -51,7 +55,7 @@ import { LibraryModule } from './library/library.module';
             ? configService.get<string>('DB_PASSWORD')
             : undefined,
           entities: [__dirname + '/**/*.entity{.ts,.js}'],
-          // autoLoadEntities: true, 
+          // autoLoadEntities: true,
           synchronize: true, // Disable in production
           logging: process.env.NODE_ENV !== 'production',
         };
@@ -77,8 +81,14 @@ import { LibraryModule } from './library/library.module';
     MangaHookModule,
     BackupModule,
     LibraryModule,
+    DownloadModule,
+    CommentsModule,
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), 'video_library'),
+      serveRoot: '/downloads',
+    }),
   ],
   controllers: [AppController, AdController, NewsController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

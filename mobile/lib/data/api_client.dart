@@ -13,7 +13,8 @@ class ApiClient {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   late final http.Client httpClient;
 
-  ApiClient({http.Client? httpClient}) : httpClient = httpClient ?? http.Client() {
+  ApiClient({http.Client? httpClient})
+      : httpClient = httpClient ?? http.Client() {
     _dio = Dio(
       BaseOptions(
         baseUrl: AppConstants.apiBaseUrl,
@@ -33,10 +34,16 @@ class ApiClient {
           final token = await _storage.read(key: AppConstants.accessTokenKey);
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
+            print('ApiClient: Added Bearer token to ${options.path}');
+          } else {
+            print('ApiClient: NO TOKEN FOUND for ${options.path}');
           }
+          print('ApiClient Headers: ${options.headers}');
           return handler.next(options);
         },
         onError: (error, handler) {
+          print(
+              'ApiClient Error [${error.response?.statusCode}] at ${error.requestOptions.path}: ${error.message}');
           // Handle 401 errors (token expired)
           if (error.response?.statusCode == 401) {
             // Could trigger logout here

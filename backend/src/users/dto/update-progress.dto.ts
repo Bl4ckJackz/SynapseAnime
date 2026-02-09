@@ -7,6 +7,10 @@ export class UpdateProgressDto {
   @IsNumber()
   progressSeconds: number;
 
+  @IsString()
+  @IsOptional()
+  source?: string;
+
   // Metadata for lazy creation
   @IsString()
   @IsOptional()

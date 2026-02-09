@@ -33,7 +33,10 @@ export class Watchlist {
   @JoinColumn({ name: 'userId' })
   user: User;
 
-  @ManyToOne(() => Anime, (anime) => anime.watchlist, { onDelete: 'CASCADE', nullable: true })
+  @ManyToOne(() => Anime, (anime) => anime.watchlist, {
+    onDelete: 'CASCADE',
+    nullable: true,
+  })
   @JoinColumn({ name: 'animeId' })
   anime: Anime;
 

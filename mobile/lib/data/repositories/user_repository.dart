@@ -96,6 +96,7 @@ class UserRepository {
     required String? episodeTitle,
     required String? episodeThumbnail,
     required int duration,
+    String? source,
   }) async {
     await _apiClient.post(
       AppConstants.usersProgress,
@@ -111,6 +112,7 @@ class UserRepository {
         if (episodeNumber != null) 'episodeNumber': episodeNumber,
         if (episodeTitle != null) 'episodeTitle': episodeTitle,
         if (episodeThumbnail != null) 'episodeThumbnail': episodeThumbnail,
+        if (source != null) 'source': source,
       },
     );
   }

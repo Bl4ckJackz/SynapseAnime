@@ -7,3 +7,4 @@ export * from './watchlist.entity';
 export * from './watch-history.entity';
 export * from './notification-settings.entity';
 export * from './release-schedule.entity';
+export * from './comment.entity';

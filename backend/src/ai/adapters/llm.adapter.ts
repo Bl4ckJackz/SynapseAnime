@@ -17,9 +17,21 @@ export interface RecommendationResponse {
   recommendedAnimeIds: string[];
 }
 
+export interface ChatMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
+export interface ChatRequest {
+  messages: ChatMessage[];
+  context: UserContext;
+}
+
 export abstract class LlmAdapter {
   abstract recommend(
     request: RecommendationRequest,
     availableAnime: Anime[],
   ): Promise<RecommendationResponse>;
+
+  abstract chat(request: ChatRequest): Promise<string>;
 }

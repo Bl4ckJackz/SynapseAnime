@@ -11,6 +11,7 @@ import '../../domain/providers/manga_provider.dart';
 import '../widgets/app_loader.dart';
 import '../widgets/related_media_card.dart';
 import '../widgets/app_navigation_drawer.dart';
+import '../widgets/detail_bottom_nav_bar.dart';
 import '../../data/repositories/user_repository.dart';
 import '../../domain/providers/watchlist_provider.dart';
 
@@ -33,6 +34,7 @@ class MangaDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       endDrawer: const AppNavigationDrawer(),
+      bottomNavigationBar: const DetailBottomNavBar(),
       floatingActionButton: mangaAsync.asData?.value != null
           ? FloatingActionButton(
               onPressed: () {
@@ -121,13 +123,18 @@ class _MangaDetailContentState extends ConsumerState<MangaDetailContent> {
             background: Stack(
               fit: StackFit.expand,
               children: [
-                CachedNetworkImage(
-                  imageUrl: ImageUtils.getProxiedUrl(
-                      widget.manga.coverUrl ?? '',
-                      headers: {'Referer': 'https://mangaworld.mx/'}),
-                  fit: BoxFit.cover,
-                  errorWidget: (context, url, error) => Container(
-                    color: AppTheme.surfaceColor,
+                ClipRect(
+                  child: CachedNetworkImage(
+                    imageUrl: ImageUtils.getProxiedUrl(
+                        widget.manga.coverUrl ?? '',
+                        headers: {'Referer': 'https://mangaworld.mx/'}),
+                    width: double.infinity,
+                    height: double.infinity,
+                    fit: BoxFit.cover,
+                    alignment: Alignment.center,
+                    errorWidget: (context, url, error) => Container(
+                      color: AppTheme.surfaceColor,
+                    ),
                   ),
                 ),
                 Container(

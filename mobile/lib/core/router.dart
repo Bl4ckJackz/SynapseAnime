@@ -25,6 +25,8 @@ import '../presentation/screens/watchlist_screen.dart';
 import '../presentation/screens/recent_episodes_screen.dart';
 import '../presentation/screens/paginated_anime_list_screen.dart';
 import '../presentation/screens/paginated_manga_list_screen.dart';
+import '../presentation/screens/downloads_screen.dart';
+import '../presentation/screens/currently_watching_screen.dart';
 import '../domain/providers/anime_provider.dart'; // for FilterType and AnimeFilter
 import '../domain/providers/manga_provider.dart'; // for MangaFilterType and MangaFilter
 import 'constants.dart';
@@ -43,7 +45,9 @@ class AppRoutes {
   static const mangaReader = '/manga/:mangaId/chapter/:chapterId';
   static const sourceSelection = '/source-selection';
   static const calendar = '/calendar';
+  static const downloads = '/downloads';
   static const intro = '/intro';
+  static const watching = '/watching';
 
   // Routes that don't require authentication
   static const publicRoutes = ['/', '/login', '/register', '/intro'];
@@ -115,7 +119,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final animeId = state.pathParameters['animeId']!;
           final episodeId = state.pathParameters['episodeId']!;
-          return PlayerScreen(animeId: animeId, episodeId: episodeId);
+          final source = state.uri.queryParameters['source'];
+          return PlayerScreen(
+            animeId: animeId,
+            episodeId: episodeId,
+            source: source,
+          );
         },
       ),
       GoRoute(
@@ -152,6 +161,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/history',
         name: 'history',
         builder: (context, state) => const WatchHistoryScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.watching,
+        name: 'watching',
+        builder: (context, state) => const CurrentlyWatchingScreen(),
       ),
       GoRoute(
         path: AppRoutes.mangaDetail,
@@ -238,6 +252,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           // Must import PaginatedAnimeListScreen
           return PaginatedAnimeListScreen(filter: filter, title: title);
         },
+      ),
+      GoRoute(
+        path: AppRoutes.downloads,
+        name: 'downloads',
+        builder: (context, state) => const DownloadsScreen(),
       ),
       GoRoute(
         path: '/manga-list',

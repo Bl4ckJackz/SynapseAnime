@@ -126,10 +126,10 @@ class _DayScheduleView extends ConsumerWidget {
         return GridView.builder(
           padding: const EdgeInsets.all(16),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            childAspectRatio: 0.55,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 16,
+            crossAxisCount: 4,
+            childAspectRatio: 0.75,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
           ),
           itemCount: animeList.length,
           itemBuilder: (context, index) {
@@ -137,7 +137,7 @@ class _DayScheduleView extends ConsumerWidget {
             return AnimeCard(
               anime: anime,
               width: double.infinity,
-              height: 140,
+              height: double.infinity,
               showTitle: true,
             );
           },

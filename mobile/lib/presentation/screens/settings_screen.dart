@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../domain/providers/notification_provider.dart';
+import '../../domain/providers/download_settings_provider.dart';
 import '../../features/anime/data/repositories/anime_repository.dart';
 import '../../data/repositories/manga_repository.dart';
 
@@ -58,6 +59,56 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           ),
                     ),
                   ),
+                const Divider(),
+                _buildSectionHeader(context, 'Download'),
+                Consumer(
+                  builder: (context, ref, child) {
+                    final downloadSettings =
+                        ref.watch(downloadSettingsProvider);
+                    return Column(
+                      children: [
+                        SwitchListTile(
+                          title: const Text('Scarica su server'),
+                          subtitle: Text(
+                            downloadSettings.destination ==
+                                    DownloadDestination.server
+                                ? 'I file vengono salvati sul server'
+                                : 'I file vengono salvati localmente',
+                          ),
+                          value: downloadSettings.destination ==
+                              DownloadDestination.server,
+                          activeThumbColor: AppTheme.primaryColor,
+                          onChanged: (value) {
+                            ref
+                                .read(downloadSettingsProvider.notifier)
+                                .setDestination(
+                                  value
+                                      ? DownloadDestination.server
+                                      : DownloadDestination.local,
+                                );
+                          },
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.folder),
+                          title: const Text('Cartella download'),
+                          subtitle: Text(
+                            downloadSettings.destination ==
+                                    DownloadDestination.server
+                                ? downloadSettings.serverFolderPath ??
+                                    'Default server folder'
+                                : downloadSettings.localFolderPath ??
+                                    'Non impostata',
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () {
+                            _showDownloadFolderDialog(
+                                context, ref, downloadSettings);
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                ),
                 const Divider(),
                 _buildSectionHeader(context, 'Account'),
                 ListTile(
@@ -253,6 +304,74 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             },
           ),
         ),
+      ),
+    );
+  }
+
+  void _showDownloadFolderDialog(
+    BuildContext context,
+    WidgetRef ref,
+    DownloadSettings settings,
+  ) {
+    final controller = TextEditingController(
+      text: settings.destination == DownloadDestination.server
+          ? settings.serverFolderPath ?? ''
+          : settings.localFolderPath ?? '',
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cartella Download'),
+        backgroundColor: AppTheme.cardColor,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              settings.destination == DownloadDestination.server
+                  ? 'Inserisci il percorso della cartella sul server:'
+                  : 'Inserisci il percorso della cartella locale:',
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              decoration: InputDecoration(
+                hintText: settings.destination == DownloadDestination.server
+                    ? '/path/to/downloads'
+                    : '/storage/emulated/0/Download/Anime',
+                border: const OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annulla'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+            ),
+            onPressed: () {
+              final path = controller.text.trim();
+              if (path.isNotEmpty) {
+                if (settings.destination == DownloadDestination.server) {
+                  ref
+                      .read(downloadSettingsProvider.notifier)
+                      .setServerFolderPath(path);
+                } else {
+                  ref
+                      .read(downloadSettingsProvider.notifier)
+                      .setLocalFolderPath(path);
+                }
+              }
+              Navigator.pop(context);
+            },
+            child: const Text('Salva'),
+          ),
+        ],
       ),
     );
   }

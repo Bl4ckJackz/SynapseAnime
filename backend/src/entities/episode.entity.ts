@@ -32,6 +32,9 @@ export class Episode {
   @Column()
   streamUrl: string;
 
+  @Column({ nullable: true })
+  source: string;
+
   @ManyToOne(() => Anime, (anime) => anime.episodes, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'animeId' })
   anime: Anime;

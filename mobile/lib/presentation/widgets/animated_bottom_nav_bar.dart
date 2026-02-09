@@ -29,6 +29,10 @@ class _AnimatedBottomNavBarState extends State<AnimatedBottomNavBar>
         activeIcon: Icons.menu_book,
         label: 'Manga'),
     NavItem(
+        icon: Icons.visibility_outlined,
+        activeIcon: Icons.visibility,
+        label: 'In Visione'),
+    NavItem(
         icon: Icons.history_outlined,
         activeIcon: Icons.history,
         label: 'Cronologia'),

@@ -177,23 +177,24 @@ class PaginatedGenreNotifier
 }
 
 final recentEpisodesPaginationProvider = AsyncNotifierProvider.autoDispose<
-    PaginatedRecentEpisodesNotifier, List<Episode>>(
+    PaginatedRecentEpisodesNotifier, PaginatedResult<Episode>>(
   PaginatedRecentEpisodesNotifier.new,
 );
 
 class PaginatedRecentEpisodesNotifier
-    extends AutoDisposeAsyncNotifier<List<Episode>> {
+    extends AutoDisposeAsyncNotifier<PaginatedResult<Episode>> {
   int _page = 1;
   bool _hasMore = true;
   bool _isLoadingMore = false;
 
   @override
-  Future<List<Episode>> build() async {
+  Future<PaginatedResult<Episode>> build() async {
     _page = 1;
     _hasMore = true;
     _isLoadingMore = false;
     ref.watch(activeSourceIdProvider);
-    return _fetchPage(1);
+    final items = await _fetchPage(1);
+    return PaginatedResult(items, hasMore: _hasMore);
   }
 
   Future<List<Episode>> _fetchPage(int page) async {
@@ -205,6 +206,7 @@ class PaginatedRecentEpisodesNotifier
       }
       return episodes;
     } catch (e) {
+      _hasMore = false;
       return [];
     }
   }
@@ -218,10 +220,15 @@ class PaginatedRecentEpisodesNotifier
 
     if (newItems.isNotEmpty) {
       _page++;
-      final currentList = state.value ?? [];
-      state = AsyncData([...currentList, ...newItems]);
+      final currentList = state.value?.items ?? [];
+      state = AsyncData(PaginatedResult(
+        [...currentList, ...newItems],
+        hasMore: _hasMore,
+      ));
     } else {
       _hasMore = false;
+      final currentList = state.value?.items ?? [];
+      state = AsyncData(PaginatedResult(currentList, hasMore: false));
     }
     _isLoadingMore = false;
   }

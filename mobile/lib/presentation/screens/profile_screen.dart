@@ -277,6 +277,12 @@ class ProfileScreen extends ConsumerWidget {
           onTap: () => context.pushNamed('watchlist'),
         ),
         _buildActionTile(
+          icon: Icons.download_outlined,
+          title: 'Download',
+          subtitle: 'Gestisci i tuoi download',
+          onTap: () => context.pushNamed('downloads'),
+        ),
+        _buildActionTile(
           icon: Icons.logout,
           title: 'Esci',
           subtitle: 'Disconnetti account',

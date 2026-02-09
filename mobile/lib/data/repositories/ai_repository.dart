@@ -31,9 +31,24 @@ class AiRepository {
       print('AI Repository Error: $e');
       // Return a default response in case of error
       return AiRecommendationResponse(
-        message: 'Mi dispiace, sto avendo problemi temporanei. Riprova più tardi.',
+        message:
+            'Mi dispiace, sto avendo problemi temporanei. Riprova più tardi.',
         recommendations: [],
       );
+    }
+  }
+
+  Future<String> sendChatMessage(List<Map<String, String>> messages) async {
+    try {
+      final response = await _apiClient.post(
+        AppConstants.aiChat,
+        data: {'messages': messages},
+      );
+
+      return response.data;
+    } catch (e) {
+      print('AI Repository Chat Error: $e');
+      return 'Mi dispiace, si è verificato un errore.';
     }
   }
 }

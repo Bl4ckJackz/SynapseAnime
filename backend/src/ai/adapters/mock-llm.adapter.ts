@@ -82,4 +82,8 @@ export class MockLlmAdapter extends LlmAdapter {
 
     return `${intro}\n\n${animeList}\n\nVuoi saperne di più su qualcuno di questi?`;
   }
+
+  async chat(_request: any): Promise<string> {
+    return 'Questo è un mock response. Configura Perplexity API per la chat reale.';
+  }
 }

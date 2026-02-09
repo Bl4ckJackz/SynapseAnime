@@ -2,7 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/chat_message.dart';
 import '../../data/repositories/repositories.dart';
 
-final chatProvider = StateNotifierProvider<ChatNotifier, List<ChatMessage>>((ref) {
+final chatProvider =
+    StateNotifierProvider<ChatNotifier, List<ChatMessage>>((ref) {
   return ChatNotifier(ref.watch(aiRepositoryProvider));
 });
 
@@ -30,15 +31,17 @@ class ChatNotifier extends StateNotifier<List<ChatMessage>> {
 
     try {
       // Get AI response
-      final response = await _repository.getRecommendations(text);
+      final responseContent = await _repository.sendChatMessage(
+        state
+            .map((m) =>
+                {'role': m.isUser ? 'user' : 'assistant', 'content': m.content})
+            .toList(),
+      );
 
       // Add AI response message
       state = [
         ...state,
-        ChatMessage.ai(
-          response.message,
-          recommendations: response.recommendations,
-        ),
+        ChatMessage.ai(responseContent),
       ];
     } catch (e) {
       state = [

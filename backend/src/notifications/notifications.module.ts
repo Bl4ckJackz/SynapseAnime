@@ -20,6 +20,6 @@ import { Anime } from '../entities/anime.entity';
   ],
   controllers: [NotificationsController],
   providers: [NotificationsService, SchedulerService, FcmService],
-  exports: [NotificationsService],
+  exports: [NotificationsService, FcmService],
 })
-export class NotificationsModule {}
+export class NotificationsModule { }

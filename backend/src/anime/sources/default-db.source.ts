@@ -226,35 +226,35 @@ export class DefaultDbSource implements AnimeSource {
     const mockEpisodes: Episode[] = [
       {
         id: `${animeId}_ep_1`,
-        animeId,
+        animeId: animeId,
         number: 1,
-        title: `Episode 1: Introduction`,
-        duration: 1320, // 22 minutes in seconds
-        thumbnail: `https://placehold.co/320x180/ff6b6b/ffffff?text=EP+1`,
-        streamUrl:
-          'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+        title: 'Prologue',
+        duration: 1440,
+        thumbnail: 'https://cdn.myanimelist.net/images/anime/10/77947l.jpg',
+        streamUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+        source: 'local',
         anime: null as any, // Will be populated by TypeORM if needed
       },
       {
         id: `${animeId}_ep_2`,
-        animeId,
+        animeId: animeId,
         number: 2,
-        title: `Episode 2: Development`,
-        duration: 1320, // 22 minutes in seconds
-        thumbnail: `https://placehold.co/320x180/4ecdc4/ffffff?text=EP+2`,
-        streamUrl:
-          'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+        title: 'Meeting',
+        duration: 1440,
+        thumbnail: 'https://cdn.myanimelist.net/images/anime/12/76049l.jpg',
+        streamUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+        source: 'local',
         anime: null as any, // Will be populated by TypeORM if needed
       },
       {
         id: `${animeId}_ep_3`,
-        animeId,
+        animeId: animeId,
         number: 3,
-        title: `Episode 3: Climax`,
-        duration: 1320, // 22 minutes in seconds
-        thumbnail: `https://placehold.co/320x180/45b7d1/ffffff?text=EP+3`,
-        streamUrl:
-          'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+        title: 'Adventure',
+        duration: 1440,
+        thumbnail: 'https://cdn.myanimelist.net/images/anime/11/79410l.jpg',
+        streamUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+        source: 'local',
         anime: null as any, // Will be populated by TypeORM if needed
       },
     ];

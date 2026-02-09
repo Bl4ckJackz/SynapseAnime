@@ -185,7 +185,7 @@ class AnimeRepository {
     // use Consumet API to get anime info
 
     // Determine effective source - use animeunity as default if source is jikan
-    final effectiveSource = active == 'jikan' ? 'animesaturn' : active;
+    final effectiveSource = active == 'jikan' ? 'animeunity' : active;
 
     // Consumet Info API: http://localhost:3002/anime/[provider]/info?id=[id]
     final List<dynamic> allEpisodes = [];
@@ -241,6 +241,7 @@ class AnimeRepository {
                 thumbnail: e['image'] ?? data['image'],
                 duration: 0,
                 streamUrl: '',
+                source: effectiveSource,
               ))
           .toList(),
     );
@@ -277,13 +278,15 @@ class AnimeRepository {
     if (RegExp(r'^\d+$').hasMatch(animeId)) {
       try {
         final activeSource = getActiveSource();
+        print(
+            'DEBUG: getAllEpisodes called for $animeId with activeSource: $activeSource');
         // Define sources to try, prioritizing the active source
         final List<String> availableSources = [
-          'animesaturn',
           'animeunity',
           'hianime',
           'kickassanime',
-          'animekai'
+          'animekai',
+          // 'animesaturn', // REMOVED: Causing default source issues
         ].where((s) => SourceConfig.isAnimeSourceEnabled(s)).toList();
 
         final List<String> sourcesToTry = [];
@@ -854,6 +857,7 @@ class AnimeRepository {
                         thumbnail: e['image'] ?? data['image'],
                         duration: 0,
                         streamUrl: '',
+                        source: 'animeunity',
                       ))
                   .toList() ??
               [];
@@ -1005,10 +1009,10 @@ class AnimeRepository {
 
   /// Get recently released episodes (raw from provider)
   Future<List<Episode>> getRecentEpisodes({int page = 1}) async {
-    final activeSource = getActiveSource() ?? 'animesaturn';
-    // Use 'animesaturn' if 'jikan' is active, as Jikan doesn't provide streamable links directly
+    final activeSource = getActiveSource() ?? 'animeunity';
+    // Use 'animeunity' if 'jikan' is active, as AnimeSaturn lacks recent-episodes endpoint
     // in the format we want for "new releases" usually.
-    final sourceToUse = activeSource == 'jikan' ? 'animesaturn' : activeSource;
+    final sourceToUse = activeSource == 'jikan' ? 'animeunity' : activeSource;
 
     try {
       final response = await _apiClient.get(
@@ -1021,18 +1025,41 @@ class AnimeRepository {
       return results.map((e) {
         // Consumet recent-episodes structure usually:
         // {
-        //   "id": "anime-id",
+        //   "id": "anime-id", // e.g., "7101-gnosia"
         //   "episodeId": "anime-id-episode-1",
         //   "episodeNumber": 1,
-        //   "title": "Anime Title", (Note: this is usually ANIME title, not episode title)
-        //   "image": "url",
-        //   "url": "..."
+        //   "title": "Anime Title" or null or "Episode X"
         // }
+
+        final rawId = e['id']?.toString() ?? '';
+        final rawTitle = e['title']?.toString();
+        final episodeNum = (e['episodeNumber'] as num?)?.toInt() ?? 0;
+
+        String displayTitle = rawTitle ?? '';
+
+        // If title is missing or generic "Episode X", try to extract from ID
+        if (displayTitle.isEmpty ||
+            displayTitle.toLowerCase().startsWith('episode')) {
+          // ID format: "123-slug-name"
+          final match = RegExp(r'^\d+-(.+)$').firstMatch(rawId);
+          if (match != null) {
+            String slug = match.group(1)!;
+            // Convert "slug-name" to "Slug Name"
+            displayTitle = slug.split('-').map((word) {
+              if (word.isEmpty) return '';
+              return '${word[0].toUpperCase()}${word.substring(1)}';
+            }).join(' ');
+          } else {
+            displayTitle =
+                displayTitle.isEmpty ? 'Anime Unknown' : displayTitle;
+          }
+        }
+
         return Episode(
           id: e['episodeId']?.toString() ?? '',
-          animeId: e['id']?.toString() ?? '',
-          number: (e['episodeNumber'] as num?)?.toInt() ?? 0,
-          title: e['title'] ?? 'Episode ${(e['episodeNumber'] ?? '?')}',
+          animeId: rawId,
+          number: episodeNum,
+          title: displayTitle,
           thumbnail: e['image'],
           duration: 0,
           streamUrl: e['url'] ?? '',
@@ -1132,19 +1159,19 @@ class AnimeRepository {
   /// Get anime schedule for a specific day
   Future<List<Anime>> getSchedule(String day) async {
     try {
-      // If using Jikan
-      if (getActiveSource() == 'jikan') {
-        final response = await _apiClient.get(
-          '${AppConstants.jikanSchedules}/$day',
-        );
+      // Always use Jikan for schedule as it's the only source that supports it
+      // The backend endpoint is /jikan/anime/schedule?day=monday
+      final response = await _apiClient.get(
+        '/jikan/anime/schedule',
+        queryParameters: {'day': day},
+      );
 
-        if (response.statusCode == 200) {
-          final data = response.data['data'] as List<dynamic>?;
-          if (data != null) {
-            return data
-                .map((e) => Anime.fromJson(e as Map<String, dynamic>))
-                .toList();
-          }
+      if (response.statusCode == 200) {
+        final data = response.data['data'] as List<dynamic>?;
+        if (data != null) {
+          return data
+              .map((e) => Anime.fromJson(e as Map<String, dynamic>))
+              .toList();
         }
       }
       // Fallback or implementation for other sources if available
@@ -1160,8 +1187,8 @@ class AnimeRepository {
   Future<Map<String, dynamic>> resolveStreamUrl(String episodeId,
       {String? source}) async {
     var activeSource = source ?? getActiveSource();
-    if (activeSource == 'jikan') {
-      activeSource = 'animesaturn';
+    if (activeSource == 'jikan' || activeSource == 'animesaturn') {
+      activeSource = 'animeunity';
     }
 
     // For Animeworld/AnimeUnity scenarios

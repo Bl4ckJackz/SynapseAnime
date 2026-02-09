@@ -281,13 +281,13 @@ export class JikanAnimeService {
           }
 
           // Use the headers in the request
-          // Note: operation() needs to accept headers or we need to change how we call it. 
+          // Note: operation() needs to accept headers or we need to change how we call it.
           // Since operation is a callback correctly closing over client.get, we can't easily inject headers unless we change operation signature.
           // However, axios `get` calculates headers at call time.
           // The cleanest way without changing all callsites is to just let operation run for now if we can't inject.
           // BUT, looking at `MangaService`, `operation` is `() => this.client.get(...)`.
           // We can't inject headers into `operation` without changing it.
-          // Wait, in `MangaService` it DOESN'T verify ETag in request? 
+          // Wait, in `MangaService` it DOESN'T verify ETag in request?
           // Checking check `MangaService`:
           // `const { etag } = this.cacheService.getWithEtag(cacheKey);`
           // `const headers: Record<string, string> = {};`
@@ -297,7 +297,7 @@ export class JikanAnimeService {
           // Ah, unless `operation` is constructed with headers? No.
           // Let's fix this in AnimeService properly.
           // We need to pass config to axios.
-          // Since we can't easily change `operation` signature everywhere to accept headers, 
+          // Since we can't easily change `operation` signature everywhere to accept headers,
           // and `operation` wraps the axios call...
           // We might HAVE to change the call sites to pass headers?
           // Or just standard caching WITHOUT conditional requests for now, but handle 304 if it happens (unlikely without headers).

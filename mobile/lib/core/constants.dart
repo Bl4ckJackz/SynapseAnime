@@ -40,8 +40,10 @@ class AppConstants {
   static const String usersContinueWatching = '/users/continue-watching';
   static const String usersProgress = '/users/progress';
   static const String usersPreferences = '/users/preferences';
+  static const String usersPath = '/users';
 
   static const String aiRecommend = '/ai/recommend';
+  static const String aiChat = '/ai/chat';
 
   // Manga API Endpoints
   static const String jikanMangaSearch = '/jikan/manga/search';

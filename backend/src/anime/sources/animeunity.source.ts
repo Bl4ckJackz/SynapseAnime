@@ -18,7 +18,7 @@ export class AnimeUnitySource implements AnimeSource {
 
   // Consumet API for fallback
   private readonly consumetUrl =
-    process.env.CONSUMET_API_URL || 'http://localhost:3002';
+    process.env.CONSUMET_API_URL || 'http://localhost:3004';
   private readonly consumetProvider = 'animeunity'; // Hardcoded as this is strictly the AnimeUnity source
 
   constructor(private readonly httpService: HttpService) {}
@@ -85,6 +85,13 @@ export class AnimeUnitySource implements AnimeSource {
       const response = await axios.get(url, { timeout: 10000 });
 
       const data = response.data;
+
+      // Validate that we got actual anime data (not just an error message)
+      if (!data || !data.id || !data.title) {
+        console.log(`[AnimeUnity] No valid data for ID ${id}, returning null`);
+        return null;
+      }
+
       return {
         id: data.id,
         title: data.title,

@@ -4,10 +4,12 @@ import '../screens/home_screen.dart';
 import '../screens/search_screen.dart';
 import '../screens/chat_screen.dart';
 import '../screens/profile_screen.dart';
+import '../screens/currently_watching_screen.dart';
 import '../screens/watch_history_screen.dart';
 import '../screens/manga_home_screen.dart';
 import 'local_library_screen.dart';
 import '../widgets/animated_bottom_nav_bar.dart';
+import '../widgets/download_manager_widget.dart';
 
 class MainNavigationScreen extends ConsumerStatefulWidget {
   const MainNavigationScreen({super.key});
@@ -23,6 +25,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   final List<Widget> _screens = [
     const HomeScreen(),
     const MangaHomeScreen(),
+    const CurrentlyWatchingScreen(),
     const WatchHistoryScreen(),
     const LocalLibraryScreen(),
     const ChatScreen(),
@@ -32,9 +35,15 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
+      body: Stack(
+        children: [
+          IndexedStack(
+            index: _currentIndex,
+            children: _screens,
+          ),
+          // Floating download manager
+          const DownloadManagerWidget(),
+        ],
       ),
       bottomNavigationBar: AnimatedBottomNavBar(
         currentIndex: _currentIndex,

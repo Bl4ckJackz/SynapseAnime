@@ -18,7 +18,7 @@ export class RateLimiterService {
   private readonly buckets = new Map<string, TokenBucket>();
 
   private readonly configs: Record<string, RateLimitConfig> = {
-    jikan: { requestsPerSecond: 3, requestsPerMinute: 60 },
+    jikan: { requestsPerSecond: 2, requestsPerMinute: 50 },
     mangahook: { requestsPerSecond: 10, requestsPerMinute: 300 },
     mangadex: { requestsPerSecond: 5, requestsPerMinute: 100 },
   };

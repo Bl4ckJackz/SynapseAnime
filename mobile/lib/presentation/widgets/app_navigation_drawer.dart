@@ -65,6 +65,13 @@ class AppNavigationDrawer extends StatelessWidget {
             },
           ),
           ListTile(
+            leading: const Icon(Icons.download_outlined),
+            title: const Text('Download'),
+            onTap: () {
+              context.push('/downloads');
+            },
+          ),
+          ListTile(
             leading: const Icon(Icons.person_outline),
             title: const Text('Profilo'),
             onTap: () {

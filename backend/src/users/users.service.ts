@@ -30,13 +30,18 @@ export class UsersService {
     private historyGateway: HistoryGateway,
     private animeService: AnimeService,
     private mangaService: MangaService,
-  ) { }
+  ) {}
 
   async updateProgress(userId: string, dto: UpdateProgressDto) {
     // Verify episode exists
     let episode = await this.episodeRepository.findOne({
       where: { id: dto.episodeId },
     });
+
+    if (episode && dto.source && episode.source !== dto.source) {
+      episode.source = dto.source;
+      await this.episodeRepository.save(episode);
+    }
 
     if (!episode) {
       // Lazy Creation logic
@@ -72,6 +77,7 @@ export class UsersService {
           thumbnail: dto.episodeThumbnail,
           duration: dto.duration ?? 0,
           streamUrl: '',
+          source: dto.source,
         });
         await this.episodeRepository.save(episode);
       } else {
@@ -196,7 +202,11 @@ export class UsersService {
     });
   }
 
-  async addToWatchlist(userId: string, itemId: string, type: 'anime' | 'manga' = 'anime') {
+  async addToWatchlist(
+    userId: string,
+    itemId: string,
+    type: 'anime' | 'manga' = 'anime',
+  ) {
     // Ensure item exists in local DB
     if (type === 'anime') {
       const anime = await this.animeService.findById(itemId);
@@ -221,7 +231,11 @@ export class UsersService {
     return this.watchlistRepository.save(entry);
   }
 
-  async removeFromWatchlist(userId: string, itemId: string, type: 'anime' | 'manga' = 'anime') {
+  async removeFromWatchlist(
+    userId: string,
+    itemId: string,
+    type: 'anime' | 'manga' = 'anime',
+  ) {
     const where: any = { userId };
     if (type === 'anime') where.animeId = itemId;
     else where.mangaId = itemId;
@@ -229,7 +243,11 @@ export class UsersService {
     return this.watchlistRepository.delete(where);
   }
 
-  async isInWatchlist(userId: string, itemId: string, type: 'anime' | 'manga' = 'anime') {
+  async isInWatchlist(
+    userId: string,
+    itemId: string,
+    type: 'anime' | 'manga' = 'anime',
+  ) {
     const where: any = { userId };
     if (type === 'anime') where.animeId = itemId;
     else where.mangaId = itemId;
@@ -256,5 +274,55 @@ export class UsersService {
       order: { updatedAt: 'DESC' },
       take: limit,
     });
+  }
+
+  async getAnimeProgress(userId: string, animeId: string) {
+    // Get all watch history for episodes of this anime
+    const history = await this.watchHistoryRepository.find({
+      where: {
+        userId,
+        episode: { animeId },
+      },
+      relations: ['episode'],
+    });
+
+    // Get total episode count from anime
+    const anime = await this.userRepository.manager.findOne(Anime, {
+      where: { id: animeId },
+    });
+
+    const totalEpisodes = anime?.totalEpisodes || 0;
+    const watchedEpisodes = history.filter((h) => h.completed).length;
+    const inProgressEpisodes = history.filter((h) => !h.completed).length;
+
+    // Calculate completion percentage based on completed episodes
+    let completionPercentage = 0;
+    if (totalEpisodes > 0) {
+      completionPercentage = Math.round(
+        (watchedEpisodes / totalEpisodes) * 100,
+      );
+    }
+
+    // Map episode progress
+    const episodeProgress = history.map((h) => ({
+      episodeId: h.episodeId,
+      episodeNumber: h.episode?.number,
+      progressSeconds: h.progressSeconds,
+      duration: h.episode?.duration || 0,
+      completed: h.completed,
+      progressPercent:
+        h.episode?.duration > 0
+          ? Math.round((h.progressSeconds / h.episode.duration) * 100)
+          : 0,
+    }));
+
+    return {
+      animeId,
+      totalEpisodes,
+      watchedEpisodes,
+      inProgressEpisodes,
+      completionPercentage,
+      episodeProgress,
+    };
   }
 }

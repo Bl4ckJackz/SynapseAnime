@@ -33,7 +33,7 @@ class FeaturedSlider extends StatelessWidget {
                   onTap: () => context.pushNamed('animeDetail',
                       pathParameters: {'id': anime.id}),
                   child: Container(
-                    width: MediaQuery.of(context).size.width,
+                    width: double.infinity,
                     margin: const EdgeInsets.symmetric(horizontal: 5.0),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
@@ -52,7 +52,10 @@ class FeaturedSlider extends StatelessWidget {
                         children: [
                           CachedNetworkImage(
                             imageUrl: anime.coverUrl ?? '',
+                            width: double.infinity,
+                            height: double.infinity,
                             fit: BoxFit.cover,
+                            alignment: Alignment.center,
                             placeholder: (context, url) => Container(
                               color: AppTheme.surfaceColor,
                               child: const Center(

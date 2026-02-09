@@ -5,7 +5,7 @@ class SourceConfig {
     'animeunity': true,
     'hianime': true,
     'animekai': true,
-    'animesaturn': true,
+    'animesaturn': false, // Issues with recent episodes
     'kickassanime': true,
     // Add other anime sources here
   };

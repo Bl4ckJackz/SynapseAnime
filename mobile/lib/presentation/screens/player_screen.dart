@@ -13,11 +13,15 @@ import '../../domain/providers/anime_provider.dart';
 class PlayerScreen extends ConsumerStatefulWidget {
   final String animeId;
   final String episodeId;
+  final String? source;
+  final String? startUrl;
 
   const PlayerScreen({
     super.key,
     required this.animeId,
     required this.episodeId,
+    this.source,
+    this.startUrl,
   });
 
   @override
@@ -57,23 +61,34 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   Future<void> _initializePlayer() async {
+    debugPrint('=== PLAYER DEBUG: Starting initialization ===');
+    debugPrint('PLAYER DEBUG: animeId=${widget.animeId}');
+    debugPrint('PLAYER DEBUG: episodeId=${widget.episodeId}');
+    debugPrint('PLAYER DEBUG: source=${widget.source}');
+    debugPrint('PLAYER DEBUG: startUrl=${widget.startUrl}');
+
     try {
       final animeRepository = ref.read(animeRepositoryProvider);
 
       // Try to fetch anime details for metadata (important for watch history)
       try {
         _anime = await ref.read(animeDetailsProvider(widget.animeId).future);
+        debugPrint('PLAYER DEBUG: Loaded anime metadata: ${_anime?.title}');
       } catch (e) {
-        print('Failed to load anime metadata: $e');
+        debugPrint('PLAYER DEBUG: Failed to load anime metadata: $e');
       }
 
       // Get episodes from provider state (preserves loaded pages)
       final episodesAsync = ref.read(animeEpisodesProvider(widget.animeId));
       var episodesList = episodesAsync.valueOrNull ?? [];
+      debugPrint(
+          'PLAYER DEBUG: Episodes from provider: ${episodesList.length}');
 
       if (episodesList.isEmpty) {
         // Fallback fetch if provider is empty - fetch ALL episodes
+        debugPrint('PLAYER DEBUG: Fetching all episodes from repository...');
         episodesList = await animeRepository.getAllEpisodes(widget.animeId);
+        debugPrint('PLAYER DEBUG: Fetched ${episodesList.length} episodes');
       }
       _episodes = episodesList;
 
@@ -82,7 +97,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         episode = episodesList.firstWhere(
           (e) => e.id.toString() == widget.episodeId.toString(),
         );
+        debugPrint('PLAYER DEBUG: Found episode in list: ${episode.id}');
       } catch (e) {
+        debugPrint(
+            'PLAYER DEBUG: Episode not found in list, using first or placeholder');
         if (episodesList.isNotEmpty) {
           episode = episodesList.first;
         }
@@ -97,12 +115,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         duration: 0,
         thumbnail: null,
         streamUrl: '',
+        source: widget.source,
       );
 
       var currentEpisode = episode;
+      debugPrint(
+          'PLAYER DEBUG: Current episode streamUrl before: ${currentEpisode.streamUrl}');
 
-      if (currentEpisode.streamUrl.isEmpty) {
+      if (widget.startUrl != null && widget.startUrl!.isNotEmpty) {
+        debugPrint(
+            'PLAYER DEBUG: Using startUrl from widget: ${widget.startUrl}');
+        currentEpisode = currentEpisode.copyWith(streamUrl: widget.startUrl);
+      } else if (currentEpisode.streamUrl.isEmpty) {
         // Resolve stream URL
+        debugPrint('PLAYER DEBUG: Resolving stream URL...');
         try {
           final resolvedData = await animeRepository.resolveStreamUrl(
               widget.episodeId,
@@ -114,22 +140,27 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               ? Map<String, String>.from(resolvedData['headers'])
               : null;
 
+          debugPrint('PLAYER DEBUG: Resolved URL: $url');
+          debugPrint('PLAYER DEBUG: Resolved headers: $headers');
+
           if (url.isNotEmpty) {
             currentEpisode =
                 currentEpisode.copyWith(streamUrl: url, headers: headers);
           }
         } catch (e) {
-          print('Failed to resolve stream: $e');
+          debugPrint('PLAYER DEBUG: Failed to resolve stream: $e');
         }
       }
 
       _episode = currentEpisode;
+      debugPrint('PLAYER DEBUG: Final streamUrl: ${_episode!.streamUrl}');
 
       // Validate the stream URL before initializing
       if (_episode!.streamUrl.isEmpty) {
         throw Exception(
             'Video non disponibile. Il server di streaming potrebbe essere temporaneamente irraggiungibile. Riprova più tardi.');
       }
+
       // Try to get saved progress
       int startPosition = 0;
       try {
@@ -137,11 +168,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             .read(userRepositoryProvider)
             .getEpisodeProgress(widget.episodeId);
         startPosition = progressInfo.progressSeconds;
+        debugPrint(
+            'PLAYER DEBUG: Start position from progress: $startPosition');
       } catch (e) {
-        print('Could not load progress: $e');
+        debugPrint('PLAYER DEBUG: Could not load progress: $e');
       }
 
-      // Prepare headers
+      // Prepare headers - skip Referer for local/downloaded content
+      final isLocalContent = _episode!.streamUrl.contains('localhost') ||
+          _episode!.streamUrl.contains('127.0.0.1') ||
+          _episode!.streamUrl.contains('/downloads/');
+      debugPrint('PLAYER DEBUG: Is local content: $isLocalContent');
+
       final Map<String, String> httpHeaders = {
         'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -149,8 +187,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
       if (_episode!.headers != null && _episode!.headers!.isNotEmpty) {
         httpHeaders.addAll(_episode!.headers!);
-      } else {
-        // Fallback legacy logic
+      } else if (!isLocalContent) {
+        // Only add Referer for external streams, not for local downloads
         final activeSource = currentEpisode.source ??
             animeRepository.getActiveSource() ??
             'jikan';
@@ -163,15 +201,33 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         httpHeaders['Referer'] = referer;
       }
 
+      final headersToUse = isLocalContent ? <String, String>{} : httpHeaders;
+      debugPrint('PLAYER DEBUG: Headers to use: $headersToUse');
+      debugPrint('PLAYER DEBUG: Creating VideoPlayerController...');
+
       _videoPlayerController = VideoPlayerController.networkUrl(
         Uri.parse(_episode!.streamUrl),
-        httpHeaders: httpHeaders,
+        httpHeaders: headersToUse,
       );
 
       // Add error listener to handle playback errors
       _videoPlayerController!.addListener(_videoListener);
 
-      await _videoPlayerController!.initialize();
+      debugPrint('PLAYER DEBUG: Calling initialize()...');
+      try {
+        await _videoPlayerController!.initialize();
+        debugPrint(
+            'PLAYER DEBUG: VideoPlayerController initialized successfully!');
+        debugPrint(
+            'PLAYER DEBUG: Video duration: ${_videoPlayerController!.value.duration}');
+        debugPrint(
+            'PLAYER DEBUG: Video size: ${_videoPlayerController!.value.size}');
+      } catch (initError) {
+        debugPrint('PLAYER DEBUG: *** INITIALIZATION FAILED ***');
+        debugPrint('PLAYER DEBUG: Error type: ${initError.runtimeType}');
+        debugPrint('PLAYER DEBUG: Error message: $initError');
+        rethrow;
+      }
 
       if (startPosition > 0) {
         await _videoPlayerController!.seekTo(Duration(seconds: startPosition));
@@ -203,12 +259,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         _initialized = true;
       });
 
+      debugPrint('PLAYER DEBUG: Player fully initialized!');
+
       SystemChrome.setPreferredOrientations([
         DeviceOrientation.landscapeLeft,
         DeviceOrientation.landscapeRight,
       ]);
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('PLAYER DEBUG: *** FATAL ERROR ***');
+      debugPrint('PLAYER DEBUG: Error: $e');
+      debugPrint('PLAYER DEBUG: Stack trace: $stackTrace');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Errore caricamento video: ${e.toString()}')),
@@ -236,6 +297,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 episodeTitle: _episode?.title,
                 episodeThumbnail: _episode?.thumbnail,
                 duration: _videoPlayerController!.value.duration.inSeconds,
+                source: widget.source ?? _episode?.source,
               );
         } catch (e) {
           // Silently ignore errors (e.g., 401 Unauthorized when not logged in)

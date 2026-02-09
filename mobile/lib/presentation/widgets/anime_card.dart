@@ -196,8 +196,8 @@ class _AnimeCardState extends ConsumerState<AnimeCard>
 
   Widget _buildFront() {
     final proxiedUrl = _getProxiedUrl(widget.anime.coverUrl);
-    final width = widget.width == double.infinity ? null : widget.width;
-    final height = widget.height == double.infinity ? null : widget.height;
+    final width = widget.width;
+    final height = widget.height;
 
     return Container(
       height: height,
@@ -345,8 +345,8 @@ class _AnimeCardState extends ConsumerState<AnimeCard>
     final IconData playButtonIcon =
         canResume ? Icons.play_arrow_rounded : Icons.play_arrow_rounded;
 
-    final width = widget.width == double.infinity ? null : widget.width;
-    final height = widget.height == double.infinity ? null : widget.height;
+    final width = widget.width;
+    final height = widget.height;
 
     return Container(
       height: height,

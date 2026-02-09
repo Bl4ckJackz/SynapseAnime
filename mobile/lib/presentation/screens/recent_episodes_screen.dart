@@ -47,10 +47,14 @@ class _RecentEpisodesScreenState extends ConsumerState<RecentEpisodesScreen> {
         title: const Text('Episodi Recenti'),
       ),
       body: episodesAsync.when(
-        data: (episodes) {
-          if (episodes.isEmpty) {
+        data: (result) {
+          final episodes = result.items;
+          final hasMore = result.hasMore;
+
+          if (episodes.isEmpty && !hasMore) {
             return const Center(child: Text('Nessun episodio trovato'));
           }
+
           return GridView.builder(
             controller: _scrollController,
             padding: const EdgeInsets.all(8),
@@ -60,9 +64,11 @@ class _RecentEpisodesScreenState extends ConsumerState<RecentEpisodesScreen> {
               crossAxisSpacing: 8,
               mainAxisSpacing: 8,
             ),
-            itemCount: episodes.length + 1,
+            // +1 for the loader if hasMore is true
+            itemCount: episodes.length + (hasMore ? 1 : 0),
             itemBuilder: (context, index) {
               if (index == episodes.length) {
+                // Loader at the bottom
                 return const Center(
                   child: Padding(
                     padding: EdgeInsets.all(16.0),

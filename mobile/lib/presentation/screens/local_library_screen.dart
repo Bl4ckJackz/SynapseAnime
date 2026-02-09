@@ -9,6 +9,7 @@ import '../../core/theme.dart';
 import '../../data/api_client.dart';
 import '../../domain/providers/library_settings_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'simple_player_screen.dart';
 
 class LocalLibraryScreen extends ConsumerStatefulWidget {
   const LocalLibraryScreen({super.key});
@@ -42,8 +43,20 @@ class _LocalLibraryScreenState extends ConsumerState<LocalLibraryScreen> {
   }
 
   Future<void> _pickDirectory() async {
+    if (kIsWeb) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'La selezione di cartelle non è supportata sul Web. Usa la versione Server o un dispositivo mobile.'),
+          ),
+        );
+      }
+      return;
+    }
+
     // Request storage permission on Android
-    if (!kIsWeb && Platform.isAndroid) {
+    if (Platform.isAndroid) {
       final status = await Permission.storage.request();
       if (!status.isGranted) {
         if (mounted) {
@@ -444,7 +457,7 @@ class _LocalLibraryScreenState extends ConsumerState<LocalLibraryScreen> {
             title: Text(ep.filename),
             subtitle: Text('Episodio ${ep.episode}'),
             onTap: () {
-              _playServerVideo(ep.id);
+              _playServerVideo(ep.id, anime.title);
             },
           );
         }).toList(),
@@ -459,17 +472,26 @@ class _LocalLibraryScreenState extends ConsumerState<LocalLibraryScreen> {
     );
   }
 
-  void _playServerVideo(String videoId) {
-    // HLS stream URL
-    final hlsUrl =
-        '${AppConstants.apiBaseUrl}/library/stream/$videoId/playlist.m3u8';
+  void _playServerVideo(String videoId, String title) {
+    // Use direct streaming for better Web compatibility instead of HLS
+    // HLS: '${AppConstants.apiBaseUrl}/library/stream/$videoId/playlist.m3u8'
+    // Direct: '${AppConstants.apiBaseUrl}/library/stream/$videoId/direct'
+    final directUrl =
+        '${AppConstants.apiBaseUrl}/library/stream/$videoId/direct';
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Playing HLS: $hlsUrl')),
+    debugPrint('LIBRARY DEBUG: Playing server video');
+    debugPrint('LIBRARY DEBUG: videoId=$videoId');
+    debugPrint('LIBRARY DEBUG: title=$title');
+    debugPrint('LIBRARY DEBUG: directUrl=$directUrl');
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => SimplePlayerScreen(
+          streamUrl: directUrl,
+          title: title,
+        ),
+      ),
     );
-
-    // TODO: Navigate to player with HLS URL
-    // context.push('/player?url=$hlsUrl');
   }
 }
 

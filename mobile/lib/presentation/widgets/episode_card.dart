@@ -60,6 +60,9 @@ class EpisodeCard extends StatelessWidget {
               'animeId': episode.animeId,
               'episodeId': episode.id,
             },
+            queryParameters: {
+              if (episode.source != null) 'source': episode.source!,
+            },
           );
         },
         child: Column(
@@ -114,27 +117,6 @@ class EpisodeCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    // Episode Number Badge
-                    Positioned(
-                      bottom: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.7),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          'EP ${episode.number}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -142,15 +124,34 @@ class EpisodeCard extends StatelessWidget {
             const SizedBox(height: 8),
             // Title
             Text(
-              episode
-                  .title, // This might be the Anime Title for recent episodes list
-              maxLines: 2,
+              episode.title,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
                 color: Colors.white,
-                height: 1.2,
+              ),
+            ),
+            const SizedBox(height: 4),
+            // Episode Number Chip
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppTheme.primaryColor.withOpacity(0.5),
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                'Episodio ${episode.number}',
+                style: const TextStyle(
+                  color: AppTheme.primaryColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
