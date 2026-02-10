@@ -241,6 +241,25 @@ class DownloadNotifier extends StateNotifier<DownloadState> {
     }
   }
 
+  Future<bool> deleteDownload(String downloadId) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.delete(
+        Uri.parse('${AppConstants.apiBaseUrl}/download/$downloadId/file'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        await loadHistory();
+        await loadQueue();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
   /// Downloads an episode directly from a stream URL
   Future<bool> downloadFromUrl({
     required String url,

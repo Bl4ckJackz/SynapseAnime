@@ -45,10 +45,13 @@ class AiRepository {
         data: {'messages': messages},
       );
 
-      return response.data;
+      if (response.data is Map) {
+        return response.data['content'] ?? response.data.toString();
+      }
+      return response.data.toString();
     } catch (e) {
       print('AI Repository Chat Error: $e');
-      return 'Mi dispiace, si è verificato un errore.';
+      throw e; // Rethrow to let provider handle it
     }
   }
 }

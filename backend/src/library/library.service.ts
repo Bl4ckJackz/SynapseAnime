@@ -275,4 +275,167 @@ export class LibraryService {
     const stream = fs.createReadStream(videoPath, { start: startByte });
     return new StreamableFile(stream);
   }
+
+  /**
+   * Organize all loose video files in the library.
+   * Renames files using standardized format and moves them into proper folders.
+   */
+  async organizeLibrary(): Promise<{
+    organized: number;
+    skipped: number;
+    errors: string[];
+  }> {
+    const libraryPath =
+      process.env.LIBRARY_PATH || path.join(process.cwd(), 'video_library');
+
+    let organized = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+
+    console.log('[OrganizeService] Starting library organization...');
+
+    try {
+      const looseFiles = await this.findLooseFiles(libraryPath);
+      console.log(`[OrganizeService] Found ${looseFiles.length} loose files`);
+
+      for (const filePath of looseFiles) {
+        try {
+          const filename = path.basename(filePath);
+          const parsed = this.parseFilenameAdvanced(filename);
+
+          if (!parsed.title || parsed.episode === 0) {
+            console.log(`[OrganizeService] Skipping unparseable: ${filename}`);
+            skipped++;
+            continue;
+          }
+
+          // Create folder structure: AnimeTitle/Season 1/
+          const seasonFolder = `Season ${parsed.season}`;
+          const animeFolder = path.join(libraryPath, parsed.title, seasonFolder);
+          await fs.promises.mkdir(animeFolder, { recursive: true });
+
+          // New filename: Title S01E01.ext
+          const ext = path.extname(filename);
+          const episodeNum = String(parsed.episode).padStart(2, '0');
+          const seasonNum = String(parsed.season).padStart(2, '0');
+          const newFilename = `${parsed.title} S${seasonNum}E${episodeNum}${ext}`;
+          const newPath = path.join(animeFolder, newFilename);
+
+          // Check if file already exists
+          if (fs.existsSync(newPath)) {
+            console.log(`[OrganizeService] Already exists: ${newFilename}`);
+            skipped++;
+            continue;
+          }
+
+          // Move file
+          await fs.promises.rename(filePath, newPath);
+          console.log(`[OrganizeService] Moved: ${filename} -> ${newFilename}`);
+          organized++;
+        } catch (err) {
+          const errorMsg = `Error processing ${filePath}: ${err}`;
+          console.error(`[OrganizeService] ${errorMsg}`);
+          errors.push(errorMsg);
+        }
+      }
+    } catch (err) {
+      console.error('[OrganizeService] Critical error:', err);
+      errors.push(`Critical error: ${err}`);
+    }
+
+    console.log(
+      `[OrganizeService] Complete: ${organized} organized, ${skipped} skipped, ${errors.length} errors`,
+    );
+
+    return { organized, skipped, errors };
+  }
+
+  /**
+   * Find video files that are directly in the library root (not in anime folders)
+   */
+  private async findLooseFiles(libraryPath: string): Promise<string[]> {
+    const looseFiles: string[] = [];
+    const videoExtensions = ['.mp4', '.mkv', '.avi', '.mov', '.webm'];
+
+    try {
+      const entries = await fs.promises.readdir(libraryPath, {
+        withFileTypes: true,
+      });
+
+      for (const entry of entries) {
+        const fullPath = path.join(libraryPath, entry.name);
+
+        if (entry.isFile()) {
+          const ext = path.extname(entry.name).toLowerCase();
+          if (videoExtensions.includes(ext)) {
+            looseFiles.push(fullPath);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[OrganizeService] Error scanning for loose files:', err);
+    }
+
+    return looseFiles;
+  }
+
+  /**
+   * Advanced filename parser that extracts title, season, and episode
+   */
+  private parseFilenameAdvanced(filename: string): {
+    title: string;
+    season: number;
+    episode: number;
+  } {
+    // Remove extension
+    const nameWithoutExt = path.basename(filename, path.extname(filename));
+
+    // Common patterns:
+    // [Fansub] Title - 01 [1080p]
+    // Title S01E01
+    // Title - 01
+    // Title Episode 01
+
+    // Try S01E01 format first
+    const s01e01Match = /(.+?)\s*S(\d+)E(\d+)/i.exec(nameWithoutExt);
+    if (s01e01Match) {
+      return {
+        title: s01e01Match[1].trim().replace(/[[\]]/g, ''),
+        season: parseInt(s01e01Match[2], 10),
+        episode: parseInt(s01e01Match[3], 10),
+      };
+    }
+
+    // Try [Fansub] Title - 01 format
+    const fansubMatch = /(?:\[.*?\]\s*)?([^-]+?)\s*-\s*(\d+)/i.exec(nameWithoutExt);
+    if (fansubMatch) {
+      return {
+        title: fansubMatch[1].trim().replace(/[[\]]/g, ''),
+        season: 1,
+        episode: parseInt(fansubMatch[2], 10),
+      };
+    }
+
+    // Try "Episode X" format
+    const episodeMatch = /(.+?)\s*(?:Episode|Ep\.?)\s*(\d+)/i.exec(nameWithoutExt);
+    if (episodeMatch) {
+      return {
+        title: episodeMatch[1].trim().replace(/[[\]]/g, ''),
+        season: 1,
+        episode: parseInt(episodeMatch[2], 10),
+      };
+    }
+
+    // Fallback: just extract any number as episode
+    const numberMatch = /(.+?)\s*(\d+)\s*$/i.exec(nameWithoutExt);
+    if (numberMatch) {
+      return {
+        title: numberMatch[1].trim().replace(/[[\]]/g, ''),
+        season: 1,
+        episode: parseInt(numberMatch[2], 10),
+      };
+    }
+
+    return { title: '', season: 1, episode: 0 };
+  }
 }

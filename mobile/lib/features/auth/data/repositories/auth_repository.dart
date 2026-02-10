@@ -44,7 +44,19 @@ class AuthRepository {
 
   Future<User> loginWithGoogle() async {
     try {
-      final googleUser = await googleSignIn.signIn();
+      // On web, we should try silent sign-in first or ensure the popup flow is triggered by a user action
+      GoogleSignInAccount? googleUser;
+
+      try {
+        // Attempt silent sign-in first
+        googleUser = await googleSignIn.signInSilently();
+      } catch (e) {
+        // Silent sign-in failed, proceed to standard sign-in
+      }
+
+      // If silent failed or wasn't tried, use interactive sign-in
+      googleUser ??= await googleSignIn.signIn();
+
       if (googleUser == null) {
         throw Exception('Google Sign In aborted');
       }
@@ -57,12 +69,13 @@ class AuthRepository {
       }
 
       final response = await _apiClient.post(
-        '${AppConstants.authBase}/google', // Endpoint creato nel backend task 22
+        '${AppConstants.authBase}/google',
         data: {'token': idToken},
       );
 
       return await _processAuthResponse(response.data);
     } catch (e) {
+      // Handle "popup_closed" specifically if needed, but generic error handler covers it
       throw _handleError(e);
     }
   }

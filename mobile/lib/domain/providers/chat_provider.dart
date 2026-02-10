@@ -44,9 +44,16 @@ class ChatNotifier extends StateNotifier<List<ChatMessage>> {
         ChatMessage.ai(responseContent),
       ];
     } catch (e) {
+      String errorMessage = 'Scusa, ho avuto un problema. Riprova più tardi.';
+      if (e.toString().contains('401') ||
+          e.toString().contains('Unauthorized')) {
+        errorMessage =
+            'Sessione scaduta. Effettua nuovamente il login per usare la chat.';
+      }
+
       state = [
         ...state,
-        ChatMessage.ai('Scusa, ho avuto un problema. Riprova più tardi.'),
+        ChatMessage.ai(errorMessage),
       ];
     } finally {
       _isLoading = false;

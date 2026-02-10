@@ -27,6 +27,7 @@ import '../presentation/screens/paginated_anime_list_screen.dart';
 import '../presentation/screens/paginated_manga_list_screen.dart';
 import '../presentation/screens/downloads_screen.dart';
 import '../presentation/screens/currently_watching_screen.dart';
+import '../presentation/screens/genre_selection_screen.dart';
 import '../domain/providers/anime_provider.dart'; // for FilterType and AnimeFilter
 import '../domain/providers/manga_provider.dart'; // for MangaFilterType and MangaFilter
 import 'constants.dart';
@@ -287,6 +288,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           final filter = MangaFilter(type: type, title: title);
           return PaginatedMangaListScreen(filter: filter, title: title);
         },
+      ),
+      GoRoute(
+        path: '/genre-selection',
+        name: 'genreSelection',
+        builder: (context, state) => const GenreSelectionScreen(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

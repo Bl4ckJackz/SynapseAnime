@@ -160,6 +160,11 @@ class CrystalizeChartWidget extends StatelessWidget {
               'Generi Preferiti',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
+            const SizedBox(height: 4),
+            Text(
+              'Basato sugli anime che hai guardato',
+              style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+            ),
             const SizedBox(height: 20),
             Row(
               children: [

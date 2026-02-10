@@ -108,12 +108,51 @@ export class PerplexityAdapter extends LlmAdapter implements OnModuleInit {
       Always answer in Italian.
     `;
 
+    // Sanitize messages:
+    // 1. Remove Any existing system messages (we add our own)
+    // 2. Ensure the first message is from 'user' (remove leading assistant messages)
+    // 3. Ensure alternating roles (merge consecutive same-role messages)
+
+    let cleanMessages = messages.filter(m => m.role !== 'system');
+
+    // Remove leading assistant messages
+    while (cleanMessages.length > 0 && cleanMessages[0].role !== 'user') {
+      cleanMessages.shift();
+    }
+
+    // If no messages left (e.g. only had assistant welcome), add a generic user prompt or fail gracefully
+    if (cleanMessages.length === 0) {
+      // This shouldn't happen if the user actually sent a message, 
+      // but if they did, cleanMessages should have at least that one user message.
+      // If purely empty, maybe return the welcome message again? 
+      // But the controller calls this when user sends something.
+      return "Ciao! Come posso aiutarti?";
+    }
+
+    // Merge consecutive messages
+    const mergedMessages: any[] = [];
+    if (cleanMessages.length > 0) {
+      let currentMsg = { ...cleanMessages[0] };
+
+      for (let i = 1; i < cleanMessages.length; i++) {
+        const nextMsg = cleanMessages[i];
+        if (nextMsg.role === currentMsg.role) {
+          currentMsg.content += "\n\n" + nextMsg.content;
+        } else {
+          mergedMessages.push(currentMsg);
+          currentMsg = { ...nextMsg };
+        }
+      }
+      mergedMessages.push(currentMsg);
+    }
+
     const fullMessages = [
       { role: 'system', content: systemPrompt },
-      ...messages,
+      ...mergedMessages,
     ];
 
     try {
+      this.logger.debug(`Sending ${fullMessages.length} messages to Perplexity`);
       const response = await this.callPerplexity(fullMessages);
       return response.choices[0].message.content;
     } catch (error) {

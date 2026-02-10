@@ -92,7 +92,6 @@ export class User {
   adImpressions?: AdImpression[];
 
   @OneToOne(() => UserPreference, (preference) => preference.user)
-  @JoinColumn()
   preference?: UserPreference;
 
   @OneToOne(

@@ -130,6 +130,11 @@ class _DownloadManagerWidgetState extends ConsumerState<DownloadManagerWidget> {
                                   .read(downloadProvider.notifier)
                                   .cancelDownload(download.id);
                             },
+                            onDelete: () {
+                              ref
+                                  .read(downloadProvider.notifier)
+                                  .deleteDownload(download.id);
+                            },
                           );
                         },
                       ),
@@ -196,10 +201,12 @@ class _DownloadManagerWidgetState extends ConsumerState<DownloadManagerWidget> {
 class _DownloadItem extends StatelessWidget {
   final Download download;
   final VoidCallback onCancel;
+  final VoidCallback onDelete;
 
   const _DownloadItem({
     required this.download,
     required this.onCancel,
+    required this.onDelete,
   });
 
   @override
@@ -279,15 +286,26 @@ class _DownloadItem extends StatelessWidget {
               ],
             ),
           ),
-          // Cancel button
-          if (isPending || isDownloading)
+          // Actions
+          if (isPending || isDownloading) ...[
             IconButton(
-              icon: const Icon(Icons.close, size: 18),
+              icon: const Icon(Icons.stop, size: 20),
               onPressed: onCancel,
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
-              color: Colors.grey,
+              color: Colors.orange,
+              tooltip: 'Ferma',
             ),
+            const SizedBox(width: 8),
+          ],
+          IconButton(
+            icon: const Icon(Icons.delete_outline, size: 20),
+            onPressed: onDelete,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            color: Colors.red,
+            tooltip: 'Elimina',
+          ),
         ],
       ),
     );

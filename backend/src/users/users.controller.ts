@@ -19,7 +19,7 @@ import { UpdateProgressDto } from './dto/update-progress.dto';
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) { }
 
   // --- Profile ---
   @Get('profile')
@@ -41,7 +41,10 @@ export class UsersController {
     @CurrentUser() user: User,
     @Body() dto: UpdatePreferencesDto,
   ) {
-    return this.usersService.updatePreferences(user.id, dto);
+    console.log(`[UsersController] Updating preferences for user ${user.id}`, dto);
+    const result = await this.usersService.updatePreferences(user.id, dto);
+    console.log(`[UsersController] Update result:`, result);
+    return result;
   }
 
   // --- Watchlist ---

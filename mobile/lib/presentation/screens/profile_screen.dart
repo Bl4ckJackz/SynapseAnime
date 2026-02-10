@@ -85,62 +85,104 @@ class ProfileScreen extends ConsumerWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(20.0),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [
-                    AppTheme.primaryColor,
-                    AppTheme.primaryColor.withValues(alpha: 0.6),
-                  ],
+            Row(
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [
+                        AppTheme.primaryColor,
+                        AppTheme.primaryColor.withValues(alpha: 0.6),
+                      ],
+                    ),
+                  ),
+                  child:
+                      const Icon(Icons.person, size: 40, color: Colors.white),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        user.nickname ?? 'Utente',
+                        style:
+                            Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        user.email,
+                        style: TextStyle(color: AppTheme.textMuted),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text(
+                          'Membro Premium',
+                          style: TextStyle(
+                            color: AppTheme.primaryColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => _showEditProfileDialog(context, ref, user),
+                  icon: const Icon(Icons.edit_outlined),
+                ),
+              ],
+            ),
+            if (user.preference?.preferredGenres.isNotEmpty == true) ...[
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 8),
+              Text(
+                'Generi Preferiti',
+                style: TextStyle(
+                  color: AppTheme.textMuted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              child: const Icon(Icons.person, size: 40, color: Colors.white),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    user.nickname ?? 'Utente',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    user.email,
-                    style: TextStyle(color: AppTheme.textMuted),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Text(
-                      'Membro Premium',
-                      style: TextStyle(
-                        color: AppTheme.primaryColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: user.preference!.preferredGenres.map((genre) {
+                    return Chip(
+                      label: Text(
+                        genre,
+                        style: const TextStyle(fontSize: 12),
                       ),
-                    ),
-                  ),
-                ],
+                      backgroundColor:
+                          AppTheme.primaryColor.withValues(alpha: 0.1),
+                      side: BorderSide.none,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    );
+                  }).toList(),
+                ),
               ),
-            ),
-            IconButton(
-              onPressed: () => _showEditProfileDialog(context, ref, user),
-              icon: const Icon(Icons.edit_outlined),
-            ),
+            ],
           ],
         ),
       ),
@@ -215,6 +257,18 @@ class ProfileScreen extends ConsumerWidget {
           }
         }
 
+        if (history.isEmpty) {
+          return const SizedBox(
+            height: 200,
+            child: Center(
+              child: Text(
+                'Guarda qualche anime per vedere le statistiche!',
+                style: TextStyle(color: AppTheme.textMuted),
+              ),
+            ),
+          );
+        }
+
         return CrystalizeChartWidget(
           weeklyActivity: weeklyActivity,
           genreDistribution: genreDistribution,
@@ -222,7 +276,8 @@ class ProfileScreen extends ConsumerWidget {
       },
       loading: () => const SizedBox(
           height: 200, child: Center(child: CircularProgressIndicator())),
-      error: (_, __) => const SizedBox(),
+      error: (err, stack) =>
+          Center(child: Text('Errore caricamento grafici: $err')),
     );
   }
 
@@ -269,6 +324,12 @@ class ProfileScreen extends ConsumerWidget {
           title: 'Cronologia',
           subtitle: 'Visualizza anime guardati',
           onTap: () => context.pushNamed('history'),
+        ),
+        _buildActionTile(
+          icon: Icons.category,
+          title: 'Generi Preferiti',
+          subtitle: 'Seleziona i tuoi generi',
+          onTap: () => context.pushNamed('genreSelection'),
         ),
         _buildActionTile(
           icon: Icons.favorite_border,

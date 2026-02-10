@@ -14,6 +14,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import axios from 'axios';
 import { HttpService } from '@nestjs/axios';
+import { LibraryService } from '../library/library.service';
 
 const ffmpeg = require('fluent-ffmpeg');
 
@@ -35,6 +36,7 @@ export class DownloadService implements OnModuleInit {
     private readonly httpService: HttpService,
     private readonly animeUnitySource: AnimeUnitySource,
     private readonly hiAnimeSource: HiAnimeSource,
+    private readonly libraryService: LibraryService,
   ) {
     if (ffmpegPath) {
       ffmpeg.setFfmpegPath(ffmpegPath);
@@ -502,6 +504,13 @@ export class DownloadService implements OnModuleInit {
       this.logger.log(
         `Download completed: ${download.animeName} - Episode ${download.episodeNumber}`,
       );
+
+      // Organize library after download
+      try {
+        await this.libraryService.organizeLibrary();
+      } catch (orgError) {
+        this.logger.warn('Failed to organize library after download:', orgError);
+      }
     } catch (error) {
       this.logger.error(
         `Download failed for ${download.animeName} - Episode ${download.episodeNumber}:`,

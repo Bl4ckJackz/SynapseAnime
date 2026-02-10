@@ -128,6 +128,7 @@ class UserRepository {
     List<String>? preferredLanguages,
     List<String>? preferredGenres,
   }) async {
+    print('UserRepository: sending update request. Genres: $preferredGenres');
     await _apiClient.put(
       AppConstants.usersPreferences,
       data: {

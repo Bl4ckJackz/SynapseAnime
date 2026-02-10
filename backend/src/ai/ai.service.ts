@@ -74,12 +74,21 @@ export class AiService {
 
   async chat(userId: string, messages: any[]) {
     this.logger.log(`Handling chat for user ${userId}`);
-    const context = await this.buildUserContext(userId);
-    this.logger.log(`Built context for user ${userId}: ${JSON.stringify(context)}`);
-    return this.llmAdapter.chat({
-      messages,
-      context,
-    });
+    try {
+      const context = await this.buildUserContext(userId);
+      this.logger.log(`Built context for user ${userId}: ${JSON.stringify(context)}`);
+
+      this.logger.log(`Calling LLM adapter with ${messages.length} messages`);
+      const response = await this.llmAdapter.chat({
+        messages,
+        context,
+      });
+      this.logger.log(`LLM adapter returned response: ${response ? 'OK' : 'EMPTY'}`);
+      return response;
+    } catch (error) {
+      this.logger.error(`Error in AiService.chat: ${error.message}`, error.stack);
+      throw error;
+    }
   }
 
   private async buildUserContext(userId: string): Promise<UserContext> {

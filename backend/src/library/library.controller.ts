@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Param,
   Query,
   Res,
@@ -11,7 +12,7 @@ import type { Response } from 'express';
 
 @Controller('library')
 export class LibraryController {
-  constructor(private readonly libraryService: LibraryService) {}
+  constructor(private readonly libraryService: LibraryService) { }
 
   @Get('folders')
   getFolders() {
@@ -85,5 +86,10 @@ export class LibraryController {
     }
 
     return this.libraryService.streamDirect(videoPath, res, start);
+  }
+
+  @Post('organize')
+  async organizeLibrary() {
+    return this.libraryService.organizeLibrary();
   }
 }

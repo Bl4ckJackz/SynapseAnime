@@ -381,13 +381,13 @@ class _WatchHistoryCard extends StatelessWidget {
 }
 
 // ========== DOWNLOAD HISTORY CARD ==========
-class _DownloadHistoryCard extends StatelessWidget {
+class _DownloadHistoryCard extends ConsumerWidget {
   final Download download;
 
   const _DownloadHistoryCard({required this.download});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final statusColor = _getStatusColor(download.status);
     final statusIcon = _getStatusIcon(download.status);
 
@@ -461,8 +461,80 @@ class _DownloadHistoryCard extends StatelessWidget {
                 ],
               ),
             ),
+            // Actions
+            Column(
+              children: [
+                if (download.status == DownloadStatus.pending ||
+                    download.status == DownloadStatus.downloading)
+                  IconButton(
+                    icon: const Icon(Icons.stop_circle_outlined,
+                        color: Colors.orange),
+                    onPressed: () {
+                      _showCancelDialog(context, ref, download);
+                    },
+                    tooltip: 'Ferma',
+                  ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  onPressed: () {
+                    _showDeleteDialog(context, ref, download);
+                  },
+                  tooltip: 'Elimina',
+                ),
+              ],
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showCancelDialog(
+      BuildContext context, WidgetRef ref, Download download) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Ferma Download'),
+        content: Text(
+            'Vuoi davvero fermare il download di "${download.animeName}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annulla'),
+          ),
+          TextButton(
+            onPressed: () {
+              ref.read(downloadProvider.notifier).cancelDownload(download.id);
+              Navigator.pop(context);
+            },
+            child: const Text('Ferma', style: TextStyle(color: Colors.orange)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteDialog(
+      BuildContext context, WidgetRef ref, Download download) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Elimina Download'),
+        content: Text(
+            'Vuoi eliminare definitivamente "${download.animeName}"? Il file verrà rimosso.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annulla'),
+          ),
+          TextButton(
+            onPressed: () {
+              ref.read(downloadProvider.notifier).deleteDownload(download.id);
+              Navigator.pop(context);
+            },
+            child: const Text('Elimina', style: TextStyle(color: Colors.red)),
+          ),
+        ],
       ),
     );
   }

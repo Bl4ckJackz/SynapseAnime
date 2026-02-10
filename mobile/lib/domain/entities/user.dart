@@ -14,6 +14,9 @@ class User extends Equatable {
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
+    if (json['preference'] != null) {
+      print('User.fromJson preference: ${json['preference']}');
+    }
     return User(
       id: json['id'] as String,
       email: json['email'] as String,

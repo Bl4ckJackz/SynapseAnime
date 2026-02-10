@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../domain/providers/notification_provider.dart';
 import '../../domain/providers/download_settings_provider.dart';
@@ -137,11 +138,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   },
                 ),
                 ListTile(
+                  leading: const Icon(Icons.category),
+                  title: const Text('Generi Preferiti'),
+                  subtitle: const Text('Personalizza i tuoi gusti'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.pushNamed('genreSelection'),
+                ),
+                ListTile(
                   leading: const Icon(Icons.person_outline),
                   title: const Text('Profilo'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
-                    // TODO: Navigate to profile edit
+                    // Navigate to profile edit or just show profile
+                    context.pushNamed('profile');
                   },
                 ),
                 ListTile(

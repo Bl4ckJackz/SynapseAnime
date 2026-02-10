@@ -30,7 +30,7 @@ export class UsersService {
     private historyGateway: HistoryGateway,
     private animeService: AnimeService,
     private mangaService: MangaService,
-  ) {}
+  ) { }
 
   async updateProgress(userId: string, dto: UpdateProgressDto) {
     // Verify episode exists
@@ -160,6 +160,8 @@ export class UsersService {
     });
     if (!user) throw new NotFoundException('User not found');
 
+    console.log(`[UsersService] getProfile found user ${userId}. Preferences:`, user.preference);
+
     return {
       id: user.id,
       email: user.email,
@@ -175,12 +177,17 @@ export class UsersService {
 
   // --- Preferences ---
   async updatePreferences(userId: string, dto: UpdatePreferencesDto) {
+    console.log('[UsersService] Updating preferences for user', userId, 'DTO:', dto);
+
     let preference = await this.preferenceRepository.findOne({
       where: { userId },
     });
 
     if (!preference) {
+      console.log(`[UsersService] No existing preference found, creating new one.`);
       preference = this.preferenceRepository.create({ userId });
+    } else {
+      console.log(`[UsersService] Found existing preference: `, preference);
     }
 
     if (dto.preferredLanguages) {
@@ -190,7 +197,9 @@ export class UsersService {
       preference.preferredGenres = dto.preferredGenres;
     }
 
-    return this.preferenceRepository.save(preference);
+    const saved = await this.preferenceRepository.save(preference);
+    console.log(`[UsersService] Saved preference: `, saved);
+    return saved;
   }
 
   // --- Watchlist ---

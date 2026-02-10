@@ -25,7 +25,15 @@ export class AiController {
   @Post('chat')
   @UseGuards(JwtAuthGuard)
   async chat(@CurrentUser() user: User, @Body() dto: ChatDto) {
-    Logger.log(`Received chat request from user ${user.id} with ${dto.messages.length} messages`, 'AiController');
-    return this.aiService.chat(user.id, dto.messages);
+    Logger.log(`Received chat request from user ${user.id}`, 'AiController');
+    Logger.log(`DTO: ${JSON.stringify(dto)}`, 'AiController');
+    try {
+      const response = await this.aiService.chat(user.id, dto.messages);
+      Logger.log(`Chat response generated successfully`, 'AiController');
+      return response;
+    } catch (error) {
+      Logger.error(`Error in chat controller: ${error.message}`, error.stack, 'AiController');
+      throw error;
+    }
   }
 }

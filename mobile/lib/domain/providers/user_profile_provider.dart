@@ -41,4 +41,22 @@ class UserProfileNotifier extends StateNotifier<AsyncValue<User>> {
       state = AsyncValue.error(e, stack);
     }
   }
+
+  Future<void> updatePreferences({
+    List<String>? preferredGenres,
+    List<String>? preferredLanguages,
+  }) async {
+    try {
+      print(
+          'UserProfileNotifier: updating preferences with genres: $preferredGenres');
+      await _userRepository.updatePreferences(
+        preferredGenres: preferredGenres,
+        preferredLanguages: preferredLanguages,
+      );
+      // Reload profile to get updated preferences
+      await loadProfile();
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+    }
+  }
 }

@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -13,8 +14,13 @@ async function bootstrap() {
     credentials: true,
   });
 
+  app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
+
   app.use((req, res, next) => {
     console.log(`[Incoming Request] ${req.method} ${req.url}`);
+    if (req.body && Object.keys(req.body).length > 0) {
+      console.log(`[Request Body]`, JSON.stringify(req.body, null, 2));
+    }
     next();
   });
 

@@ -47,3 +47,24 @@ coverage/
 Thumbs.db
 
 serviceAccountKey.json
+
+# General Node.js & Builds
+dist/
+out/
+.next/
+*.tsbuildinfo
+next-env.d.ts
+yarn-error.log
+
+# Temporary
+temp_*/
+
+# Media
+*.mp4
+*.mkv
+*.avi
+
+# Backend Data
+backend/downloads/
+backend/video_library/
+backend/test-output.mp4
