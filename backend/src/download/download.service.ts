@@ -15,6 +15,7 @@ import * as fs from 'fs';
 import axios from 'axios';
 import { HttpService } from '@nestjs/axios';
 import { LibraryService } from '../library/library.service';
+import { DownloadGateway } from './download.gateway';
 
 const ffmpeg = require('fluent-ffmpeg');
 
@@ -27,6 +28,7 @@ export class DownloadService implements OnModuleInit {
   private readonly logger = new Logger(DownloadService.name);
   private isProcessing = false;
   private readonly defaultDownloadPath: string;
+  private activeDownloads = new Map<string, () => void>();
 
   constructor(
     @InjectRepository(Download)
@@ -37,6 +39,7 @@ export class DownloadService implements OnModuleInit {
     private readonly animeUnitySource: AnimeUnitySource,
     private readonly hiAnimeSource: HiAnimeSource,
     private readonly libraryService: LibraryService,
+    private readonly downloadGateway: DownloadGateway,
   ) {
     if (ffmpegPath) {
       ffmpeg.setFfmpegPath(ffmpegPath);
@@ -55,6 +58,44 @@ export class DownloadService implements OnModuleInit {
 
   onModuleInit() {
     this.startQueueProcessor();
+    // Run migration to move files from old 'downloads' folder to 'video_library'
+    this.migrateDownloadsFolder();
+  }
+
+  // ========== MIGRATION ==========
+
+  private async migrateDownloadsFolder() {
+    const oldPath = path.join(process.cwd(), 'downloads');
+    const newPath = this.defaultDownloadPath;
+
+    if (fs.existsSync(oldPath) && fs.existsSync(newPath)) {
+      this.logger.log(`Migrating files from ${oldPath} to ${newPath}...`);
+      try {
+        const files = await fs.promises.readdir(oldPath);
+        for (const file of files) {
+          const oldFilePath = path.join(oldPath, file);
+          const newFilePath = path.join(newPath, file);
+
+          // Skip if destination already exists
+          if (fs.existsSync(newFilePath)) {
+            this.logger.warn(`File ${file} already exists in new location, skipping migration.`);
+            continue;
+          }
+
+          await fs.promises.rename(oldFilePath, newFilePath);
+          this.logger.log(`Moved ${file} to ${newPath}`);
+        }
+
+        // Try to remove the old folder if empty
+        const remainingFiles = await fs.promises.readdir(oldPath);
+        if (remainingFiles.length === 0) {
+          await fs.promises.rmdir(oldPath);
+          this.logger.log(`Removed empty folder: ${oldPath}`);
+        }
+      } catch (error) {
+        this.logger.error('Failed to migrate downloads folder', error);
+      }
+    }
   }
 
   // ========== SETTINGS ==========
@@ -69,6 +110,36 @@ export class DownloadService implements OnModuleInit {
         serverFolderPath: this.defaultDownloadPath,
       });
       await this.settingsRepository.save(settings);
+    } else {
+      // Auto-fix: If settings still point to "downloads" or are missing, force "video_library"
+      let changed = false;
+
+      // Ensure we are using the video_library path
+      const videoLibraryPath = path.normalize(this.defaultDownloadPath);
+      const currentDownloadPath = settings.downloadPath ? path.normalize(settings.downloadPath) : '';
+      const currentServerPath = settings.serverFolderPath ? path.normalize(settings.serverFolderPath) : '';
+
+      this.logger.log(`[getSettings] Checking paths for user ${userId}`);
+      this.logger.log(`[getSettings] Expected: ${videoLibraryPath}`);
+      this.logger.log(`[getSettings] Current Download: ${currentDownloadPath}`);
+      this.logger.log(`[getSettings] Current Server: ${currentServerPath}`);
+
+      if (currentDownloadPath !== videoLibraryPath) {
+        this.logger.log(`[getSettings] Mismatch detected in downloadPath. Updating...`);
+        settings.downloadPath = videoLibraryPath;
+        changed = true;
+      }
+
+      if (currentServerPath !== videoLibraryPath) {
+        this.logger.log(`[getSettings] Mismatch detected in serverFolderPath. Updating...`);
+        settings.serverFolderPath = videoLibraryPath;
+        changed = true;
+      }
+
+      if (changed) {
+        this.logger.log(`Enforcing video_library path for user ${userId}`);
+        await this.settingsRepository.save(settings);
+      }
     }
     return settings;
   }
@@ -269,10 +340,19 @@ export class DownloadService implements OnModuleInit {
     episodeNumber: number,
     episodeTitle?: string,
   ): Promise<Download> {
+    // Validate URL protocol
+    try {
+      const parsed = new URL(url);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        throw new Error('Only HTTP/HTTPS URLs are allowed');
+      }
+    } catch {
+      throw new Error('Invalid download URL');
+    }
+
     this.logger.log(
       `Queueing direct URL download: ${animeName} - Episode ${episodeNumber}`,
     );
-    this.logger.log(`URL: ${url}`);
 
     // Check if already downloading
     const existing = await this.downloadRepository.findOne({
@@ -339,8 +419,18 @@ export class DownloadService implements OnModuleInit {
       throw new Error('Cannot cancel a completed download');
     }
 
+    // Cancel active process if exists
+    if (this.activeDownloads.has(downloadId)) {
+      this.logger.log(`Cancelling active download process for ${downloadId}`);
+      this.activeDownloads.get(downloadId)?.();
+      this.activeDownloads.delete(downloadId);
+      // Give it a moment to release file locks
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+
     download.status = DownloadStatus.CANCELLED;
     await this.downloadRepository.save(download);
+    this.downloadGateway.notifyDownloadProgress(download.userId, download);
   }
 
   async deleteDownload(userId: string, downloadId: string): Promise<void> {
@@ -352,9 +442,36 @@ export class DownloadService implements OnModuleInit {
       throw new NotFoundException(`Download with ID ${downloadId} not found`);
     }
 
+    // Cancel active process if running
+    if (this.activeDownloads.has(downloadId)) {
+      this.logger.log(
+        `Cancelling active download process for ${downloadId} before deletion`,
+      );
+      this.activeDownloads.get(downloadId)?.();
+      this.activeDownloads.delete(downloadId);
+      // Give it a moment to release file locks
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+
     // Delete file if exists
     if (download.filePath && fs.existsSync(download.filePath)) {
-      fs.unlinkSync(download.filePath);
+      try {
+        fs.unlinkSync(download.filePath);
+      } catch (e) {
+        this.logger.warn(`Failed to delete file ${download.filePath}: ${e.message}`);
+      }
+    }
+
+    // Also try to delete thumbnail
+    if (download.thumbnailPath) {
+      const thumbPath = path.join(this.defaultDownloadPath, download.thumbnailPath);
+      if (fs.existsSync(thumbPath)) {
+        try {
+          fs.unlinkSync(thumbPath);
+        } catch (e) {
+          // ignore
+        }
+      }
     }
 
     await this.downloadRepository.remove(download);
@@ -415,6 +532,7 @@ export class DownloadService implements OnModuleInit {
     download.status = DownloadStatus.DOWNLOADING;
     download.progress = 0;
     await this.downloadRepository.save(download);
+    this.downloadGateway.notifyDownloadProgress(download.userId, download);
 
     try {
       // Get stream URL
@@ -444,6 +562,13 @@ export class DownloadService implements OnModuleInit {
       // Create anime folder - sanitize name for filesystem
       const sanitizedAnimeName = this.sanitizeFileName(download.animeName);
       const animeFolder = path.join(basePath, sanitizedAnimeName);
+
+      // Ensure the resolved path stays within basePath (prevent path traversal)
+      const resolvedFolder = path.resolve(animeFolder);
+      const resolvedBase = path.resolve(basePath);
+      if (!resolvedFolder.startsWith(resolvedBase)) {
+        throw new Error('Invalid download path detected');
+      }
 
       if (!fs.existsSync(animeFolder)) {
         fs.mkdirSync(animeFolder, { recursive: true });
@@ -481,10 +606,12 @@ export class DownloadService implements OnModuleInit {
         }
       }
 
-      // Download the file
+      // Detect HLS stream
       const isHls =
-        streamUrl.includes('.m3u8') || streamUrl.includes('/playlist/');
-      this.logger.log(`Is HLS detected? ${isHls} (URL: ${streamUrl})`);
+        streamUrl.includes('.m3u8') || streamUrl.includes('master.m3u8');
+
+      // Download the file
+      this.logger.log(`HLS: ${isHls}, URL: ${streamUrl}`);
 
       if (isHls) {
         // HLS stream - Use ffmpeg to download and convert to MP4
@@ -495,11 +622,15 @@ export class DownloadService implements OnModuleInit {
         await this.downloadFile(streamUrl, filePath, download);
       }
 
+      // Cleanup tracker
+      this.activeDownloads.delete(download.id);
+
       // Mark as completed
       download.status = DownloadStatus.COMPLETED;
       download.progress = 100;
       download.completedAt = new Date();
       await this.downloadRepository.save(download);
+      this.downloadGateway.notifyDownloadProgress(download.userId, download);
 
       this.logger.log(
         `Download completed: ${download.animeName} - Episode ${download.episodeNumber}`,
@@ -512,6 +643,14 @@ export class DownloadService implements OnModuleInit {
         this.logger.warn('Failed to organize library after download:', orgError);
       }
     } catch (error) {
+      this.activeDownloads.delete(download.id);
+
+      // If cancelled, don't mark as failed
+      if (error.message === 'Download cancelled') {
+        this.logger.log(`Download cancelled: ${download.id}`);
+        return; // Already handled in cancelDownload
+      }
+
       this.logger.error(
         `Download failed for ${download.animeName} - Episode ${download.episodeNumber}:`,
         error,
@@ -520,6 +659,7 @@ export class DownloadService implements OnModuleInit {
       download.status = DownloadStatus.FAILED;
       download.errorMessage = error.message;
       await this.downloadRepository.save(download);
+      this.downloadGateway.notifyDownloadProgress(download.userId, download);
     }
   }
 
@@ -546,13 +686,25 @@ export class DownloadService implements OnModuleInit {
     const writer = fs.createWriteStream(filePath);
 
     return new Promise((resolve, reject) => {
+      // Allow cancellation
+      this.activeDownloads.set(download.id, () => {
+        response.data.destroy();
+        writer.destroy();
+        reject(new Error('Download cancelled'));
+      });
+
       response.data.on('data', async (chunk: Buffer) => {
         downloadedLength += chunk.length;
         if (totalLength > 0) {
           const progress = Math.round((downloadedLength / totalLength) * 100);
           if (progress !== download.progress && progress % 10 === 0) {
             download.progress = progress;
-            await this.downloadRepository.save(download);
+            // Don't await strictly to avoid blocking processing significantly
+            this.downloadRepository.save(download).catch(() => { });
+            this.downloadGateway.notifyDownloadProgress(
+              download.userId,
+              download,
+            );
           }
         }
       });
@@ -571,7 +723,7 @@ export class DownloadService implements OnModuleInit {
     download: Download,
   ): Promise<void> {
     return new Promise((resolve, reject) => {
-      // First probe to get duration
+      // Probe to get duration for progress calculation
       ffmpeg.ffprobe(url, (err: any, metadata: any) => {
         let duration = 0;
         if (!err && metadata && metadata.format && metadata.format.duration) {
@@ -579,7 +731,7 @@ export class DownloadService implements OnModuleInit {
           this.logger.log(`Stream duration: ${duration}s`);
         }
 
-        ffmpeg(url)
+        const command = ffmpeg(url)
           // Re-encode to ensure compatible MP4 (handling HLS adaptive bitrate issues)
           // .outputOptions('-c copy')
           .outputOptions('-c:v libx264')
@@ -606,19 +758,35 @@ export class DownloadService implements OnModuleInit {
 
             if (percentage > 0 && percentage !== download.progress) {
               download.progress = percentage;
+              this.downloadGateway.notifyDownloadProgress(
+                download.userId,
+                download,
+              );
             }
           })
           .on('error', (err: any) => {
-            this.logger.error('An error occurred: ' + err.message);
-            reject(new Error(err.message));
+            if (err.message.includes('SIGKILL')) {
+              // Determine if explicitly cancelled
+              reject(new Error('Download cancelled'));
+            } else {
+              this.logger.error('An error occurred: ' + err.message);
+              reject(new Error(err.message));
+            }
           })
           .on('end', async () => {
             this.logger.log('Processing finished !');
             download.progress = 100;
-            await this.downloadRepository.save(download); // Ensure 100% saved
+            // await this.downloadRepository.save(download); // Ensure 100% saved
             resolve();
-          })
-          .run();
+          });
+
+        // Allow cancellation
+        this.activeDownloads.set(download.id, () => {
+          command.kill('SIGKILL');
+          reject(new Error('Download cancelled'));
+        });
+
+        command.run();
       });
 
       // Start a periodic saver for progress to avoid DB spam
@@ -656,10 +824,14 @@ export class DownloadService implements OnModuleInit {
   }
 
   private sanitizeFileName(name: string): string {
-    // Remove or replace invalid filesystem characters
+    // Remove invalid filesystem characters and prevent path traversal
     return name
+      .replace(/\.\./g, '') // Prevent directory traversal
       .replace(/[<>:"/\\|?*]/g, '')
+      .replace(/^\.+/, '') // Remove leading dots
       .replace(/\s+/g, '_')
-      .substring(0, 100); // Limit length
+      .replace(/_{2,}/g, '_') // Collapse multiple underscores
+      .substring(0, 100) // Limit length
+      || 'unnamed';
   }
 }

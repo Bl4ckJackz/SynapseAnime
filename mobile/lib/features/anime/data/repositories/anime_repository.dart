@@ -1,6 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import '../../../../core/constants.dart';
+import '../../../../core/utils/api_helpers.dart';
+import '../../../../core/utils/title_matcher.dart';
 import '../../../../domain/entities/anime.dart';
 import '../../../../domain/entities/episode.dart';
 import '../../../../domain/entities/anime_source.dart';
@@ -99,11 +102,12 @@ class AnimeRepository {
         queryParameters: queryParams,
       );
 
-      final List<Anime> dataList = (response.data['data'] as List<dynamic>)
-          .map<Anime>((e) => Anime.fromJson(e as Map<String, dynamic>))
-          .toList();
+      final List<Anime> dataList =
+          ApiHelpers.parseAndMap(response.data, Anime.fromJson);
 
-      final pagination = response.data['pagination'];
+      final pagination = response.data is Map
+          ? response.data['pagination']
+          : null;
       final hasNextPage = pagination?['hasNextPage'] ?? false;
 
       return AnimeListResponse(
@@ -124,8 +128,8 @@ class AnimeRepository {
       );
 
       // Consumet usually returns { results: [...] } or just [...]
-      final results = response.data['results'] as List<dynamic>? ??
-          (response.data is List ? response.data : []);
+      final results = ApiHelpers.parseListResponse(
+          response.data, dataKey: 'results');
 
       final List<Anime> dataList = results
           .map<Anime>((e) => Anime(
@@ -278,7 +282,7 @@ class AnimeRepository {
     if (RegExp(r'^\d+$').hasMatch(animeId)) {
       try {
         final activeSource = getActiveSource();
-        print(
+        if (kDebugMode) debugPrint(
             'DEBUG: getAllEpisodes called for $animeId with activeSource: $activeSource');
         // Define sources to try, prioritizing the active source
         final List<String> availableSources = [
@@ -298,7 +302,7 @@ class AnimeRepository {
         }
         sourcesToTry.addAll(availableSources);
 
-        print('DEBUG: Sources to try for episodes: $sourcesToTry');
+        if (kDebugMode) debugPrint('DEBUG: Sources to try for episodes: $sourcesToTry');
 
         // Pre-fetch Jikan info once for title generation
         final jikanAnime = await _getJikanAnimeById(animeId);
@@ -318,7 +322,7 @@ class AnimeRepository {
           jikanAnime.titleEnglish,
           jikanAnime.titleRomaji,
         );
-        print('DEBUG: Extracted season number: $extractedSeason');
+        if (kDebugMode) debugPrint('DEBUG: Extracted season number: $extractedSeason');
 
         final titlesToTry = <String>[
           if (jikanAnime.titleRomaji != null &&
@@ -338,7 +342,7 @@ class AnimeRepository {
         // Track the number of ORIGINAL titles (before adding derived variants)
         final originalTitleCount = titlesToTry.length;
 
-        print('DEBUG: Search Variants: $titlesToTry');
+        if (kDebugMode) debugPrint('DEBUG: Search Variants: $titlesToTry');
 
         // Add variants for Shippuuden <-> Shippuden (handles common Consumet issues)
         final shippuudenTitles =
@@ -414,36 +418,40 @@ class AnimeRepository {
         final uniqueTitles = titlesToTry.toSet().toList();
         titlesToTry.clear();
         titlesToTry.addAll(uniqueTitles);
-        print('DEBUG: All Search Variants: $titlesToTry');
+        if (kDebugMode) debugPrint('DEBUG: All Search Variants: $titlesToTry');
 
         // Loop through sources
         for (final source in sourcesToTry) {
-          print('DEBUG: Trying source: $source');
+          if (kDebugMode) debugPrint('DEBUG: Trying source: $source');
           String? bestMatchId;
 
           if (source == 'animeunity' && manualOverrides.containsKey(animeId)) {
             bestMatchId = manualOverrides[animeId];
-            print('Using manual override ID for AnimeUnity: $bestMatchId');
+            if (kDebugMode) debugPrint('Using manual override ID for AnimeUnity: $bestMatchId');
           } else {
             // Collect all candidates from all search variants
             final List<Map<String, dynamic>> allCandidates = [];
 
             // Try each title variant to collect results
             for (final titleVariant in titlesToTry) {
-              print('Searching $source with title variant: $titleVariant');
+              if (kDebugMode) debugPrint('Searching $source with title variant: $titleVariant');
               try {
                 final searchResponse = await _apiClient.get(
                   '${AppConstants.consumetBaseUrl}/anime/$source/${Uri.encodeComponent(titleVariant)}',
                 );
-                final results =
-                    searchResponse.data['results'] as List<dynamic>? ?? [];
+                final results = ApiHelpers.parseListResponse(
+                    searchResponse.data, dataKey: 'results');
 
                 // Add all results to candidates list
                 for (final r in results) {
-                  allCandidates.add(r as Map<String, dynamic>);
+                  if (r is Map<String, dynamic>) {
+                    allCandidates.add(r);
+                  } else if (r is Map) {
+                    allCandidates.add(Map<String, dynamic>.from(r));
+                  }
                 }
               } catch (e) {
-                print('Search failed for "$titleVariant" on $source: $e');
+                if (kDebugMode) debugPrint('Search failed for "$titleVariant" on $source: $e');
               }
             }
 
@@ -456,267 +464,25 @@ class AnimeRepository {
               return false;
             });
 
-            print(
-                'DEBUG: Found ${allCandidates.length} unique candidates on $source');
+            if (kDebugMode) {
+              debugPrint(
+                  'TitleMatcher: Found ${allCandidates.length} unique candidates on $source');
+            }
 
-            // Score each candidate based on season match
+            // Score each candidate using shared TitleMatcher
             if (allCandidates.isNotEmpty) {
               int bestScore = -1000;
               Map<String, dynamic>? bestCandidate;
 
               for (final candidate in allCandidates) {
-                int score = 0;
-                final candId = candidate['id'].toString().toLowerCase();
-                final candTitle = candidate['title'].toString();
-                final candTitleLower = candTitle.toLowerCase();
-
-                // Extract season number from ID (logic varies by source but generally similar)
-                final idWithoutPart = candId
-                    .replaceAll(RegExp(r'-part-\d+'), '')
-                    .replaceAll('-ita', '');
-
-                final idSeasonMatch =
-                    RegExp(r'-(\d+)(?:-|$)').firstMatch(idWithoutPart);
-                int? candSeasonFromId;
-                if (idSeasonMatch != null) {
-                  candSeasonFromId = int.tryParse(idSeasonMatch.group(1)!);
-                }
-
-                // Also detect if this is a "Part 2" of a season
-                final hasPart2 = candId.contains('-part-2') ||
-                    candTitleLower.contains('part 2');
-
-                final originalHasPart2 =
-                    titlesToTry.first.toLowerCase().contains('part 2');
-
-                final hasSubtitle = titlesToTry.first.contains(':') ||
-                    titlesToTry.first.contains(' - ');
-
-                // STRICT TITLE VERIFICATION
-                // Determine core keywords from the base title ("Swallowed Star" from "Swallowed Star 4")
-                // We typically assume the first part of the first title to try is the most accurate "base"
-                // But we need to be careful with "Part X" or "Season X" removal
-                final baseTitleForCheck = titlesToTry.first
-                    .replaceAll(
-                        RegExp(r'\s*Season\s*\d+', caseSensitive: false), '')
-                    .replaceAll(
-                        RegExp(r'\s*Part\s*\d+', caseSensitive: false), '')
-                    .replaceAll(RegExp(r'\d+$'),
-                        '') // Remove trailing numbers (e.g. " 4")
-                    .trim()
-                    .toLowerCase();
-
-                // Split into significant words (ignore "the", "no", "ni", "wo" etc if needed, but simple split is ok for now)
-                final coreKeywords = baseTitleForCheck
-                    .split(RegExp(r'[^a-z0-9]+'))
-                    .where((w) => w.length > 2) // Ignore short words
-                    .toList();
-
-                // Check if candidate title contains at least ONE of the core sequences or significant overlap
-                // "The Rising of the Shield Hero" vs "Swallowed Star" -> No overlap
-                // "Tunshi Xingkong" vs "Swallowed Star" -> This is hard! We trust that "titlesToTry" includes both.
-                // We loop through ALL titlesToTry to check if ANY of them match the candidate.
-
-                bool matchesAnyVariant = false;
-                for (final variant in titlesToTry) {
-                  final variantClean = variant
-                      .replaceAll(
-                          RegExp(r'\s*Season\s*\d+', caseSensitive: false), '')
-                      .replaceAll(
-                          RegExp(r'\s*Part\s*\d+', caseSensitive: false), '')
-                      .replaceAll(RegExp(r'\d+$'), '')
-                      .trim()
-                      .toLowerCase();
-
-                  // Check if candidate title (or its parts) contains this variant
-                  if (candTitleLower.contains(variantClean)) {
-                    matchesAnyVariant = true;
-                    break;
-                  }
-
-                  // Also check individual keywords if the variant is multi-word
-                  final variantKeywords = variantClean
-                      .split(' ')
-                      .where((w) => w.length > 3)
-                      .toList();
-                  if (variantKeywords.isNotEmpty) {
-                    int keywordMatches = 0;
-                    for (final k in variantKeywords) {
-                      if (candTitleLower.contains(k)) keywordMatches++;
-                    }
-                    // If matches > 50% of keywords, assume match
-                    if (keywordMatches >= (variantKeywords.length / 2).ceil()) {
-                      matchesAnyVariant = true;
-                      break;
-                    }
-                  }
-                }
-
-                if (!matchesAnyVariant) {
-                  score = -10000; // DISQUALIFY
-                  print(
-                      'DEBUG: $candId - ($candTitle) disqualified: title mismatch (-10000)');
-                } else {
-                  print('DEBUG: $candId - passed strict title check');
-                }
-
-                // If we detected a season from Jikan title
-                if (extractedSeason != null && extractedSeason > 1) {
-                  if (candSeasonFromId == extractedSeason) {
-                    score += 200; // Strong match
-                    if (originalHasPart2) {
-                      if (hasPart2) {
-                        score += 100;
-                      } else {
-                        score -= 50;
-                      }
-                    }
-                  } else if (candSeasonFromId != null &&
-                      candSeasonFromId != extractedSeason) {
-                    score -= 100; // Wrong season
-                  } else if (candSeasonFromId == null) {
-                    score -= 50; // Likely S1
-                  }
-                } else if (hasSubtitle) {
-                  final subtitle = titlesToTry.first.contains(':')
-                      ? titlesToTry.first.split(':').last.trim().toLowerCase()
-                      : titlesToTry.first
-                          .split(' - ')
-                          .last
-                          .trim()
-                          .toLowerCase();
-
-                  final bool idHasSubtitle =
-                      candId.contains(subtitle.replaceAll(' ', '-'));
-                  final bool titleHasSubtitle =
-                      candTitleLower.contains(subtitle);
-
-                  if (idHasSubtitle || titleHasSubtitle) {
-                    score += 150;
-                  } else if (candSeasonFromId != null && candSeasonFromId > 1) {
-                    score += 100;
-                  } else if (candSeasonFromId == null) {
-                    score -= 30;
-                  }
-                } else {
-                  // Looking for season 1
-                  if (candSeasonFromId == null || candSeasonFromId == 1) {
-                    score += 50;
-                  } else if (candSeasonFromId != null && candSeasonFromId > 1) {
-                    score -= 100;
-                  }
-                }
-
-                if (candTitleLower.contains('ita')) {
-                  score -= 30;
-                }
-
-                // YEAR CHECK (Strong Signal)
-                // If candidate has a release date, compare with Jikan year
-                if (candidate['releaseDate'] != null &&
-                    jikanAnime.releaseYear != null &&
-                    jikanAnime.releaseYear! > 0) {
-                  // Clean candidate year (could be "2020", "2020-01-01", etc.)
-                  final candYearStr =
-                      candidate['releaseDate'].toString().split('-').first;
-                  final candYear = int.tryParse(candYearStr);
-                  if (candYear != null) {
-                    if (candYear == jikanAnime.releaseYear) {
-                      score += 50; // Year match bonus
-                    } else if ((candYear - jikanAnime.releaseYear!).abs() > 2) {
-                      // Significant year mismatch (more than 2 years diff)
-                      // Be careful as re-releases or mismatched metadata happen
-                      // But generally, a 2013 anime shouldn't match a 2023 one
-                      score -= 100;
-                      print(
-                          'DEBUG: $candId - Year mismatch ($candYear vs ${jikanAnime.releaseYear}) punishable (-100)');
-                    }
-                  }
-                }
-
-                // TYPE CHECK (Medium Signal)
-                // If Jikan says "Movie", prioritize candidates that look like movies
-                if (jikanAnime.type?.toLowerCase() == 'movie') {
-                  // Check if candidate title suggests movie
-                  if (candTitleLower.contains('movie') ||
-                      candTitleLower.contains('film')) {
-                    score += 50;
-                  } else if (candTitleLower.contains('season')) {
-                    // Determines if it's explicitly a series when we want a movie
-                    score -= 50;
-                  }
-                } else if (jikanAnime.type?.toLowerCase() == 'tv' ||
-                    jikanAnime.type?.toLowerCase() == 'tv_special') {
-                  // If Jikan says TV, penalize "Movie" unless title actually contains "Movie"
-                  if ((candTitleLower.contains('movie') ||
-                          candTitleLower.contains('film')) &&
-                      !titlesToTry
-                          .any((t) => t.toLowerCase().contains('movie'))) {
-                    score -= 50;
-                  }
-                }
-
-                // Check matches against primary/derived variants logic...
-                // (Simplified for brevity, reusing core logic logic operates same)
-                // ...
-                // Clean candidate title for fair comparison
-                final candTitleClean = _cleanTitle(candTitle).toLowerCase();
-
-                // Check matches against primary/derived variants logic...
-                // (Simplified for brevity, reusing core logic logic operates same)
-                // ...
-                final primaryVariants =
-                    titlesToTry.take(originalTitleCount).toList();
-
-                bool isPrimaryMatch = false;
-                for (final searchVariant in primaryVariants) {
-                  final searchVariantClean =
-                      _cleanTitle(searchVariant).toLowerCase();
-
-                  // EXACT MATCH BONUS
-                  if (candTitleClean == searchVariantClean) {
-                    score += 150;
-                    isPrimaryMatch = true;
-                    print('DEBUG: $candId - Exact Match Bonus (+150)');
-                    break;
-                  }
-
-                  // Check for extra words/numbers in candidate that are NOT in search variant
-                  // e.g. Search: "Steins Gate", Candidate: "Steins Gate 0"
-                  // This prevents "Steins Gate 0" from matching "Steins Gate" too strongly
-                  if (candTitleClean.startsWith(searchVariantClean)) {
-                    final suffix = candTitleClean
-                        .substring(searchVariantClean.length)
-                        .trim();
-                    // If suffix contains numbers, it's likely a sequel/different season
-                    if (RegExp(r'\d+').hasMatch(suffix)) {
-                      score -= 50; // Penalize mismatching number suffix
-                      print(
-                          'DEBUG: $candId - Penalized for extra number suffix (-50): "$suffix"');
-                    } else if (suffix.isNotEmpty) {
-                      score -= 10; // Penalize text suffix slightly
-                    } else {
-                      // Suffix is empty, so it's a match? (handled by exact match above usually)
-                    }
-                  }
-                }
-
-                if (!isPrimaryMatch) {
-                  // Check derived...
-                  // Just give base title match bonus
-                  final baseSearchTitle = titlesToTry.first
-                      .toLowerCase()
-                      .split(':')
-                      .first
-                      .split(' - ')
-                      .first
-                      .trim();
-
-                  // Clean base title too if needed, but simple contains is often enough for fallback
-                  if (candTitleLower.contains(baseSearchTitle)) {
-                    score += 10;
-                  }
-                }
+                final score = TitleMatcher.scoreAnimeCandidate(
+                  candidate: candidate,
+                  titlesToTry: titlesToTry,
+                  originalTitleCount: originalTitleCount,
+                  extractedSeason: extractedSeason,
+                  referenceYear: jikanAnime.releaseYear,
+                  referenceType: jikanAnime.type,
+                );
 
                 if (score > bestScore) {
                   bestScore = score;
@@ -727,13 +493,13 @@ class AnimeRepository {
               if (bestCandidate != null) {
                 // Strict threshold check
                 if (bestScore < 100) {
-                  print(
+                  if (kDebugMode) debugPrint(
                       'DEBUG: Best candidate ${bestCandidate['title']} (${bestCandidate['id']}) rejected due to low score ($bestScore)');
                   continue; // Skip this source, try next
                 }
 
                 bestMatchId = bestCandidate['id'].toString();
-                print(
+                if (kDebugMode) debugPrint(
                     'Selected best match on $source: ${bestCandidate['title']} ($bestMatchId) with score $bestScore');
               }
             }
@@ -749,7 +515,7 @@ class AnimeRepository {
 
             try {
               while (hasNextPage) {
-                print(
+                if (kDebugMode) debugPrint(
                     'Fetching episodes page $currentPage for $bestMatchId on $source');
                 final infoResponse = await _apiClient.get(
                   '${AppConstants.consumetBaseUrl}/anime/$source/info',
@@ -760,20 +526,22 @@ class AnimeRepository {
                 coverImage ??= data['image'];
                 totalEpisodes ??= data['totalEpisodes'];
 
-                final pageEpisodes = (data['episodes'] as List<dynamic>?)
-                        ?.map((e) => Episode(
-                              id: e['id'].toString(),
-                              animeId: animeId,
-                              number: (e['number'] as num?)?.toInt() ?? 0,
-                              title: e['title'] ?? 'Episode ${e['number']}',
-                              // Some sources like HiAnime don't return image per episode often
-                              thumbnail: e['image'] ?? coverImage,
-                              duration: 0,
-                              streamUrl: '',
-                              source: source,
-                            ))
-                        .toList() ??
-                    [];
+                final episodesRaw = ApiHelpers.parseListResponse(
+                    data, dataKey: 'episodes');
+                final pageEpisodes = episodesRaw
+                    .whereType<Map<String, dynamic>>()
+                    .map((e) => Episode(
+                          id: e['id'].toString(),
+                          animeId: animeId,
+                          number: (e['number'] as num?)?.toInt() ?? 0,
+                          title: e['title']?.toString() ??
+                              'Episode ${e['number']}',
+                          thumbnail: e['image']?.toString() ?? coverImage,
+                          duration: 0,
+                          streamUrl: '',
+                          source: source,
+                        ))
+                    .toList();
 
                 if (pageEpisodes.isEmpty) {
                   hasNextPage = false;
@@ -788,17 +556,17 @@ class AnimeRepository {
               }
 
               if (allEpisodes.isNotEmpty) {
-                print(
+                if (kDebugMode) debugPrint(
                     'Found ${allEpisodes.length} episodes on $source. Returning.');
                 return allEpisodes;
               }
             } catch (e) {
-              print('Error fetching episodes info from $source: $e');
+              if (kDebugMode) debugPrint('Error fetching episodes info from $source: $e');
             }
           }
         } // End source loop
       } catch (e) {
-        print('Error in getAllEpisodes fallback logic: $e');
+        if (kDebugMode) debugPrint('Error in getAllEpisodes fallback logic: $e');
       }
     }
 
@@ -832,11 +600,11 @@ class AnimeRepository {
             final searchResponse = await _apiClient.get(
               '${AppConstants.consumetBaseUrl}/anime/animeunity/${Uri.encodeComponent(titleVariant)}',
             );
-            final results =
-                searchResponse.data['results'] as List<dynamic>? ?? [];
-            if (results.isNotEmpty) {
-              bestMatchId = results.first['id'].toString();
-              break;
+            final results = ApiHelpers.parseListResponse(
+                searchResponse.data, dataKey: 'results');
+            if (results.isNotEmpty && results.first is Map) {
+              bestMatchId = (results.first as Map)['id']?.toString();
+              if (bestMatchId != null) break;
             }
           } catch (_) {}
         }
@@ -848,19 +616,23 @@ class AnimeRepository {
           );
 
           final data = infoResponse.data;
-          final episodes = (data['episodes'] as List<dynamic>?)
-                  ?.map((e) => Episode(
-                        id: e['id'].toString(),
-                        animeId: animeId,
-                        number: (e['number'] as num?)?.toInt() ?? 0,
-                        title: e['title'] ?? 'Episode ${e['number']}',
-                        thumbnail: e['image'] ?? data['image'],
-                        duration: 0,
-                        streamUrl: '',
-                        source: 'animeunity',
-                      ))
-                  .toList() ??
-              [];
+          final episodesRaw = ApiHelpers.parseListResponse(
+              data, dataKey: 'episodes');
+          final episodes = episodesRaw
+              .whereType<Map<String, dynamic>>()
+              .map((e) => Episode(
+                    id: e['id'].toString(),
+                    animeId: animeId,
+                    number: (e['number'] as num?)?.toInt() ?? 0,
+                    title: e['title']?.toString() ??
+                        'Episode ${e['number']}',
+                    thumbnail: e['image']?.toString() ??
+                        (data is Map ? data['image']?.toString() : null),
+                    duration: 0,
+                    streamUrl: '',
+                    source: 'animeunity',
+                  ))
+              .toList();
 
           return PaginatedEpisodes(
             episodes: episodes,
@@ -868,7 +640,7 @@ class AnimeRepository {
           );
         }
       } catch (e) {
-        print('Error mapping Jikan episodes: $e');
+        if (kDebugMode) debugPrint('Error mapping Jikan episodes: $e');
       }
     }
 
@@ -880,28 +652,15 @@ class AnimeRepository {
     );
   }
 
-  String _cleanTitle(String title) {
-    // Transform "2nd Season" -> "2" (e.g. "Sousou no Frieren 2nd Season" -> "Sousou no Frieren 2")
-    var cleaned = title.replaceAllMapped(
-        RegExp(r'(\d+)(?:st|nd|rd|th)\s+(?:Season|season)',
-            caseSensitive: false),
-        (Match m) => '${m.group(1)}');
-
-    // keep alphanumeric, spaces, hyphens, slashes, colons, apostrophes AND SEMICOLONS. Remove brackets and special symbols.
-    // e.g. "One Piece (TV)" -> "One Piece"
-    // Preserve "/" for titles like "Fate/strange Fake", "Fate/stay night"
-    cleaned = cleaned.replaceAll(RegExp(r'\s*\([^)]*\)'), ''); // Remove (...)
-    cleaned = cleaned.replaceAll(RegExp(r"[^a-zA-Z0-9\s\-/:';]"),
-        ' '); // Replace special chars with space (allow colon, apostrophe, slash, semicolon)
-    return cleaned.replaceAll(RegExp(r'\s+'), ' ').trim(); // Collapse spaces
-  }
+  String _cleanTitle(String title) => TitleMatcher.cleanTitle(title);
 
   Future<List<String>> getGenres() async {
     try {
       final response = await _apiClient.get(AppConstants.animeGenres);
-      return (response.data as List<dynamic>).map((e) => e.toString()).toList();
+      final list = ApiHelpers.parseListResponse(response.data);
+      return list.map((e) => e.toString()).toList();
     } catch (e) {
-      print('Error fetching genres: $e');
+      ApiHelpers.logError('getGenres', e);
       return [];
     }
   }
@@ -912,15 +671,9 @@ class AnimeRepository {
         AppConstants.animeNewReleases,
         queryParameters: {'limit': limit, 'page': page},
       );
-
-      final List<dynamic> results = response.data is List
-          ? response.data as List<dynamic>
-          : (response.data['data'] as List<dynamic>? ?? []);
-      return results
-          .map<Anime>((e) => Anime.fromJson(e as Map<String, dynamic>))
-          .toList();
+      return ApiHelpers.parseAndMap(response.data, Anime.fromJson);
     } catch (e) {
-      print('Error fetching new releases: $e');
+      ApiHelpers.logError('getNewReleases', e);
       return [];
     }
   }
@@ -931,15 +684,9 @@ class AnimeRepository {
         AppConstants.animeTopRated,
         queryParameters: {'limit': limit, 'page': page},
       );
-
-      final List<dynamic> results = response.data is List
-          ? response.data as List<dynamic>
-          : (response.data['data'] as List<dynamic>? ?? []);
-      return results
-          .map<Anime>((e) => Anime.fromJson(e as Map<String, dynamic>))
-          .toList();
+      return ApiHelpers.parseAndMap(response.data, Anime.fromJson);
     } catch (e) {
-      print('Error fetching top rated: $e');
+      ApiHelpers.logError('getTopRated', e);
       return [];
     }
   }
@@ -958,13 +705,9 @@ class AnimeRepository {
         AppConstants.animeTopRated,
         queryParameters: {'filter': 'upcoming', 'page': page, 'limit': limit},
       );
-      final List<dynamic> results = response.data is List
-          ? response.data as List<dynamic>
-          : (response.data['data'] as List<dynamic>? ?? []);
-      return results
-          .map((e) => Anime.fromJson(e as Map<String, dynamic>))
-          .toList();
+      return ApiHelpers.parseAndMap(response.data, Anime.fromJson);
     } catch (e) {
+      ApiHelpers.logError('getUpcomingAnime', e);
       return [];
     }
   }
@@ -975,13 +718,9 @@ class AnimeRepository {
         AppConstants.animeTopRated,
         queryParameters: {'filter': 'airing', 'page': page, 'limit': limit},
       );
-      final List<dynamic> results = response.data is List
-          ? response.data as List<dynamic>
-          : (response.data['data'] as List<dynamic>? ?? []);
-      return results
-          .map((e) => Anime.fromJson(e as Map<String, dynamic>))
-          .toList();
+      return ApiHelpers.parseAndMap(response.data, Anime.fromJson);
     } catch (e) {
+      ApiHelpers.logError('getAiringAnime', e);
       return getNewReleases(limit: limit);
     }
   }
@@ -990,19 +729,11 @@ class AnimeRepository {
     try {
       final response = await _apiClient.get(
         AppConstants.animeTopRated,
-        queryParameters: {
-          'filter': 'favorite',
-          'page': page,
-          'limit': limit,
-        },
+        queryParameters: {'filter': 'favorite', 'page': page, 'limit': limit},
       );
-      final List<dynamic> results = response.data is List
-          ? response.data as List<dynamic>
-          : (response.data['data'] as List<dynamic>? ?? []);
-      return results
-          .map((e) => Anime.fromJson(e as Map<String, dynamic>))
-          .toList();
+      return ApiHelpers.parseAndMap(response.data, Anime.fromJson);
     } catch (e) {
+      ApiHelpers.logError('getClassicsAnime', e);
       return getTopRated(limit: limit);
     }
   }
@@ -1020,7 +751,8 @@ class AnimeRepository {
         queryParameters: {'page': page},
       );
 
-      final results = response.data['results'] as List<dynamic>? ?? [];
+      final results = ApiHelpers.parseListResponse(
+          response.data, dataKey: 'results');
 
       return results.map((e) {
         // Consumet recent-episodes structure usually:
@@ -1067,93 +799,15 @@ class AnimeRepository {
         );
       }).toList();
     } catch (e) {
-      print('Error fetching recent episodes from $sourceToUse: $e');
+      if (kDebugMode) debugPrint('Error fetching recent episodes from $sourceToUse: $e');
       return [];
     }
   }
 
-  /// Extract season number from title strings
   int? _extractSeasonNumber(
       String title, String? titleEnglish, String? titleRomaji) {
-    final allTitles = [title, titleEnglish, titleRomaji].whereType<String>();
-
-    for (final t in allTitles) {
-      // Pattern: "Season X" or "Season X Part Y"
-      final seasonMatch =
-          RegExp(r'Season\s*(\d+)', caseSensitive: false).firstMatch(t);
-      if (seasonMatch != null) {
-        return int.tryParse(seasonMatch.group(1)!);
-      }
-
-      // Pattern: "Title 2", "Title 3" at the end (but NOT "Part 1", "Part 2")
-      // Match number at end of string, or before a colon, but NOT if preceded by "Part"
-      final numSuffixMatch = RegExp(r'(?<!Part\s)(\d+)\s*$').firstMatch(t);
-      if (numSuffixMatch != null) {
-        final num = int.tryParse(numSuffixMatch.group(1)!);
-        // Only return if it's a reasonable season number (2-10)
-        if (num != null && num >= 2 && num <= 10) {
-          return num;
-        }
-      }
-
-      // Pattern: "2nd Season", "3rd Season"
-      final ordinalMatch =
-          RegExp(r'(\d+)(?:st|nd|rd|th)\s*Season', caseSensitive: false)
-              .firstMatch(t);
-      if (ordinalMatch != null) {
-        return int.tryParse(ordinalMatch.group(1)!);
-      }
-
-      // Pattern: Roman numerals at end "Title II", "Title III"
-      final romanMatch =
-          RegExp(r'\s+(II|III|IV|V|VI|VII|VIII|IX|X)\s*$', caseSensitive: false)
-              .firstMatch(t);
-      if (romanMatch != null) {
-        final roman = romanMatch.group(1)!.toUpperCase();
-        const romanMap = {
-          'II': 2,
-          'III': 3,
-          'IV': 4,
-          'V': 5,
-          'VI': 6,
-          'VII': 7,
-          'VIII': 8,
-          'IX': 9,
-          'X': 10
-        };
-        return romanMap[roman];
-      }
-
-      // Pattern: "Part X" when no season specified often means sequel
-      final partMatch =
-          RegExp(r'Part\s*(\d+)', caseSensitive: false).firstMatch(t);
-      if (partMatch != null) {
-        // Part alone usually means it's a continuation
-        // Check if title also has "Season" - if not, part number might indicate season
-        if (!t.toLowerCase().contains('season')) {
-          final partNum = int.tryParse(partMatch.group(1)!);
-          // "Part 1" of a titled sequel (e.g., "Jujutsu Kaisen: The Culling Game Part 1")
-          // is likely season 3 - but we can't know for sure without more context
-          // For now, just return null and let other heuristics handle it
-        }
-      }
-    }
-
-    // Check by subtitle patterns that indicate sequels
-    for (final t in allTitles) {
-      // Common sequel subtitle patterns
-      if (t.toLowerCase().contains('shippuden') ||
-          t.toLowerCase().contains('next generation')) {
-        return 2; // These are typically "second" iterations
-      }
-
-      // "Z" suffix often means sequel (like Dragon Ball Z)
-      if (RegExp(r'\sZ\s*$', caseSensitive: false).hasMatch(t)) {
-        return 2;
-      }
-    }
-
-    return null; // Season 1 or unknown
+    return TitleMatcher.extractSeasonNumber(title,
+        titleEnglish: titleEnglish, titleRomaji: titleRomaji);
   }
 
   /// Get anime schedule for a specific day
@@ -1167,18 +821,11 @@ class AnimeRepository {
       );
 
       if (response.statusCode == 200) {
-        final data = response.data['data'] as List<dynamic>?;
-        if (data != null) {
-          return data
-              .map((e) => Anime.fromJson(e as Map<String, dynamic>))
-              .toList();
-        }
+        return ApiHelpers.parseAndMap(response.data, Anime.fromJson);
       }
-      // Fallback or implementation for other sources if available
-      // For now returning empty list if not Jikan as other sources might not support schedule
       return [];
     } catch (e) {
-      print('Error fetching schedule for $day: $e');
+      ApiHelpers.logError('getSchedule($day)', e);
       return [];
     }
   }
@@ -1230,7 +877,7 @@ class AnimeRepository {
         }
       }
     } catch (e) {
-      print('Error resolving stream URL: $e');
+      if (kDebugMode) debugPrint('Error resolving stream URL: $e');
     }
 
     return {'url': '', 'headers': null};
@@ -1254,9 +901,7 @@ class AnimeListResponse {
 
   factory AnimeListResponse.fromJson(Map<String, dynamic> json) {
     return AnimeListResponse(
-      data: (json['data'] as List<dynamic>)
-          .map<Anime>((e) => Anime.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      data: ApiHelpers.parseAndMap(json, Anime.fromJson),
       total: json['total'] as int? ?? 0,
       page: json['page'] as int? ?? 1,
       limit: json['limit'] as int? ?? 20,

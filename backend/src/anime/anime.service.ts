@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AnimeFilters } from './sources/anime-source.interface';
@@ -9,6 +9,8 @@ import { AnimeStreamingService } from '../services/anime-streaming.service';
 
 @Injectable()
 export class AnimeService {
+  private readonly logger = new Logger(AnimeService.name);
+
   constructor(
     private readonly sourceManager: SourceManager,
     private readonly animeStreamingService: AnimeStreamingService,
@@ -52,7 +54,7 @@ export class AnimeService {
       try {
         await this.animeRepository.save(anime);
       } catch (e) {
-        console.error(`Error persisting anime ${id}:`, e);
+        this.logger.warn(`Error persisting anime ${id}: ${e instanceof Error ? e.message : e}`);
       }
     }
     return anime;
@@ -122,7 +124,7 @@ export class AnimeService {
       if (result.data.length > 0) return result.data;
       throw new Error('No items found');
     } catch (error) {
-      console.warn(
+      this.logger.warn(
         `[AnimeService] Failed to fetch new releases from active source, falling back to Jikan: ${error.message}`,
       );
       const jikanSource = this.sourceManager.getSource('jikan_api');
@@ -142,7 +144,7 @@ export class AnimeService {
       if (result.data.length > 0) return result.data;
       throw new Error('No items found');
     } catch (error) {
-      console.warn(
+      this.logger.warn(
         `[AnimeService] Failed to fetch top rated from active source, falling back to Jikan: ${error.message}`,
       );
       const jikanSource = this.sourceManager.getSource('jikan_api');

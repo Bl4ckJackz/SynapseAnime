@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, Not } from 'typeorm';
 import { User } from '../entities/user.entity';
@@ -13,6 +13,7 @@ import Stripe from 'stripe';
 
 @Injectable()
 export class SubscriptionService {
+  private readonly logger = new Logger(SubscriptionService.name);
   private stripe: Stripe;
 
   constructor(
@@ -26,12 +27,12 @@ export class SubscriptionService {
   ) {
     const stripeKey = configService.get<string>('STRIPE_SECRET_KEY');
     if (!stripeKey) {
-      console.warn(
+      this.logger.warn(
         'Stripe secret key not found. Subscription features will be disabled.',
       );
     }
     this.stripe = new Stripe(stripeKey || 'sk_test_placeholder', {
-      apiVersion: '2024-11-20.acacia' as any, // Using 'as any' to bypass version check
+      apiVersion: '2024-11-20.acacia' as any,
     });
   }
 
@@ -84,7 +85,7 @@ export class SubscriptionService {
         webhookSecret!,
       );
     } catch (err) {
-      console.error(`Webhook signature verification failed: ${err.message}`);
+      this.logger.error(`Webhook signature verification failed: ${err.message}`);
       throw err;
     }
 
@@ -102,7 +103,7 @@ export class SubscriptionService {
         await this.handleSubscriptionDeleted(event.data.object);
         break;
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        this.logger.log(`Unhandled event type: ${event.type}`);
     }
   }
 
@@ -112,7 +113,7 @@ export class SubscriptionService {
     const userId = session.metadata?.userId;
 
     if (!userId) {
-      console.error('No userId found in session metadata');
+      this.logger.error('No userId found in session metadata');
       return;
     }
 

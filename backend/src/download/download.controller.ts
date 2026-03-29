@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { DownloadService } from './download.service';
-import { DownloadSettings } from '../entities/download-settings.entity';
+import { DownloadUrlDto, UpdateDownloadSettingsDto } from './dto/download.dto';
 
 @Controller('download')
 @UseGuards(JwtAuthGuard)
@@ -35,7 +35,7 @@ export class DownloadController {
   @Put('settings')
   async updateSettings(
     @Request() req: any,
-    @Body() updates: Partial<DownloadSettings>,
+    @Body() updates: UpdateDownloadSettingsDto,
   ) {
     return this.downloadService.updateSettings(req.user.id, updates);
   }
@@ -114,13 +114,7 @@ export class DownloadController {
   @Post('url')
   async downloadFromUrl(
     @Request() req: any,
-    @Body()
-    body: {
-      url: string;
-      animeName: string;
-      episodeNumber: number;
-      episodeTitle?: string;
-    },
+    @Body() body: DownloadUrlDto,
   ) {
     const download = await this.downloadService.queueUrlDownload(
       req.user.id,

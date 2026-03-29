@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../screens/home_screen.dart';
 import '../screens/search_screen.dart';
 import '../screens/chat_screen.dart';
+import '../screens/movies_tv_home_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/currently_watching_screen.dart';
 import '../screens/watch_history_screen.dart';
@@ -28,7 +29,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     const CurrentlyWatchingScreen(),
     const WatchHistoryScreen(),
     const LocalLibraryScreen(),
-    const ChatScreen(),
+    const MoviesTvHomeScreen(),
     const ProfileScreen(),
   ];
 

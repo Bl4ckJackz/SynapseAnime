@@ -28,6 +28,6 @@ import { NotificationSettings } from '../entities/notification-settings.entity';
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, LocalStrategy],
-  exports: [AuthService, JwtStrategy, LocalStrategy, PassportModule],
+  exports: [AuthService, JwtStrategy, LocalStrategy, PassportModule, JwtModule],
 })
-export class AuthModule {}
+export class AuthModule { }

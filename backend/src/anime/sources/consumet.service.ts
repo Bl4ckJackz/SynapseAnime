@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 
 interface ConsumetAnime {
@@ -48,6 +48,7 @@ interface ConsumetStreamingLinks {
  */
 @Injectable()
 export class ConsumetService {
+  private readonly logger = new Logger(ConsumetService.name);
   // You can self-host Consumet or use a public instance
   // For production, self-host at: https://github.com/consumet/api.consumet.org
   private readonly baseUrl: string;
@@ -71,7 +72,7 @@ export class ConsumetService {
       );
       return response.data.results || [];
     } catch (error) {
-      console.error('Consumet search error:', error.message);
+      this.logger.error('Consumet search error:', error.message);
       return [];
     }
   }
@@ -87,7 +88,7 @@ export class ConsumetService {
       );
       return response.data;
     } catch (error) {
-      console.error('Consumet anime info error:', error.message);
+      this.logger.error('Consumet anime info error:', error.message);
       return null;
     }
   }
@@ -105,7 +106,7 @@ export class ConsumetService {
       );
       return response.data;
     } catch (error) {
-      console.error('Consumet streaming error:', error.message);
+      this.logger.error('Consumet streaming error:', error.message);
       return null;
     }
   }
@@ -124,7 +125,7 @@ export class ConsumetService {
       );
       return response.data.results || [];
     } catch (error) {
-      console.error('Consumet recent episodes error:', error.message);
+      this.logger.error('Consumet recent episodes error:', error.message);
       return [];
     }
   }
@@ -143,7 +144,7 @@ export class ConsumetService {
       );
       return response.data.results || [];
     } catch (error) {
-      console.error('Consumet top airing error:', error.message);
+      this.logger.error('Consumet top airing error:', error.message);
       return [];
     }
   }

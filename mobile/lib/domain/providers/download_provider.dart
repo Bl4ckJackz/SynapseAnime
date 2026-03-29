@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -42,20 +44,22 @@ class Download {
 
   factory Download.fromJson(Map<String, dynamic> json) {
     return Download(
-      id: json['id'],
-      animeId: json['animeId'],
-      animeName: json['animeName'],
-      episodeId: json['episodeId'],
-      episodeNumber: json['episodeNumber'],
+      id: json['id'] ?? '',
+      animeId: json['animeId'] ?? '',
+      animeName: json['animeName'] ?? '',
+      episodeId: json['episodeId'] ?? '',
+      episodeNumber: json['episodeNumber'] ?? 0,
       episodeTitle: json['episodeTitle'],
       status: _parseStatus(json['status']),
       progress: json['progress'] ?? 0,
       filePath: json['filePath'],
       fileName: json['fileName'],
       errorMessage: json['errorMessage'],
-      createdAt: DateTime.parse(json['createdAt']),
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt']) ?? DateTime.now()
+          : DateTime.now(),
       completedAt: json['completedAt'] != null
-          ? DateTime.parse(json['completedAt'])
+          ? DateTime.tryParse(json['completedAt'])
           : null,
       thumbnailPath: json['thumbnailPath'],
     );
@@ -111,7 +115,63 @@ class DownloadNotifier extends StateNotifier<DownloadState> {
   final Ref ref;
   static const _storage = FlutterSecureStorage();
 
-  DownloadNotifier(this.ref) : super(const DownloadState());
+  IO.Socket? _socket;
+
+  DownloadNotifier(this.ref) : super(const DownloadState()) {
+    _initSocket();
+  }
+
+  @override
+  void dispose() {
+    _socket?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _initSocket() async {
+    final token = await _getAuthToken();
+    if (token == null) return;
+
+    _socket = IO.io(
+      '${AppConstants.apiBaseUrl}/downloads',
+      IO.OptionBuilder()
+          .setTransports(['websocket'])
+          .setAuth({'token': token})
+          .disableAutoConnect()
+          .build(),
+    );
+
+    _socket!.connect();
+
+    _socket!.onConnect((_) {
+      if (kDebugMode) debugPrint('[DownloadProvider] Socket connected');
+    });
+
+    _socket!.onDisconnect((_) {
+      if (kDebugMode) debugPrint('[DownloadProvider] Socket disconnected');
+    });
+
+    _socket!.on('download_progress', (data) {
+      if (data != null) {
+        try {
+          final download = Download.fromJson(data);
+          _updateDownloadProgress(download);
+        } catch (e) {
+          if (kDebugMode) debugPrint('[DownloadProvider] Error parsing: $e');
+        }
+      }
+    });
+  }
+
+  void _updateDownloadProgress(Download updatedDownload) {
+    if (state.queue.isEmpty) return;
+
+    final updatedQueue = state.queue.map((d) {
+      if (d.id == updatedDownload.id) return updatedDownload;
+      return d;
+    }).toList();
+
+    state = state.copyWith(queue: updatedQueue);
+  }
 
   Future<String?> _getAuthToken() async {
     return await _storage.read(key: AppConstants.accessTokenKey);
@@ -162,7 +222,7 @@ class DownloadNotifier extends StateNotifier<DownloadState> {
         state = state.copyWith(history: downloads);
       }
     } catch (e) {
-      // Silently fail for history
+      if (kDebugMode) debugPrint('[DownloadProvider] loadHistory error: $e');
     }
   }
 
@@ -171,7 +231,6 @@ class DownloadNotifier extends StateNotifier<DownloadState> {
     try {
       final headers = await _getHeaders();
 
-      // Build query parameters
       final queryParams = <String, String>{};
       if (source != null) queryParams['source'] = source;
       if (title != null) queryParams['title'] = title;
@@ -184,13 +243,7 @@ class DownloadNotifier extends StateNotifier<DownloadState> {
         '${AppConstants.apiBaseUrl}/download/season/$animeId/$season$queryString',
       );
 
-      print('[DownloadProvider] POST $uri');
-      print('[DownloadProvider] Headers: $headers');
-
       final response = await http.post(uri, headers: headers);
-
-      print('[DownloadProvider] Response status: ${response.statusCode}');
-      print('[DownloadProvider] Response body: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         await loadQueue();
@@ -198,7 +251,7 @@ class DownloadNotifier extends StateNotifier<DownloadState> {
       }
       return false;
     } catch (e) {
-      print('[DownloadProvider] Error: $e');
+      if (kDebugMode) debugPrint('[DownloadProvider] downloadSeason error: $e');
       return false;
     }
   }
@@ -271,10 +324,6 @@ class DownloadNotifier extends StateNotifier<DownloadState> {
       final headers = await _getHeaders();
       final uri = Uri.parse('${AppConstants.apiBaseUrl}/download/url');
 
-      print('[DownloadProvider] POST $uri');
-      print(
-          '[DownloadProvider] Body: url=$url, animeName=$animeName, episodeNumber=$episodeNumber');
-
       final response = await http.post(
         uri,
         headers: headers,
@@ -286,16 +335,13 @@ class DownloadNotifier extends StateNotifier<DownloadState> {
         }),
       );
 
-      print('[DownloadProvider] Response status: ${response.statusCode}');
-      print('[DownloadProvider] Response body: ${response.body}');
-
       if (response.statusCode == 200 || response.statusCode == 201) {
         await loadQueue();
         return true;
       }
       return false;
     } catch (e) {
-      print('[DownloadProvider] Error: $e');
+      if (kDebugMode) debugPrint('[DownloadProvider] downloadFromUrl error: $e');
       return false;
     }
   }

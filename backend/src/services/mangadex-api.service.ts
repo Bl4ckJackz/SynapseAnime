@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Manga, MangaStatus } from '../entities/manga.entity';
@@ -90,6 +90,7 @@ interface MangaDexApiResponse<T> {
 
 @Injectable()
 export class MangaDexService {
+  private readonly logger = new Logger(MangaDexService.name);
   private readonly baseUrl = 'https://api.mangadex.org';
 
   constructor(
@@ -155,7 +156,7 @@ export class MangaDexService {
 
       return mangas;
     } catch (error) {
-      console.error('Error searching manga:', error);
+      this.logger.error('Error searching manga:', error);
       return []; // Return empty instead of throwing to prevent crashing the UI
     }
   }
@@ -211,7 +212,7 @@ export class MangaDexService {
 
       return manga;
     } catch (error) {
-      console.error(`Error getting manga details for ${mangadexId}:`, error);
+      this.logger.error(`Error getting manga details for ${mangadexId}:`, error);
       throw new Error(`Failed to get manga details for ${mangadexId}`);
     }
   }
@@ -227,13 +228,13 @@ export class MangaDexService {
 
       // If manga not found in local DB, sync it first
       if (!manga) {
-        console.log(
+        this.logger.log(
           `Manga ${mangadexId} not found in DB, syncing from MangaDex...`,
         );
         try {
           manga = await this.getMangaDetails(mangadexId);
         } catch (syncError) {
-          console.error(`Failed to sync manga ${mangadexId}:`, syncError);
+          this.logger.error(`Failed to sync manga ${mangadexId}:`, syncError);
           // Try to fetch chapters directly from MangaDex API
           return await this.getChaptersFromApi(mangadexId, preferredLanguage);
         }
@@ -246,7 +247,7 @@ export class MangaDexService {
 
       // If no chapters in DB, try to fetch from API
       if (chapters.length === 0) {
-        console.log(
+        this.logger.log(
           `No chapters found in DB for ${mangadexId}, fetching from API...`,
         );
         return await this.getChaptersFromApi(mangadexId, preferredLanguage);
@@ -255,7 +256,7 @@ export class MangaDexService {
       // Filter and deduplicate chapters by language preference
       return this.filterChaptersByLanguage(chapters, preferredLanguage);
     } catch (error) {
-      console.error(`Error getting chapters for manga ${mangadexId}:`, error);
+      this.logger.error(`Error getting chapters for manga ${mangadexId}:`, error);
       // Fallback to direct API call
       return await this.getChaptersFromApi(mangadexId, preferredLanguage);
     }
@@ -271,17 +272,17 @@ export class MangaDexService {
         'it',
         'en',
       ]);
-      console.log(
+      this.logger.log(
         `DEBUG: Fetched ${chapters.length} IT/EN chapters for ${mangadexId}`,
       );
 
       // If no chapters found, try without language filter
       if (chapters.length === 0) {
-        console.log(
+        this.logger.log(
           `No IT/EN chapters found for ${mangadexId}, fetching all languages...`,
         );
         chapters = await this.fetchChaptersWithLanguage(mangadexId, undefined);
-        console.log(
+        this.logger.log(
           `DEBUG: Fetched ${chapters.length} chapters (all languages) for ${mangadexId}`,
         );
       }
@@ -291,12 +292,12 @@ export class MangaDexService {
         chapters,
         preferredLanguage,
       );
-      console.log(
+      this.logger.log(
         `DEBUG: After filter: ${filtered.length} chapters for ${mangadexId}`,
       );
       return filtered;
     } catch (error) {
-      console.error(
+      this.logger.error(
         `Error fetching chapters from MangaDex API for ${mangadexId}:`,
         error,
       );
@@ -431,7 +432,7 @@ export class MangaDexService {
 
       return pages;
     } catch (error) {
-      console.error(`Error getting pages for chapter ${chapterId}:`, error);
+      this.logger.error(`Error getting pages for chapter ${chapterId}:`, error);
       throw new Error(`Failed to get pages for chapter ${chapterId}`);
     }
   }
@@ -441,7 +442,7 @@ export class MangaDexService {
       // This will fetch manga details and chapters, saving them to our DB
       await this.getMangaDetails(mangadexId);
     } catch (error) {
-      console.error(`Error syncing manga data for ${mangadexId}:`, error);
+      this.logger.error(`Error syncing manga data for ${mangadexId}:`, error);
       throw new Error(`Failed to sync manga data for ${mangadexId}`);
     }
   }
@@ -548,7 +549,7 @@ export class MangaDexService {
       const fileName = coverData.data.attributes.fileName;
       return `https://uploads.mangadex.org/covers/${coverRel.manga?.id ?? coverRel.id}/${fileName}`;
     } catch (error) {
-      console.error('Error fetching cover image:', error);
+      this.logger.error('Error fetching cover image:', error);
       return null;
     }
   }
@@ -608,7 +609,7 @@ export class MangaDexService {
         offset += limit;
       } while (offset < total && offset < 1000); // 1000 chapter safety limit
     } catch (error) {
-      console.error(`Error syncing chapters for manga ${mangadexId}:`, error);
+      this.logger.error(`Error syncing chapters for manga ${mangadexId}:`, error);
       throw new Error(`Failed to sync chapters for manga ${mangadexId}`);
     }
   }

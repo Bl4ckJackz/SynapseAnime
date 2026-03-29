@@ -24,7 +24,7 @@ class EpisodeCard extends StatelessWidget {
     }
     // AnimeUnity images block requests without Referer
     // We can either proxy them or try adding headers directly
-    if (url.contains('img.animeunity') || url.contains('animeunity.so')) {
+    if (url.contains('img.animeunity') || url.contains('animeunity.so') || url.contains('cdn.noitatnemucod.net')) {
       // Direct access often fails even with headers if there's strict checking
       // Use proxy endpoint if available
       return '${AppConstants.apiBaseUrl}/stream/proxy-image?url=${Uri.encodeComponent(url)}';
@@ -46,7 +46,6 @@ class EpisodeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final finalUrl = _getProxiedUrl(episode.thumbnail);
-    print('EpisodeCard: Original: ${episode.thumbnail}, Proxied: $finalUrl');
 
     return Container(
       width: width,
@@ -89,8 +88,9 @@ class EpisodeCard extends StatelessWidget {
                   children: [
                     CachedNetworkImage(
                       imageUrl: finalUrl,
-                      httpHeaders: _getHeaders(episode.thumbnail ?? ''),
                       fit: BoxFit.cover,
+                      memCacheWidth: 400,
+                      fadeInDuration: const Duration(milliseconds: 200),
                       placeholder: (context, url) => Container(
                         color: AppTheme.surfaceColor,
                         child: const Center(

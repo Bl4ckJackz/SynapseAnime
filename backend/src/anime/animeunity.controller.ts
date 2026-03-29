@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Logger,
   Param,
   Query,
   Req,
@@ -11,6 +12,8 @@ import { AnimeUnitySource } from './sources/animeunity.source';
 
 @Controller('anime/animeunity')
 export class AnimeUnityController {
+  private readonly logger = new Logger(AnimeUnityController.name);
+
   constructor(private readonly animeUnitySource: AnimeUnitySource) {}
 
   @Get('search')
@@ -23,7 +26,7 @@ export class AnimeUnityController {
       });
       return result.data;
     } catch (error) {
-      console.error('Error searching anime on AnimeUnity:', error);
+      this.logger.error('Error searching anime on AnimeUnity:', error);
       return [];
     }
   }
@@ -38,7 +41,7 @@ export class AnimeUnityController {
       });
       return result.data;
     } catch (error) {
-      console.error('Error fetching trending anime from AnimeUnity:', error);
+      this.logger.error('Error fetching trending anime from AnimeUnity:', error);
       return [];
     }
   }
@@ -53,7 +56,7 @@ export class AnimeUnityController {
       });
       return result.data;
     } catch (error) {
-      console.error('Error fetching popular anime from AnimeUnity:', error);
+      this.logger.error('Error fetching popular anime from AnimeUnity:', error);
       return [];
     }
   }
@@ -69,7 +72,7 @@ export class AnimeUnityController {
       }
       return anime;
     } catch (error) {
-      console.error(
+      this.logger.error(
         `Error fetching details for anime ID ${id} from AnimeUnity:`,
         error,
       );
@@ -85,7 +88,7 @@ export class AnimeUnityController {
       const episodes = await this.animeUnitySource.getEpisodes(animeId);
       return episodes;
     } catch (error) {
-      console.error(
+      this.logger.error(
         `Error fetching episodes for anime ID ${animeId} from AnimeUnity:`,
         error,
       );
@@ -119,7 +122,7 @@ export class AnimeUnityController {
         download: null,
       };
     } catch (error) {
-      console.error(
+      this.logger.error(
         `Error fetching episode streaming links for ID ${episodeId} from AnimeUnity:`,
         error,
       );

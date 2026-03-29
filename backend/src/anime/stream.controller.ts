@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Logger,
   Param,
   Res,
   StreamableFile,
@@ -14,6 +15,8 @@ import axios from 'axios';
 
 @Controller('stream')
 export class StreamController {
+  private readonly logger = new Logger(StreamController.name);
+
   constructor(private readonly localSource: LocalFileSource) {}
 
   @Get('local/:animeId/:filename')
@@ -81,7 +84,7 @@ export class StreamController {
 
       return new StreamableFile(response.data);
     } catch (error) {
-      console.error(`[Proxy] Failed to fetch image: ${url}`, error.message);
+      this.logger.error(`[Proxy] Failed to fetch image: ${url}`, error.message);
       throw new NotFoundException('Failed to fetch image');
     }
   }

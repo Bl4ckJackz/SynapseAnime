@@ -1,8 +1,7 @@
-import 'dart:math' as math;
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 
-/// Bottom navigation with wave effect rising from active icon
 class AnimatedBottomNavBar extends StatefulWidget {
   final int currentIndex;
   final Function(int) onTap;
@@ -18,9 +17,8 @@ class AnimatedBottomNavBar extends StatefulWidget {
 }
 
 class _AnimatedBottomNavBarState extends State<AnimatedBottomNavBar>
-    with TickerProviderStateMixin {
-  late AnimationController _waveController;
-  late Animation<double> _waveAnimation;
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
 
   static const List<NavItem> _items = [
     NavItem(icon: Icons.home_outlined, activeIcon: Icons.home, label: 'Home'),
@@ -41,9 +39,9 @@ class _AnimatedBottomNavBarState extends State<AnimatedBottomNavBar>
         activeIcon: Icons.video_library,
         label: 'Libreria'),
     NavItem(
-        icon: Icons.smart_toy_outlined,
-        activeIcon: Icons.smart_toy,
-        label: 'AI'),
+        icon: Icons.movie_outlined,
+        activeIcon: Icons.movie,
+        label: 'Film & TV'),
     NavItem(
         icon: Icons.person_outline, activeIcon: Icons.person, label: 'Profilo'),
   ];
@@ -51,28 +49,24 @@ class _AnimatedBottomNavBarState extends State<AnimatedBottomNavBar>
   @override
   void initState() {
     super.initState();
-    _waveController = AnimationController(
-      duration: const Duration(milliseconds: 600),
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    _waveAnimation = CurvedAnimation(
-      parent: _waveController,
-      curve: Curves.easeOutQuart,
-    );
-    _waveController.forward();
+    _controller.forward();
   }
 
   @override
   void didUpdateWidget(AnimatedBottomNavBar oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.currentIndex != widget.currentIndex) {
-      _waveController.forward(from: 0);
+      _controller.forward(from: 0);
     }
   }
 
   @override
   void dispose() {
-    _waveController.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
@@ -81,40 +75,101 @@ class _AnimatedBottomNavBarState extends State<AnimatedBottomNavBar>
     return Container(
       height: 72,
       decoration: BoxDecoration(
-        color: AppTheme.surfaceColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 16,
-            offset: const Offset(0, -2),
+        color: AppTheme.backgroundColor.withOpacity(0.7),
+        border: const Border(
+          top: BorderSide(
+            color: Color(0x14FFFFFF),
+            width: 0.5,
           ),
-        ],
+        ),
       ),
       child: ClipRect(
-        child: CustomPaint(
-          painter: _WavePainter(
-            animation: _waveAnimation,
-            selectedIndex: widget.currentIndex,
-            itemCount: _items.length,
-            waveColor: AppTheme.primaryColor.withValues(alpha: 0.12),
-          ),
-          child: Row(
-            children: List.generate(_items.length, (index) {
-              final item = _items[index];
-              final isSelected = widget.currentIndex == index;
-
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => widget.onTap(index),
-                  behavior: HitTestBehavior.opaque,
-                  child: _NavItemWidget(
-                    item: item,
-                    isSelected: isSelected,
-                    animation: _waveAnimation,
-                  ),
-                ),
-              );
-            }),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Stack(
+            children: [
+              // Sliding pill indicator
+              AnimatedBuilder(
+                animation: _controller,
+                builder: (context, _) {
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      final itemWidth =
+                          constraints.maxWidth / _items.length;
+                      const pillWidth = 24.0;
+                      return Stack(
+                        children: [
+                          // Glow under active item
+                          AnimatedPositioned(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeOutCubic,
+                            left: itemWidth * widget.currentIndex +
+                                (itemWidth - 40) / 2,
+                            bottom: 8,
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppTheme.primaryColor
+                                        .withOpacity(0.3),
+                                    blurRadius: 20,
+                                    spreadRadius: 5,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          // Pill indicator
+                          AnimatedPositioned(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeOutCubic,
+                            left: itemWidth * widget.currentIndex +
+                                (itemWidth - pillWidth) / 2,
+                            top: 0,
+                            child: Container(
+                              width: pillWidth,
+                              height: 3,
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryColor,
+                                borderRadius: BorderRadius.circular(2),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppTheme.primaryColor
+                                        .withOpacity(0.5),
+                                    blurRadius: 8,
+                                    spreadRadius: 1,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+              ),
+              // Nav items row
+              Row(
+                children: List.generate(_items.length, (index) {
+                  final item = _items[index];
+                  final isSelected = widget.currentIndex == index;
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: () => widget.onTap(index),
+                      behavior: HitTestBehavior.opaque,
+                      child: _NavItemWidget(
+                        item: item,
+                        isSelected: isSelected,
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ],
           ),
         ),
       ),
@@ -122,120 +177,51 @@ class _AnimatedBottomNavBarState extends State<AnimatedBottomNavBar>
   }
 }
 
-class _WavePainter extends CustomPainter {
-  final Animation<double> animation;
-  final int selectedIndex;
-  final int itemCount;
-  final Color waveColor;
-
-  _WavePainter({
-    required this.animation,
-    required this.selectedIndex,
-    required this.itemCount,
-    required this.waveColor,
-  }) : super(repaint: animation);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = waveColor
-      ..style = PaintingStyle.fill;
-
-    final itemWidth = size.width / itemCount;
-    final centerX = itemWidth * selectedIndex + itemWidth / 2;
-
-    // Animated wave radius
-    final maxRadius = size.width * 0.4;
-    final radius = maxRadius * animation.value;
-
-    // Draw expanding wave circles
-    for (int i = 0; i < 3; i++) {
-      final waveRadius = radius * (1 - i * 0.2);
-      final opacity = (1 - animation.value) * (1 - i * 0.3);
-
-      if (waveRadius > 0 && opacity > 0) {
-        paint.color = waveColor.withValues(alpha: opacity * 0.15);
-        canvas.drawCircle(
-          Offset(centerX, size.height),
-          waveRadius,
-          paint,
-        );
-      }
-    }
-
-    // Static glow under selected item
-    final glowPaint = Paint()
-      ..color = waveColor.withValues(alpha: 0.2)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20);
-
-    canvas.drawCircle(
-      Offset(centerX, size.height + 10),
-      40,
-      glowPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_WavePainter oldDelegate) =>
-      oldDelegate.selectedIndex != selectedIndex;
-}
-
 class _NavItemWidget extends StatelessWidget {
   final NavItem item;
   final bool isSelected;
-  final Animation<double> animation;
 
   const _NavItemWidget({
     required this.item,
     required this.isSelected,
-    required this.animation,
   });
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: animation,
-      builder: (context, child) {
-        // Bounce up effect for selected item
-        final bounce =
-            isSelected ? math.sin(animation.value * math.pi) * 4 : 0.0;
-
-        return Transform.translate(
-          offset: Offset(0, -bounce),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppTheme.primaryColor.withValues(alpha: 0.15)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  isSelected ? item.activeIcon : item.icon,
-                  size: 24,
-                  color:
-                      isSelected ? AppTheme.primaryColor : AppTheme.textMuted,
-                ),
-              ),
-              const SizedBox(height: 2),
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 200),
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  color:
-                      isSelected ? AppTheme.primaryColor : AppTheme.textMuted,
-                ),
-                child: Text(item.label),
-              ),
-            ],
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        AnimatedScale(
+          scale: isSelected ? 1.15 : 1.0,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutBack,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? AppTheme.primaryColor.withOpacity(0.12)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              isSelected ? item.activeIcon : item.icon,
+              size: 22,
+              color: isSelected ? AppTheme.primaryColor : AppTheme.textMuted,
+            ),
           ),
-        );
-      },
+        ),
+        const SizedBox(height: 2),
+        AnimatedDefaultTextStyle(
+          duration: const Duration(milliseconds: 200),
+          style: TextStyle(
+            fontSize: 9,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            color: isSelected ? AppTheme.primaryColor : AppTheme.textMuted,
+          ),
+          child: Text(item.label),
+        ),
+      ],
     );
   }
 }

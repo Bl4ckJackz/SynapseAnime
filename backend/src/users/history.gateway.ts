@@ -38,7 +38,7 @@ export class HistoryGateway
         (client.handshake.headers?.authorization?.split(' ')[1] as string);
 
       if (!token) {
-        console.log(
+        this.logger.log(
           `[HistoryGateway] Client ${client.id} failed auth: No token`,
         );
         client.disconnect();
@@ -51,7 +51,7 @@ export class HistoryGateway
 
       // 3. Join room
       client.join(`user_${userId}`);
-      console.log(
+      this.logger.log(
         `[HistoryGateway] User ${userId} connected and joined room user_${userId}`,
       );
 
@@ -60,7 +60,7 @@ export class HistoryGateway
       }
       this.userConnections.get(userId)?.add(client.id);
     } catch (e) {
-      console.error(`[HistoryGateway] Connection error:`, e.message);
+      this.logger.error(`[HistoryGateway] Connection error:`, e.message);
       client.disconnect();
     }
   }

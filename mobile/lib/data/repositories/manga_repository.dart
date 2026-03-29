@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/api_client.dart';
 import 'package:dio/dio.dart';
 import '../../core/constants.dart';
+import '../../core/utils/api_helpers.dart';
+import '../../core/utils/title_matcher.dart';
 import '../../domain/entities/manga.dart';
 import '../../domain/entities/chapter.dart';
 import '../../core/config/source_config.dart';
@@ -38,19 +41,21 @@ class MangaRepository {
   /// Get top manga from Jikan
   Future<List<Manga>> getTopManga(
       {int page = 1, String? type, int limit = 20}) async {
-    final response = await _apiClient.get<Map<String, dynamic>>(
-      AppConstants.jikanMangaTop,
-      queryParameters: {
-        'page': page,
-        if (type != null) 'type': type,
-      },
-    );
-
-    final data = (response.data?['data'] as List<dynamic>? ?? []);
-    return data
-        .take(limit)
-        .map((json) => Manga.fromJikanJson(json as Map<String, dynamic>))
-        .toList();
+    try {
+      final response = await _apiClient.get<Map<String, dynamic>>(
+        AppConstants.jikanMangaTop,
+        queryParameters: {
+          'page': page,
+          if (type != null) 'type': type,
+        },
+      );
+      return ApiHelpers.parseAndMap(response.data, Manga.fromJikanJson)
+          .take(limit)
+          .toList();
+    } catch (e) {
+      ApiHelpers.logError('getTopManga', e);
+      return [];
+    }
   }
 
   /// Search manga via Jikan or Active Source
@@ -59,18 +64,16 @@ class MangaRepository {
 
     // If active source is Jikan, use Jikan (Metadata rich)
     if (active == 'jikan') {
-      final response = await _apiClient.get<Map<String, dynamic>>(
-        AppConstants.jikanMangaSearch,
-        queryParameters: {
-          'q': query,
-          'page': page,
-        },
-      );
-
-      final data = response.data?['data'] as List<dynamic>? ?? [];
-      return data
-          .map((json) => Manga.fromJikanJson(json as Map<String, dynamic>))
-          .toList();
+      try {
+        final response = await _apiClient.get<Map<String, dynamic>>(
+          AppConstants.jikanMangaSearch,
+          queryParameters: {'q': query, 'page': page},
+        );
+        return ApiHelpers.parseAndMap(response.data, Manga.fromJikanJson);
+      } catch (e) {
+        ApiHelpers.logError('searchManga(jikan)', e);
+        return [];
+      }
     } else {
       // Search on the active source (Consumet)
       // This allows finding content specific to that source (e.g. Manhwa on MangaWorld)
@@ -145,7 +148,9 @@ class MangaRepository {
       } else {
         // MangaDex
         final response = await _apiClient.get('/mangadex/manga/$id');
-        return Manga.fromMangaDexJson(response.data as Map<String, dynamic>);
+        final data = ApiHelpers.parseMapResponse(response.data);
+        if (data == null) throw Exception('MangaDex returned null data');
+        return Manga.fromMangaDexJson(data);
       }
     } catch (e) {
       throw Exception('Failed to load manga details: $e');
@@ -155,19 +160,20 @@ class MangaRepository {
   /// Get manga list from MangaHook
   Future<List<Manga>> getMangaHookList(
       {int page = 1, String? type, String? category}) async {
-    final response = await _apiClient.get<Map<String, dynamic>>(
-      AppConstants.mangahookMangaList,
-      queryParameters: {
-        'page': page,
-        if (type != null) 'type': type,
-        if (category != null) 'category': category,
-      },
-    );
-
-    final data = response.data?['data'] as List<dynamic>? ?? [];
-    return data
-        .map((json) => Manga.fromMangaHookJson(json as Map<String, dynamic>))
-        .toList();
+    try {
+      final response = await _apiClient.get<Map<String, dynamic>>(
+        AppConstants.mangahookMangaList,
+        queryParameters: {
+          'page': page,
+          if (type != null) 'type': type,
+          if (category != null) 'category': category,
+        },
+      );
+      return ApiHelpers.parseAndMap(response.data, Manga.fromMangaHookJson);
+    } catch (e) {
+      ApiHelpers.logError('getMangaHookList', e);
+      return [];
+    }
   }
 
   /// Get available manga sources - prioritized for EN content first
@@ -214,10 +220,10 @@ class MangaRepository {
     if (RegExp(r'^\d+$').hasMatch(mangaId)) {
       try {
         jikanRef = await getMangaDetails(mangaId);
-        print(
+        if (kDebugMode) debugPrint(
             'DEBUG: Fetched Jikan Ref for matching: ${jikanRef.title} (Year: ${jikanRef.year}, Authors: ${jikanRef.authors})');
       } catch (e) {
-        print('DEBUG: Failed to fetch Jikan Ref: $e');
+        if (kDebugMode) debugPrint('DEBUG: Failed to fetch Jikan Ref: $e');
       }
     }
 
@@ -228,7 +234,7 @@ class MangaRepository {
       sources.insert(0, preferredSource);
     }
 
-    print(
+    if (kDebugMode) debugPrint(
         'DEBUG: getChapters called for $mangaId (Title: $title, TitleENG: $titleEnglish, Pref: $preferredSource)');
 
     // 3. Smart Fetch Strategy
@@ -244,7 +250,7 @@ class MangaRepository {
     final primarySources = sources.take(parallelCount).toList();
     final fallbackSources = sources.skip(parallelCount).toList();
 
-    print(
+    if (kDebugMode) debugPrint(
         'DEBUG: Auto Mode - Probing top $parallelCount sources: $primarySources');
 
     final results = await Future.wait(
@@ -266,9 +272,9 @@ class MangaRepository {
       // If the best candidate has a "Perfect" or "Very High" score, and significantly better than others, take it.
       // E.g. 1950 vs 100.
 
-      print('DEBUG: Candidates ranked by score:');
+      if (kDebugMode) debugPrint('DEBUG: Candidates ranked by score:');
       for (var c in candidates) {
-        print(
+        if (kDebugMode) debugPrint(
             ' - ${c.source}: Score ${c.matchScore}, Chapters ${c.chapters.length}');
       }
 
@@ -306,14 +312,14 @@ class MangaRepository {
       // If the winner has a very low score (e.g. < 500) and it's not a direct ID lookup (2000),
       // we might want to be careful. But for now, we trust the relative ranking.
 
-      print(
+      if (kDebugMode) debugPrint(
           'DEBUG: Winner source is ${winner.source} with ${winner.chapters.length} chapters (Score: ${winner.matchScore})');
 
       // FINAL THRESHOLD CHECK
       // If the best match is still too weak (e.g. < 150), treat it as "Not Found"
       // to avoid showing completely wrong anime/manga.
       if (winner.matchScore < 150) {
-        print(
+        if (kDebugMode) debugPrint(
             'DEBUG: Winner rejected due to low score (< 150). Returning empty.');
         return [];
       }
@@ -322,7 +328,7 @@ class MangaRepository {
     }
 
     // Fallback logic
-    print(
+    if (kDebugMode) debugPrint(
         'DEBUG: Primary sources failed. Trying fallback sources: $fallbackSources');
     for (final source in fallbackSources) {
       final result = await _getChaptersFromSource(
@@ -333,7 +339,7 @@ class MangaRepository {
         if (result.matchScore >= 150 || result.matchScore == 2000) {
           return _sanitizeChapters(result.chapters);
         }
-        print(
+        if (kDebugMode) debugPrint(
             'DEBUG: Skipped fallback source $source due to low score: ${result.matchScore}');
       }
     }
@@ -377,7 +383,7 @@ class MangaRepository {
       return SourceSearchResult(
           source, _sanitizeChapters(result.chapters), result.matchScore);
     } catch (e) {
-      print("DEBUG: Single source fetch failed: $e");
+      if (kDebugMode) debugPrint("DEBUG: Single source fetch failed: $e");
       return SourceSearchResult(source, [], -1);
     }
   }
@@ -396,10 +402,10 @@ class MangaRepository {
     if (source == 'mangadex' && !RegExp(r'^\d+$').hasMatch(originalId)) {
       targetId = originalId;
       obtainedScore = 2000; // TRUSTED DIRECT ID
-      print('DEBUG: Using original ID for MangaDex: $targetId (Score: 2000)');
+      if (kDebugMode) debugPrint('DEBUG: Using original ID for MangaDex: $targetId (Score: 2000)');
     } else {
       // Need to search
-      print('DEBUG: Searching on $source with queries: $searchTitles');
+      if (kDebugMode) debugPrint('DEBUG: Searching on $source with queries: $searchTitles');
 
       Map<String, dynamic>? bestGlobalMatch;
       int bestGlobalScore = -1;
@@ -426,7 +432,7 @@ class MangaRepository {
       if (bestGlobalMatch != null) {
         targetId = bestGlobalMatch['id'].toString();
         obtainedScore = bestGlobalScore;
-        print(
+        if (kDebugMode) debugPrint(
             'DEBUG: Best Global Match on $source: ${bestGlobalMatch['title']} (score: $bestGlobalScore)');
       }
     }
@@ -446,9 +452,11 @@ class MangaRepository {
         final url = '/mangadex/manga/$targetId/chapters?lang=en';
         final response = await _apiClient.get(url);
         final data = response.data;
-        final chaptersRaw = data is List
+        final List<dynamic> chaptersRaw = data is List
             ? data
-            : (data['chapters'] ?? data['data'] ?? []) as List<dynamic>;
+            : (data is Map
+                ? (data['chapters'] ?? data['data'] ?? <dynamic>[])
+                : <dynamic>[]) as List<dynamic>;
 
         fetchedChapters = chaptersRaw.map((json) {
           final chapterNum = _parseChapterNumberFromBackend(json);
@@ -469,7 +477,8 @@ class MangaRepository {
         final url = _buildInfoUrl(source, targetId);
         final response = await _apiClient.get(url);
         final data = response.data;
-        final chaptersRaw = data['chapters'] as List<dynamic>? ?? [];
+        final chaptersRaw = ApiHelpers.parseListResponse(
+            data, dataKey: 'chapters');
 
         fetchedChapters = chaptersRaw
             .map((json) {
@@ -486,7 +495,7 @@ class MangaRepository {
             .toList();
       }
     } catch (e) {
-      print('DEBUG: Error fetching chapters for $source: $e');
+      if (kDebugMode) debugPrint('DEBUG: Error fetching chapters for $source: $e');
       return SourceSearchResult(source, [], obtainedScore);
     }
 
@@ -551,22 +560,27 @@ class MangaRepository {
             .where((m) => m['id'].toString().isNotEmpty)
             .toList();
       } catch (e) {
-        print('DEBUG: Backend Mangadex Search failed: $e');
+        if (kDebugMode) debugPrint('DEBUG: Backend Mangadex Search failed: $e');
         // Fallback to Consumet logic below? Or just return empty
         return [];
       }
     }
 
     final provider = _mapSourceToProvider(source);
-    final response = await _apiClient.get(
-      '${AppConstants.consumetBaseUrl}/manga/$provider/${Uri.encodeComponent(query)}',
-    );
-    final results = response.data['results'] as List<dynamic>? ?? [];
-    // Convert to proper type
-    return results
-        .whereType<Map<dynamic, dynamic>>()
-        .map((r) => Map<String, dynamic>.from(r))
-        .toList();
+    try {
+      final response = await _apiClient.get(
+        '${AppConstants.consumetBaseUrl}/manga/$provider/${Uri.encodeComponent(query)}',
+      );
+      final results = ApiHelpers.parseListResponse(
+          response.data, dataKey: 'results');
+      return results
+          .whereType<Map<dynamic, dynamic>>()
+          .map((r) => Map<String, dynamic>.from(r))
+          .toList();
+    } catch (e) {
+      ApiHelpers.logError('_searchOnSource($source)', e);
+      return [];
+    }
   }
 
   Future<List<Manga>> searchMangaOnMangaDex(String query) async {
@@ -574,16 +588,13 @@ class MangaRepository {
       final response = await _apiClient.get(
         '${AppConstants.consumetBaseUrl}/manga/mangadex/$query',
       );
-
-      final List<dynamic> results =
-          response.data['results'] as List<dynamic>? ??
-              (response.data is List ? response.data : []);
-
-      return results
-          .map<Manga>((e) => Manga.fromMangaDexJson(e as Map<String, dynamic>))
-          .toList();
+      return ApiHelpers.parseAndMap(
+        response.data,
+        Manga.fromMangaDexJson,
+        dataKey: 'results',
+      );
     } catch (e) {
-      print('Error searching MangaDex via Consumet: $e');
+      ApiHelpers.logError('searchMangaOnMangaDex', e);
       return [];
     }
   }
@@ -604,21 +615,21 @@ class MangaRepository {
         }
       }
 
-      print('Fetching pages for $actualChapterId from $source');
+      if (kDebugMode) debugPrint('Fetching pages for $actualChapterId from $source');
 
       // Use Backend for MangaDex reading
       if (source == 'mangadex') {
         final url = '/mangadex/chapter/$actualChapterId/pages';
-        print('DEBUG: Fetching pages from backend: $url');
+        if (kDebugMode) debugPrint('DEBUG: Fetching pages from backend: $url');
         final response = await _apiClient.get(url);
         final data = response.data;
         // Backend returns { images: [...] }
-        final List<dynamic> images = (data['images'] as List<dynamic>?) ?? [];
+        final images = ApiHelpers.parseListResponse(data, dataKey: 'images');
         return images.map((e) => e.toString()).toList();
       }
 
       final url = _buildReadUrl(source, actualChapterId);
-      print('DEBUG: Fetching pages from $url');
+      if (kDebugMode) debugPrint('DEBUG: Fetching pages from $url');
 
       final response = await _apiClient.get(url);
 
@@ -654,10 +665,10 @@ class MangaRepository {
           .where((url) => url.isNotEmpty)
           .toList();
 
-      print('DEBUG: Extracted ${pages.length} pages from response');
+      if (kDebugMode) debugPrint('DEBUG: Extracted ${pages.length} pages from response');
       return pages;
     } catch (e) {
-      print('Error fetching pages: $e');
+      if (kDebugMode) debugPrint('Error fetching pages: $e');
       return [];
     }
   }
@@ -715,250 +726,60 @@ class MangaRepository {
     try {
       final response = await _apiClient.get<Map<String, dynamic>>(
         AppConstants.jikanMangaTop,
-        queryParameters: {
-          'filter': 'bypopularity',
-          'page': page,
-        },
+        queryParameters: {'filter': 'bypopularity', 'page': page},
       );
-      final data = (response.data?['data'] as List<dynamic>? ?? []);
-      return data
+      return ApiHelpers.parseAndMap(response.data, Manga.fromJikanJson)
           .take(limit)
-          .map((json) => Manga.fromJikanJson(json as Map<String, dynamic>))
           .toList();
     } catch (e) {
+      ApiHelpers.logError('getTrendingManga', e);
       return getTopManga(limit: limit, page: page);
     }
   }
 
-  /// Get recently updated manga (Using MangaDex search proxy)
+  /// Get recently updated manga
   Future<List<Manga>> getRecentlyUpdatedManga(
       {int limit = 20, int page = 1}) async {
     try {
-      // In a real scenario, we'd have a specific endpoint.
-      // For now, search MangaDex with empty query or similar if supported,
-      // or just use page argument for top manga variety.
       final response = await _apiClient.get<Map<String, dynamic>>(
         AppConstants.jikanMangaTop,
-        queryParameters: {
-          'page': page,
-        },
+        queryParameters: {'page': page},
       );
-      final data = (response.data?['data'] as List<dynamic>? ?? []);
-      return data
+      return ApiHelpers.parseAndMap(response.data, Manga.fromJikanJson)
           .take(limit)
-          .map((json) => Manga.fromJikanJson(json as Map<String, dynamic>))
           .toList();
     } catch (e) {
+      ApiHelpers.logError('getRecentlyUpdatedManga', e);
       return getTopManga(limit: limit, page: page);
     }
   }
 
   /// Get manga genres from Jikan
   Future<List<Map<String, dynamic>>> getGenres() async {
-    final response = await _apiClient.get<Map<String, dynamic>>(
-      AppConstants.jikanMangaGenres,
-    );
-
-    return (response.data?['data'] as List<dynamic>? ?? [])
-        .map((g) => g as Map<String, dynamic>)
-        .toList();
+    try {
+      final response = await _apiClient.get<Map<String, dynamic>>(
+        AppConstants.jikanMangaGenres,
+      );
+      final list = ApiHelpers.parseListResponse(response.data);
+      return list
+          .whereType<Map<dynamic, dynamic>>()
+          .map((g) => Map<String, dynamic>.from(g))
+          .toList();
+    } catch (e) {
+      ApiHelpers.logError('getGenres', e);
+      return [];
+    }
   }
 
-  /// Find best match from search results using scoring
+  /// Find best match from search results using shared TitleMatcher scoring.
   Map<String, dynamic> _findBestMatch(
       List<Map<String, dynamic>> results, String query,
       {Manga? refManga}) {
-    // Normalization helper
-    String _normalize(String s) {
-      return s
-          .toLowerCase()
-          .replaceAll(RegExp(r'[^a-z0-9\s]'), ' ')
-          .replaceAll(RegExp(r'\s+'), ' ')
-          .trim();
-    }
-
-    final queryNorm = _normalize(query);
-    final queryLower = query.toLowerCase().trim();
-    final queryWords = queryNorm.split(' ');
-
-    int bestScore = -1000; // Allow negative scores
-    Map<String, dynamic> bestMatch = results.first;
-
-    print('DEBUG: Scoring candidates for query: "$query" (norm: "$queryNorm")');
-
-    for (final result in results) {
-      final title = (result['title'] ?? '').toString();
-      final titleLower = title.toLowerCase().trim();
-      final titleNorm = _normalize(title);
-
-      int score = 0;
-
-      // 1. Exact Match (Normalized)
-      if (titleNorm == queryNorm) {
-        score += 1000;
-      }
-      // Exact Match (Case-insensitive raw) - Higher bonus
-      if (titleLower == queryLower) {
-        score += 200;
-      }
-
-      // 2. Starts With
-      if (titleNorm.startsWith(queryNorm)) {
-        // Only valid if query is reasonably long OR follows word boundary
-        if (queryNorm.length < 3) {
-          score += 50; // Very weak bonus for short queries
-        } else {
-          score += 300;
-        }
-      }
-
-      // 3. Contains (Normalized)
-      if (titleNorm.contains(queryNorm)) {
-        score += 200;
-      }
-
-      // 4. Word Overlap
-      // ... existing overlap logic ...
-
-      // --- JIKAN METADATA ENHANCED MATCHING ---
-      if (refManga != null) {
-        // YEAR MATCH (Strong)
-        if (refManga.year != null && result['year'] != null) {
-          final candYear = int.tryParse(result['year'].toString());
-          if (candYear != null) {
-            if (candYear == refManga.year) {
-              score += 50;
-            } else if ((candYear - refManga.year!).abs() > 2) {
-              score -= 100; // Penalize year mismatch
-              print(
-                  'DEBUG: Year mismatch for $title: $candYear vs ${refManga.year} (-100)');
-            }
-          }
-        } else if (refManga.year != null &&
-            title.contains((refManga.year!).toString())) {
-          score += 50; // Year found in title
-        }
-
-        // AUTHOR MATCH (Very Strong)
-        // Check if any reference author is present in candidate authors
-        if (refManga.authors.isNotEmpty && result['authors'] != null) {
-          final candAuthors = result['authors'];
-          bool authorMatch = false;
-
-          // Normalize ref authors
-          final refAuthorsNorm =
-              refManga.authors.map((a) => _normalize(a)).toList();
-
-          if (candAuthors is List) {
-            for (var ca in candAuthors) {
-              final caNorm = _normalize(ca.toString());
-              if (refAuthorsNorm
-                  .any((ra) => ra.contains(caNorm) || caNorm.contains(ra))) {
-                authorMatch = true;
-                break;
-              }
-            }
-          }
-
-          if (authorMatch) {
-            score += 100;
-          } else if (candAuthors is List && candAuthors.isNotEmpty) {
-            // If authors are present but NONE match, it's suspicious?
-            // Names can vary wildly (Kanji vs Romaji), so be careful penalizing.
-          }
-        }
-      }
-      final titleWords = titleNorm.split(' ');
-      int wordMatches = 0;
-      for (final qWord in queryWords) {
-        if (qWord.isEmpty) continue;
-        if (titleWords.contains(qWord)) {
-          score += 50;
-          wordMatches++;
-        }
-      }
-      if (wordMatches == queryWords.length && queryWords.isNotEmpty) {
-        score += 100;
-      }
-
-      // --- PENALTIES ---
-
-      // 1. Length/Ratio Penalty
-      // If title is significantly longer, it's less likely to be the main entry
-      // Normalized length used for reliability
-      if (queryNorm.isNotEmpty) {
-        final ratio = titleNorm.length / queryNorm.length;
-
-        // Only apply strict ratio penalty if title has enough words to be a "long" title
-        // This protects short synonyms like "86" -> "Eighty Six" (2 words) from being killed
-        final isTitleLongInWords = titleWords.length > 3;
-
-        if (queryNorm.length < 5) {
-          // Strict mode for short queries (e.g. "86")
-          if (isTitleLongInWords) {
-            if (ratio > 2.0) score -= 500;
-            if (ratio > 3.0) score -= 1000;
-          }
-        } else {
-          // Normal mode
-          if (ratio > 2.0) score -= 300;
-          if (ratio > 3.0) score -= 500;
-        }
-      }
-
-      // 2. Separators checking (Raw strings)
-      // Spinoffs often usage " - ", ": " etc.
-      // If title has separators that query doesn't, penalize.
-      final separators = [' - ', ' – ', ' — ', ': '];
-      bool hasExtraSeparator = false;
-      for (final sep in separators) {
-        if (title.contains(sep) && !query.contains(sep)) {
-          hasExtraSeparator = true;
-          break;
-        }
-      }
-      if (hasExtraSeparator) {
-        score -= 300; // Increased from 200
-      }
-
-      // 3. Spinoff Keywords
-      final spinoffKeywords = [
-        'doujinshi', 'dj', '(dj)', 'anthology', 'fan comic', 'fancomic',
-        'parody', '4-koma', 'yonkoma', 'oneshot collection', 'extra',
-        'side story', 'gaiden', 'spinoff', 'spin-off'
-        // Removed 'official' as it often denotes main series on some sites
-      ];
-      for (final keyword in spinoffKeywords) {
-        if (titleLower.contains(keyword)) {
-          // If query ALSO contains it, don't penalize (user searching for spinoff)
-          if (!queryLower.contains(keyword)) {
-            score -= 500;
-          }
-        }
-      }
-
-      // 4. Word Count Penalty
-      // If title has many more words than query
-      if (titleWords.length > queryWords.length + 2) {
-        // Changed +3 to +2
-        score -= 200; // Increased from 100
-      }
-
-      // Penalize if it looks like a "Volume" or specific chapter entry
-      // e.g. "86 - Eighty Six - Volume 1"
-      if (titleLower.contains('volume') && !queryLower.contains('volume')) {
-        score -= 200;
-      }
-
-      print('DEBUG: Candidate "${result['title']}" -> Score: $score');
-
-      if (score > bestScore) {
-        bestScore = score;
-        bestMatch = result;
-      }
-    }
-
-    bestMatch['_score'] = bestScore;
-    return bestMatch;
+    return TitleMatcher.findBestMangaMatch(
+      results,
+      query,
+      referenceYear: refManga?.year,
+      referenceAuthors: refManga?.authors,
+    );
   }
 }

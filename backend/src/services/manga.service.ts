@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like } from 'typeorm';
 import { Manga } from '../entities/manga.entity';
@@ -6,6 +6,8 @@ import { Chapter } from '../entities/chapter.entity';
 
 @Injectable()
 export class MangaService {
+  private readonly logger = new Logger(MangaService.name);
+
   constructor(
     @InjectRepository(Manga)
     private mangaRepository: Repository<Manga>,
@@ -93,11 +95,11 @@ export class MangaService {
   async addToReadingList(userId: string, mangaId: string) {
     // This would typically update the user's reading list
     // Implementation depends on how reading lists are stored
-    console.log(`Adding manga ${mangaId} to user ${userId}'s reading list`);
+    this.logger.log(`Adding manga ${mangaId} to user ${userId}'s reading list`);
   }
 
   async removeFromReadingList(userId: string, mangaId: string) {
     // This would typically update the user's reading list
-    console.log(`Removing manga ${mangaId} from user ${userId}'s reading list`);
+    this.logger.log(`Removing manga ${mangaId} from user ${userId}'s reading list`);
   }
 }

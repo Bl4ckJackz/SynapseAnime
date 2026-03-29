@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { AnimeSource, AnimeFilters } from './anime-source.interface';
 import { DefaultDbSource } from './default-db.source';
 import { LocalFileSource } from './local-file.source';
@@ -8,6 +8,7 @@ import { HiAnimeSource } from './hianime.source';
 
 @Injectable()
 export class SourceManager {
+  private readonly logger = new Logger(SourceManager.name);
   private sources: Map<string, AnimeSource> = new Map();
   private activeSourceId: string;
 
@@ -28,7 +29,7 @@ export class SourceManager {
 
   registerSource(source: AnimeSource) {
     this.sources.set(source.id, source);
-    console.log(`Registered anime source: ${source.name} (${source.id})`);
+    this.logger.log(`Registered anime source: ${source.name} (${source.id})`);
   }
 
   getSources() {

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -28,6 +29,9 @@ import '../presentation/screens/paginated_manga_list_screen.dart';
 import '../presentation/screens/downloads_screen.dart';
 import '../presentation/screens/currently_watching_screen.dart';
 import '../presentation/screens/genre_selection_screen.dart';
+import '../presentation/screens/movie_detail_screen.dart';
+import '../presentation/screens/tv_show_detail_screen.dart';
+import '../presentation/screens/vidsrc_player_screen.dart';
 import '../domain/providers/anime_provider.dart'; // for FilterType and AnimeFilter
 import '../domain/providers/manga_provider.dart'; // for MangaFilterType and MangaFilter
 import 'constants.dart';
@@ -49,6 +53,9 @@ class AppRoutes {
   static const downloads = '/downloads';
   static const intro = '/intro';
   static const watching = '/watching';
+  static const movieDetail = '/movie/:id';
+  static const tvShowDetail = '/tv-show/:id';
+  static const vidsrcPlayer = '/vidsrc-player';
 
   // Routes that don't require authentication
   static const publicRoutes = ['/', '/login', '/register', '/intro'];
@@ -58,7 +65,7 @@ class AppRoutes {
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: AppRoutes.splash,
-    debugLogDiagnostics: true,
+    debugLogDiagnostics: kDebugMode,
     redirect: (context, state) async {
       final currentPath = state.matchedLocation;
 
@@ -109,9 +116,29 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.animeDetail,
         name: 'animeDetail',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final animeId = state.pathParameters['id']!;
-          return AnimeDetailScreen(animeId: animeId);
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: AnimeDetailScreen(animeId: animeId),
+            transitionDuration: const Duration(milliseconds: 400),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              final curved = CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+              );
+              return FadeTransition(
+                opacity: curved,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.05),
+                    end: Offset.zero,
+                  ).animate(curved),
+                  child: child,
+                ),
+              );
+            },
+          );
         },
       ),
       GoRoute(
@@ -171,9 +198,29 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.mangaDetail,
         name: 'mangaDetail',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final mangaId = state.pathParameters['id']!;
-          return MangaDetailScreen(mangaId: mangaId);
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: MangaDetailScreen(mangaId: mangaId),
+            transitionDuration: const Duration(milliseconds: 400),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              final curved = CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+              );
+              return FadeTransition(
+                opacity: curved,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.05),
+                    end: Offset.zero,
+                  ).animate(curved),
+                  child: child,
+                ),
+              );
+            },
+          );
         },
       ),
       GoRoute(
@@ -293,6 +340,73 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/genre-selection',
         name: 'genreSelection',
         builder: (context, state) => const GenreSelectionScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.movieDetail,
+        name: 'movieDetail',
+        pageBuilder: (context, state) {
+          final movieId = int.parse(state.pathParameters['id']!);
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: MovieDetailScreen(tmdbId: movieId),
+            transitionDuration: const Duration(milliseconds: 400),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+              final curved = CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+              );
+              return FadeTransition(
+                opacity: curved,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.05),
+                    end: Offset.zero,
+                  ).animate(curved),
+                  child: child,
+                ),
+              );
+            },
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.tvShowDetail,
+        name: 'tvShowDetail',
+        pageBuilder: (context, state) {
+          final tvId = int.parse(state.pathParameters['id']!);
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: TvShowDetailScreen(tmdbId: tvId),
+            transitionDuration: const Duration(milliseconds: 400),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+              final curved = CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+              );
+              return FadeTransition(
+                opacity: curved,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.05),
+                    end: Offset.zero,
+                  ).animate(curved),
+                  child: child,
+                ),
+              );
+            },
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.vidsrcPlayer,
+        name: 'vidsrcPlayer',
+        builder: (context, state) {
+          final url = state.uri.queryParameters['url'] ?? '';
+          final title = state.uri.queryParameters['title'] ?? 'Player';
+          return VidsrcPlayerScreen(embedUrl: url, title: title);
+        },
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

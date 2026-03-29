@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { Anime, AnimeStatus } from '../../entities/anime.entity';
 import { Episode } from '../../entities/episode.entity';
@@ -11,6 +11,7 @@ import {
 
 @Injectable()
 export class AnimeUnitySource implements AnimeSource {
+  private readonly logger = new Logger(AnimeUnitySource.name);
   readonly id = 'animeunity';
   readonly name = 'AnimeUnity';
   readonly description = 'Streaming from AnimeUnity via local Consumet API';
@@ -43,7 +44,7 @@ export class AnimeUnitySource implements AnimeSource {
       }
       const url = `${this.consumetUrl}/anime/${this.consumetProvider}/${encodeURIComponent(searchQuery)}`;
 
-      console.log(`[AnimeUnity] Requesting URL: ${url}`);
+      this.logger.log(`[AnimeUnity] Requesting URL: ${url}`);
 
       const response = await axios.get(url, { timeout: 10000 });
 
@@ -71,7 +72,7 @@ export class AnimeUnitySource implements AnimeSource {
         totalPages: response.data.hasNextPage ? 10 : 1,
       };
     } catch (error) {
-      console.error('[AnimeUnity] Search failed:', error.message);
+      this.logger.error('[AnimeUnity] Search failed:', error.message);
       return { data: [], total: 0, page: 1, limit: 20, totalPages: 0 };
     }
   }
@@ -81,14 +82,14 @@ export class AnimeUnitySource implements AnimeSource {
       // AnimeUnity uses ?id= query param instead of route param
       const url = `${this.consumetUrl}/anime/${this.consumetProvider}/info?id=${encodeURIComponent(id)}`;
 
-      console.log(`[AnimeUnity] Fetching info: ${url}`);
+      this.logger.log(`[AnimeUnity] Fetching info: ${url}`);
       const response = await axios.get(url, { timeout: 10000 });
 
       const data = response.data;
 
       // Validate that we got actual anime data (not just an error message)
       if (!data || !data.id || !data.title) {
-        console.log(`[AnimeUnity] No valid data for ID ${id}, returning null`);
+        this.logger.log(`[AnimeUnity] No valid data for ID ${id}, returning null`);
         return null;
       }
 
@@ -107,7 +108,7 @@ export class AnimeUnitySource implements AnimeSource {
         totalEpisodes: data.totalEpisodes || data.episodes?.length || 0,
       } as any as Anime;
     } catch (error) {
-      console.error('[AnimeUnity] getAnimeById failed:', error.message);
+      this.logger.error('[AnimeUnity] getAnimeById failed:', error.message);
       return null;
     }
   }
@@ -135,7 +136,7 @@ export class AnimeUnitySource implements AnimeSource {
           }) as unknown as Episode,
       );
     } catch (error) {
-      console.error('[AnimeUnity] getEpisodes failed:', error.message);
+      this.logger.error('[AnimeUnity] getEpisodes failed:', error.message);
       return [];
     }
   }
@@ -173,10 +174,10 @@ export class AnimeUnitySource implements AnimeSource {
         return validSource.url;
       }
 
-      console.log('[AnimeUnity] No valid video sources found');
+      this.logger.log('[AnimeUnity] No valid video sources found');
       return '';
     } catch (error) {
-      console.error('[AnimeUnity] getStreamUrl failed:', error.message);
+      this.logger.error('[AnimeUnity] getStreamUrl failed:', error.message);
       return '';
     }
   }

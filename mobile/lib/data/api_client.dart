@@ -1,8 +1,8 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../core/constants.dart';
-import 'package:http/http.dart' as http;
 
 final apiClientProvider = Provider<ApiClient>((ref) {
   return ApiClient();
@@ -11,10 +11,8 @@ final apiClientProvider = Provider<ApiClient>((ref) {
 class ApiClient {
   late final Dio _dio;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
-  late final http.Client httpClient;
 
-  ApiClient({http.Client? httpClient})
-      : httpClient = httpClient ?? http.Client() {
+  ApiClient() {
     _dio = Dio(
       BaseOptions(
         baseUrl: AppConstants.apiBaseUrl,
@@ -30,21 +28,20 @@ class ApiClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          // Add auth token if available
           final token = await _storage.read(key: AppConstants.accessTokenKey);
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
-            print('ApiClient: Added Bearer token to ${options.path}');
-          } else {
-            print('ApiClient: NO TOKEN FOUND for ${options.path}');
           }
-          print('ApiClient Headers: ${options.headers}');
+          if (kDebugMode) {
+            debugPrint('ApiClient: ${options.method} ${options.path}');
+          }
           return handler.next(options);
         },
         onError: (error, handler) {
-          print(
-              'ApiClient Error [${error.response?.statusCode}] at ${error.requestOptions.path}: ${error.message}');
-          // Handle 401 errors (token expired)
+          if (kDebugMode) {
+            debugPrint(
+                'ApiClient Error [${error.response?.statusCode}] at ${error.requestOptions.path}');
+          }
           if (error.response?.statusCode == 401) {
             // Could trigger logout here
           }

@@ -29,7 +29,13 @@ dependencies:
 
   # Video Player
   video_player: ^2.8.6
-  chewie: ^1.8.1
+
+  # WebView (for vidsrc.to embeds)
+  webview_flutter: ^4.7.0
+
+  # Player gesture controls
+  screen_brightness: ^1.0.1
+  volume_controller: ^2.0.7
 
   # Firebase
   firebase_core: ^2.32.0

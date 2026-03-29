@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like } from 'typeorm';
 import { News } from '../entities/news.entity';
 
 @Injectable()
 export class NewsService {
+  private readonly logger = new Logger(NewsService.name);
+
   constructor(
     @InjectRepository(News)
     private newsRepository: Repository<News>,
@@ -20,7 +22,7 @@ export class NewsService {
           allNews.push(...customNews);
           break;
         default:
-          console.warn(`Unknown news source: ${source}`);
+          this.logger.warn(`Unknown news source: ${source}`);
       }
     }
 
@@ -34,7 +36,7 @@ export class NewsService {
   private async fetchMyAnimeListNews(): Promise<News[]> {
     // This would typically connect to MyAnimeList's API
     // For now, we'll simulate with mock data
-    console.log('Fetching news from MyAnimeList...');
+    this.logger.log('Fetching news from MyAnimeList...');
 
     // In a real implementation, we would use the Jikan API to fetch news
     // For demonstration purposes, returning empty array
@@ -43,7 +45,7 @@ export class NewsService {
 
   private async fetchAniListNews(): Promise<News[]> {
     // This would connect to AniList's API
-    console.log('Fetching news from AniList...');
+    this.logger.log('Fetching news from AniList...');
 
     // In a real implementation, we would use AniList's GraphQL API
     // For demonstration purposes, returning empty array

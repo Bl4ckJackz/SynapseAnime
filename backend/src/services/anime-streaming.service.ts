@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan } from 'typeorm';
 import { Anime } from '../entities/anime.entity';
@@ -7,6 +7,8 @@ import { StreamingSource } from '../types/streaming.types';
 
 @Injectable()
 export class AnimeStreamingService {
+  private readonly logger = new Logger(AnimeStreamingService.name);
+
   constructor(
     @InjectRepository(Anime)
     private animeRepository: Repository<Anime>,
@@ -45,7 +47,7 @@ export class AnimeStreamingService {
       // For now, return an empty array indicating no sources found
       return [];
     } catch (error) {
-      console.error(
+      this.logger.error(
         `Error getting streaming sources for anime ${animeId}, episode ${episodeNumber}:`,
         error,
       );
@@ -56,7 +58,7 @@ export class AnimeStreamingService {
   async uploadInternalSource(file: Buffer, metadata: any): Promise<string> {
     // In a real implementation, this would upload to a cloud storage service
     // For now, we'll simulate the process and return a mock URL
-    console.log(
+    this.logger.log(
       `Uploading file for anime: ${metadata.animeId}, episode: ${metadata.episodeNumber}`,
     );
 
@@ -76,7 +78,7 @@ export class AnimeStreamingService {
         (url.endsWith('.mp4') || url.endsWith('.m3u8'))
       );
     } catch (error) {
-      console.error(`Error validating direct link ${url}:`, error);
+      this.logger.error(`Error validating direct link ${url}:`, error);
       return false;
     }
   }

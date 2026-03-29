@@ -52,8 +52,8 @@ export class AiService {
       watchedAnimeIds,
     };
 
-    // Get all available anime
-    const availableAnime = await this.animeRepository.find();
+    // Get available anime (limited to prevent memory issues)
+    const availableAnime = await this.animeRepository.find({ take: 200 });
 
     // Get recommendations from LLM adapter
     const response = await this.llmAdapter.recommend(

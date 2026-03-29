@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Logger,
   Param,
   Query,
   UseInterceptors,
@@ -14,6 +15,8 @@ import axios from 'axios';
 @Controller('mangadex')
 @UseInterceptors(ErrorHandlingInterceptor)
 export class MangaDexController {
+  private readonly logger = new Logger(MangaDexController.name);
+
   constructor(private readonly mangaDexService: MangaDexService) {}
 
   /**
@@ -54,7 +57,7 @@ export class MangaDexController {
     try {
       // Decode URL if it's URL-encoded
       const decodedUrl = decodeURIComponent(url);
-      console.log('Image proxy fetching:', decodedUrl);
+      this.logger.log('Image proxy fetching:', decodedUrl);
 
       const response = await axios.get(decodedUrl, {
         responseType: 'arraybuffer',
@@ -84,8 +87,8 @@ export class MangaDexController {
       return res.send(Buffer.from(response.data));
     } catch (error: unknown) {
       const errMsg = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Image proxy error:', errMsg);
-      console.error('Failed URL:', url);
+      this.logger.error('Image proxy error:', errMsg);
+      this.logger.error('Failed URL:', url);
       return res.status(500).json({
         error: 'Failed to fetch image',
         message: errMsg,

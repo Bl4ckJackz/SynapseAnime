@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,6 +16,7 @@ class AnimeCard extends ConsumerStatefulWidget {
   final double height;
   final bool showTitle;
   final EdgeInsetsGeometry? margin;
+  final String? heroTagSuffix;
 
   const AnimeCard({
     super.key,
@@ -23,6 +25,7 @@ class AnimeCard extends ConsumerStatefulWidget {
     this.height = 320,
     this.showTitle = true,
     this.margin,
+    this.heroTagSuffix,
   });
 
   @override
@@ -36,6 +39,7 @@ class _AnimeCardState extends ConsumerState<AnimeCard>
   late Animation<double> _animation;
   bool _isFront = true;
   bool _isHovering = false;
+  bool _isPressed = false;
 
   @override
   void initState() {
@@ -124,12 +128,18 @@ class _AnimeCardState extends ConsumerState<AnimeCard>
       onEnter: (_) => _onHover(true),
       onExit: (_) => _onHover(false),
       child: GestureDetector(
+        onTapDown: (_) => setState(() => _isPressed = true),
+        onTapUp: (_) => setState(() => _isPressed = false),
+        onTapCancel: () => setState(() => _isPressed = false),
         onTap: () {
           context.pushNamed('animeDetail',
               pathParameters: {'id': widget.anime.id});
         },
         onLongPress: _toggleFlip,
-        child: Container(
+        child: AnimatedScale(
+          scale: _isPressed ? 0.96 : 1.0,
+          duration: const Duration(milliseconds: 100),
+          child: Container(
           width: widget.width == double.infinity ? null : widget.width,
           margin: widget.margin ?? const EdgeInsets.only(right: 16),
           child: Column(
@@ -172,6 +182,7 @@ class _AnimeCardState extends ConsumerState<AnimeCard>
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -199,110 +210,135 @@ class _AnimeCardState extends ConsumerState<AnimeCard>
     final width = widget.width;
     final height = widget.height;
 
+    final heroTag = widget.heroTagSuffix != null
+        ? 'anime-cover-${widget.anime.id}-${widget.heroTagSuffix}'
+        : null;
+
+    final imageWidget = CachedNetworkImage(
+      imageUrl: proxiedUrl,
+      width: width,
+      height: height,
+      fit: BoxFit.cover,
+      memCacheWidth: 440,
+      fadeInDuration: const Duration(milliseconds: 200),
+      placeholder: (context, url) => Container(
+        color: AppTheme.surfaceColor,
+        child: const Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppTheme.primaryColor,
+            ),
+          ),
+        ),
+      ),
+      errorWidget: (context, url, error) => Container(
+        width: width,
+        height: height,
+        color: AppTheme.surfaceColor,
+        child: const Icon(
+          Icons.broken_image_outlined,
+          color: AppTheme.textMuted,
+        ),
+      ),
+    );
+
     return Container(
       height: height,
-      width: width, // Use computed width/height or null (fill)
+      width: width,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
         color: AppTheme.surfaceColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: AppTheme.elevatedShadow,
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(14),
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Image
-            CachedNetworkImage(
-              imageUrl: proxiedUrl,
-              width: width,
-              height: height,
-              fit: BoxFit.cover,
-              placeholder: (context, url) => Container(
-                color: AppTheme.surfaceColor,
-                child: const Center(
-                  child: SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppTheme.primaryColor,
+            // Image with optional Hero
+            if (heroTag != null)
+              Hero(tag: heroTag, child: imageWidget)
+            else
+              imageWidget,
+
+            // Rating badge - glassmorphism
+            Positioned(
+              top: 8,
+              left: 8,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.4),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.1),
+                        width: 0.5,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.star_rounded,
+                          color: Colors.amber,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          widget.anime.rating.toStringAsFixed(1),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
-              errorWidget: (context, url, error) => Container(
-                width: width,
-                height: height,
-                color: AppTheme.surfaceColor,
-                child: const Icon(
-                  Icons.broken_image_outlined,
-                  color: AppTheme.textMuted,
-                ),
-              ),
             ),
 
-            // Rating badge - top left
-            Positioned(
-              top: 8,
-              left: 8,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.75),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.star_rounded,
-                      color: Colors.amber,
-                      size: 14,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      widget.anime.rating.toStringAsFixed(1),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Status badge - top right
+            // Status badge - glassmorphism
             if (widget.anime.status == AnimeStatus.ongoing)
               Positioned(
                 top: 8,
                 right: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    'IN CORSO',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.15),
+                          width: 0.5,
+                        ),
+                      ),
+                      child: const Text(
+                        'IN CORSO',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -312,23 +348,33 @@ class _AnimeCardState extends ConsumerState<AnimeCard>
               Positioned(
                 top: 8,
                 right: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.blue,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    widget.anime.airedFrom != null
-                        ? '${widget.anime.airedFrom!.day}/${widget.anime.airedFrom!.month}'
-                        : 'PRESTO',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.15),
+                          width: 0.5,
+                        ),
+                      ),
+                      child: Text(
+                        widget.anime.airedFrom != null
+                            ? '${widget.anime.airedFrom!.day}/${widget.anime.airedFrom!.month}'
+                            : 'PRESTO',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -354,15 +400,9 @@ class _AnimeCardState extends ConsumerState<AnimeCard>
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        color: const Color(0xFF1A1A1A),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.5),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        color: AppTheme.surfaceColor.withOpacity(0.85),
+        border: Border.all(color: Colors.white.withOpacity(0.12)),
+        boxShadow: AppTheme.elevatedShadow,
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {

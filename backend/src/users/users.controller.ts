@@ -15,6 +15,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { User } from '../entities/user.entity';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 import { UpdateProgressDto } from './dto/update-progress.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
@@ -30,9 +31,9 @@ export class UsersController {
   @Put('profile')
   async updateProfile(
     @CurrentUser() user: User,
-    @Body() body: { nickname?: string },
+    @Body() dto: UpdateProfileDto,
   ) {
-    return this.usersService.updateProfile(user.id, body);
+    return this.usersService.updateProfile(user.id, dto);
   }
 
   // --- Preferences ---
@@ -41,10 +42,7 @@ export class UsersController {
     @CurrentUser() user: User,
     @Body() dto: UpdatePreferencesDto,
   ) {
-    console.log(`[UsersController] Updating preferences for user ${user.id}`, dto);
-    const result = await this.usersService.updatePreferences(user.id, dto);
-    console.log(`[UsersController] Update result:`, result);
-    return result;
+    return this.usersService.updatePreferences(user.id, dto);
   }
 
   // --- Watchlist ---

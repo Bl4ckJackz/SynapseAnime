@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { Anime, AnimeStatus } from '../../entities/anime.entity';
 import { Episode } from '../../entities/episode.entity';
@@ -10,6 +10,7 @@ import {
 
 @Injectable()
 export class HiAnimeSource implements AnimeSource {
+  private readonly logger = new Logger(HiAnimeSource.name);
   readonly id = 'hianime';
   readonly name = 'HiAnime (aniwatch-api)';
   readonly description =
@@ -75,7 +76,7 @@ export class HiAnimeSource implements AnimeSource {
         totalPages: data.data.totalPages || 1,
       };
     } catch (error) {
-      console.error('[HiAnime] Search failed:', error.message);
+      this.logger.error('[HiAnime] Search failed:', error.message);
       return { data: [], total: 0, page: 1, limit: 20, totalPages: 0 };
     }
   }
@@ -114,7 +115,7 @@ export class HiAnimeSource implements AnimeSource {
           info.stats?.episodes?.sub || info.stats?.episodes?.dub || 0,
       } as any as Anime;
     } catch (error) {
-      console.error('[HiAnime] Get anime failed:', error.message);
+      this.logger.error('[HiAnime] Get anime failed:', error.message);
       return null;
     }
   }
@@ -145,7 +146,7 @@ export class HiAnimeSource implements AnimeSource {
           }) as unknown as Episode,
       );
     } catch (error) {
-      console.error('[HiAnime] Get episodes failed:', error.message);
+      this.logger.error('[HiAnime] Get episodes failed:', error.message);
       return [];
     }
   }
@@ -158,7 +159,7 @@ export class HiAnimeSource implements AnimeSource {
       for (const server of servers) {
         try {
           const url = `${this.baseUrl}/episode/sources?animeEpisodeId=${encodeURIComponent(episodeId)}&server=${server}&category=sub`;
-          console.log(`[HiAnime] Requesting: ${url}`);
+          this.logger.log(`[HiAnime] Requesting: ${url}`);
           const response = await this.httpService.axiosRef.get(url, {
             timeout: 20000,
           });
@@ -167,15 +168,15 @@ export class HiAnimeSource implements AnimeSource {
           if (data.success && data.data?.sources?.length > 0) {
             // Return the first valid source URL
             const source = data.data.sources[0];
-            console.log('[HiAnime] Found stream URL:', source.url);
+            this.logger.log('[HiAnime] Found stream URL:', source.url);
             return source.url;
           } else {
-            console.log(
+            this.logger.log(
               `[HiAnime] Server ${server} returned no sources. Success: ${data.success}`,
             );
           }
         } catch (serverError) {
-          console.log(`[HiAnime] Server ${server} failed, trying next...`);
+          this.logger.log(`[HiAnime] Server ${server} failed, trying next...`);
         }
       }
 
@@ -196,10 +197,10 @@ export class HiAnimeSource implements AnimeSource {
         }
       }
 
-      console.log('[HiAnime] No stream sources found');
+      this.logger.log('[HiAnime] No stream sources found');
       return '';
     } catch (error) {
-      console.error('[HiAnime] Get stream URL failed:', error.message);
+      this.logger.error('[HiAnime] Get stream URL failed:', error.message);
       return '';
     }
   }

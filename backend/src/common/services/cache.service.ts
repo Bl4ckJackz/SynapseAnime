@@ -11,6 +11,7 @@ interface CacheEntry<T> {
 export class CacheService {
   private readonly logger = new Logger(CacheService.name);
   private readonly cache = new Map<string, CacheEntry<unknown>>();
+  private readonly maxCacheSize = 5000;
 
   // Default TTLs in seconds
   private readonly defaultTTLs: Record<string, number> = {
@@ -55,6 +56,18 @@ export class CacheService {
       ? this.defaultTTLs[apiName] || this.defaultTTLs.default
       : this.defaultTTLs.default;
     const expiry = Date.now() + ttl * 1000;
+
+    // Evict oldest entries if cache exceeds max size
+    if (this.cache.size >= this.maxCacheSize) {
+      const keysToDelete = Array.from(this.cache.keys()).slice(
+        0,
+        Math.floor(this.maxCacheSize * 0.1),
+      );
+      for (const k of keysToDelete) {
+        this.cache.delete(k);
+      }
+      this.logger.debug(`Evicted ${keysToDelete.length} entries (cache full)`);
+    }
 
     this.cache.set(key, { data, expiry, etag });
     this.logger.debug(`Cached key: ${key} with TTL: ${ttl}s`);

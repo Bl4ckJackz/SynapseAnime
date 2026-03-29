@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { BackupModule } from './backup/backup.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -21,6 +22,7 @@ import { CoreModule } from './core/core.module';
 import { LibraryModule } from './library/library.module';
 import { DownloadModule } from './download/download.module';
 import { CommentsModule } from './comments/comments.module';
+import { MoviesTvModule } from './movies-tv/movies-tv.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 
@@ -32,7 +34,9 @@ import { join } from 'path';
       envFilePath: '.env',
     }),
 
-    // Database connection
+    // Rate limiting
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 60 }]),
+
     // Database connection
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -56,7 +60,7 @@ import { join } from 'path';
             : undefined,
           entities: [__dirname + '/**/*.entity{.ts,.js}'],
           // autoLoadEntities: true,
-          synchronize: true, // Disable in production
+          synchronize: process.env.NODE_ENV !== 'production',
           logging: process.env.NODE_ENV !== 'production',
         };
       },
@@ -83,6 +87,7 @@ import { join } from 'path';
     LibraryModule,
     DownloadModule,
     CommentsModule,
+    MoviesTvModule,
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'video_library'),
       serveRoot: '/downloads',

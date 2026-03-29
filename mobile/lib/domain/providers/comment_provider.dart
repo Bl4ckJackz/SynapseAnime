@@ -131,14 +131,13 @@ class CommentsNotifier extends StateNotifier<CommentsState> {
           data.map((c) => Comment.fromJson(c as Map<String, dynamic>)).toList();
       state = state.copyWith(comments: comments, isLoading: false);
     } catch (e) {
-      // Check for Dio 404 error explicitly
       if (e is DioException && e.response?.statusCode == 404) {
         state = state.copyWith(comments: [], isLoading: false, error: null);
-      } else if (e.toString().contains('404')) {
-        // Fallback for other error types
-        state = state.copyWith(comments: [], isLoading: false, error: null);
       } else {
-        state = state.copyWith(isLoading: false, error: e.toString());
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Failed to load comments',
+        );
       }
     }
   }

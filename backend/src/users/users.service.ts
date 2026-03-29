@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
@@ -15,6 +15,8 @@ import { MangaService } from '../services/manga.service';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
@@ -24,7 +26,6 @@ export class UsersService {
     private watchlistRepository: Repository<Watchlist>,
     @InjectRepository(WatchHistory)
     private watchHistoryRepository: Repository<WatchHistory>,
-    @InjectRepository(Episode)
     @InjectRepository(Episode)
     private episodeRepository: Repository<Episode>,
     private historyGateway: HistoryGateway,
@@ -160,7 +161,7 @@ export class UsersService {
     });
     if (!user) throw new NotFoundException('User not found');
 
-    console.log(`[UsersService] getProfile found user ${userId}. Preferences:`, user.preference);
+    this.logger.debug(`getProfile found user ${userId}`);
 
     return {
       id: user.id,
@@ -177,17 +178,12 @@ export class UsersService {
 
   // --- Preferences ---
   async updatePreferences(userId: string, dto: UpdatePreferencesDto) {
-    console.log('[UsersService] Updating preferences for user', userId, 'DTO:', dto);
-
     let preference = await this.preferenceRepository.findOne({
       where: { userId },
     });
 
     if (!preference) {
-      console.log(`[UsersService] No existing preference found, creating new one.`);
       preference = this.preferenceRepository.create({ userId });
-    } else {
-      console.log(`[UsersService] Found existing preference: `, preference);
     }
 
     if (dto.preferredLanguages) {
@@ -197,9 +193,7 @@ export class UsersService {
       preference.preferredGenres = dto.preferredGenres;
     }
 
-    const saved = await this.preferenceRepository.save(preference);
-    console.log(`[UsersService] Saved preference: `, saved);
-    return saved;
+    return this.preferenceRepository.save(preference);
   }
 
   // --- Watchlist ---

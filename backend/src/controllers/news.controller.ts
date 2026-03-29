@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { NewsService } from '../services/news.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CreateNewsDto } from './dto/news.dto';
 
 @Controller('news')
 export class NewsController {
@@ -26,7 +27,7 @@ export class NewsController {
     const sourcesArray = sources
       ? sources.split(',')
       : ['myanimelist', 'custom'];
-    const limitNum = limit ? parseInt(limit, 10) : 10;
+    const limitNum = Math.min(limit ? parseInt(limit, 10) : 10, 100);
 
     if (search) {
       return await this.newsService.getNewsBySearch(search, limitNum);
@@ -41,45 +42,23 @@ export class NewsController {
 
   @Get('recent')
   async getRecentNews(@Query('limit') limit?: string) {
-    const limitNum = limit ? parseInt(limit, 10) : 10;
+    const limitNum = Math.min(limit ? parseInt(limit, 10) : 10, 100);
     return await this.newsService.getRecentNews(limitNum);
   }
 
   @Get('trending')
   async getTrendingNews(@Query('limit') limit?: string) {
-    const limitNum = limit ? parseInt(limit, 10) : 5;
+    const limitNum = Math.min(limit ? parseInt(limit, 10) : 5, 50);
     return await this.newsService.getTrendingNews(limitNum);
   }
 
-  @Get(':id')
-  async getNewsById(@Param('id') id: string) {
-    return await this.newsService.getNewsById(id);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Post()
-  async createNews(@Body() newsData: any) {
-    return await this.newsService.createNews(newsData);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Put(':id')
-  async updateNews(@Param('id') id: string, @Body() newsData: any) {
-    return await this.newsService.updateNews(id, newsData);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Delete(':id')
-  async deleteNews(@Param('id') id: string) {
-    return await this.newsService.deleteNews(id);
-  }
-
+  // Specific routes BEFORE :id to avoid conflicts
   @Get('category/:category')
   async getNewsByCategory(
     @Param('category') category: string,
     @Query('limit') limit?: string,
   ) {
-    const limitNum = limit ? parseInt(limit, 10) : 10;
+    const limitNum = Math.min(limit ? parseInt(limit, 10) : 10, 100);
     return await this.newsService.getNewsByCategory(category, limitNum);
   }
 
@@ -88,7 +67,7 @@ export class NewsController {
     @Param('query') query: string,
     @Query('limit') limit?: string,
   ) {
-    const limitNum = limit ? parseInt(limit, 10) : 10;
+    const limitNum = Math.min(limit ? parseInt(limit, 10) : 10, 100);
     return await this.newsService.getNewsBySearch(query, limitNum);
   }
 
@@ -98,7 +77,31 @@ export class NewsController {
     @Query('limit') limit?: string,
   ) {
     const tagsArray = tags.split(',');
-    const limitNum = limit ? parseInt(limit, 10) : 10;
+    const limitNum = Math.min(limit ? parseInt(limit, 10) : 10, 100);
     return await this.newsService.getNewsByTags(tagsArray, limitNum);
+  }
+
+  // Generic :id route AFTER specific routes
+  @Get(':id')
+  async getNewsById(@Param('id') id: string) {
+    return await this.newsService.getNewsById(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post()
+  async createNews(@Body() newsData: CreateNewsDto) {
+    return await this.newsService.createNews(newsData);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put(':id')
+  async updateNews(@Param('id') id: string, @Body() newsData: CreateNewsDto) {
+    return await this.newsService.updateNews(id, newsData);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id')
+  async deleteNews(@Param('id') id: string) {
+    return await this.newsService.deleteNews(id);
   }
 }

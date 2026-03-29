@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Logger,
   Param,
   Query,
   Req,
@@ -11,6 +12,8 @@ import { HiAnimeSource } from './sources/hianime.source';
 
 @Controller('anime/hianime')
 export class HiAnimeController {
+  private readonly logger = new Logger(HiAnimeController.name);
+
   constructor(private readonly hiAnimeSource: HiAnimeSource) {}
 
   @Get('search')
@@ -23,7 +26,7 @@ export class HiAnimeController {
       });
       return result.data;
     } catch (error) {
-      console.error('Error searching anime on HiAnime:', error);
+      this.logger.error('Error searching anime on HiAnime:', error);
       return [];
     }
   }
@@ -38,7 +41,7 @@ export class HiAnimeController {
       });
       return result.data;
     } catch (error) {
-      console.error('Error fetching trending anime from HiAnime:', error);
+      this.logger.error('Error fetching trending anime from HiAnime:', error);
       return [];
     }
   }
@@ -53,7 +56,7 @@ export class HiAnimeController {
       });
       return result.data;
     } catch (error) {
-      console.error('Error fetching popular anime from HiAnime:', error);
+      this.logger.error('Error fetching popular anime from HiAnime:', error);
       return [];
     }
   }
@@ -67,7 +70,7 @@ export class HiAnimeController {
       }
       return anime;
     } catch (error) {
-      console.error(
+      this.logger.error(
         `Error fetching details for anime ID ${id} from HiAnime:`,
         error,
       );
@@ -81,7 +84,7 @@ export class HiAnimeController {
       const episodes = await this.hiAnimeSource.getEpisodes(animeId);
       return episodes;
     } catch (error) {
-      console.error(
+      this.logger.error(
         `Error fetching episodes for anime ID ${animeId} from HiAnime:`,
         error,
       );
@@ -107,7 +110,7 @@ export class HiAnimeController {
       const streamUrl = await this.hiAnimeSource.getStreamUrl(episodeId);
 
       if (!streamUrl) {
-        console.log(`[HiAnime] No stream URL found for episode: ${episodeId}`);
+        this.logger.log(`[HiAnime] No stream URL found for episode: ${episodeId}`);
       }
 
       return {
@@ -121,7 +124,7 @@ export class HiAnimeController {
         download: null,
       };
     } catch (error) {
-      console.error(
+      this.logger.error(
         `Error fetching episode streaming links for ID ${episodeId} from HiAnime:`,
         error,
       );

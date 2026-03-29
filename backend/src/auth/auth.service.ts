@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -8,6 +8,7 @@ import { OAuth2Client } from 'google-auth-library';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   private googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
   constructor(
@@ -17,13 +18,10 @@ export class AuthService {
   ) {}
 
   async validateUser(email: string, pass: string): Promise<any> {
-    console.log('Attempting login for:', email);
     const user = await this.userRepository.findOne({ where: { email } });
-    console.log('User found:', user ? 'yes' : 'no');
 
     if (user && user.password) {
       const passwordMatch = await bcrypt.compare(pass, user.password);
-      console.log('Password match:', passwordMatch);
       if (passwordMatch) {
         const { password, ...result } = user;
         return result;
@@ -79,7 +77,7 @@ export class AuthService {
     try {
       const ticket = await this.googleClient.verifyIdToken({
         idToken: token,
-        audience: process.env.GOOGLE_CLIENT_ID, // Use environemnt variable
+        audience: process.env.GOOGLE_CLIENT_ID,
       });
 
       const payload = ticket.getPayload();
@@ -113,7 +111,7 @@ export class AuthService {
 
       return this.login(user);
     } catch (e) {
-      console.error('Google Auth Error:', e);
+      this.logger.error('Google Auth Error', e instanceof Error ? e.stack : e);
       throw new UnauthorizedException('Invalid Google Token');
     }
   }

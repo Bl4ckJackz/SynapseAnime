@@ -13,6 +13,7 @@ import type { Request } from 'express';
 import { AdService } from '../services/ad.service';
 import { AdInsertionService } from '../services/ad-insertion.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CreateAdDto, TrackImpressionDto } from './dto/ad.dto';
 
 @Controller('ads')
 export class AdController {
@@ -75,7 +76,7 @@ export class AdController {
   @Post('track-impression')
   async trackAdImpression(
     @Req() req: Request,
-    @Body() body: { adId: string; sessionId: string; durationWatched?: number },
+    @Body() body: TrackImpressionDto,
   ) {
     const userId = req.user?.['sub'];
 
@@ -109,28 +110,16 @@ export class AdController {
   // Admin endpoints for managing ads
   @UseGuards(JwtAuthGuard)
   @Post('create')
-  async createAd(
-    @Body()
-    adData: {
-      title: string;
-      content: string;
-      advertiser: string;
-      adType: string;
-      targetAudience: 'all' | 'free_users' | 'premium_users';
-      targetingCriteria?: any;
-      startDate?: Date;
-      endDate?: Date;
-    },
-  ) {
+  async createAd(@Body() adData: CreateAdDto) {
     const ad = await this.adService.createAd(
       adData.title,
       adData.content,
       adData.advertiser,
       adData.adType,
       adData.targetAudience,
-      adData.targetingCriteria,
-      adData.startDate,
-      adData.endDate,
+      undefined,
+      adData.startDate ? new Date(adData.startDate) : undefined,
+      adData.endDate ? new Date(adData.endDate) : undefined,
     );
 
     return ad;

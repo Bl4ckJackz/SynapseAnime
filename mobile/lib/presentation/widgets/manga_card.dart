@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +13,7 @@ class MangaCard extends StatefulWidget {
   final double height;
   final bool showTitle;
   final EdgeInsetsGeometry? margin;
+  final String? heroTagSuffix;
 
   const MangaCard({
     super.key,
@@ -20,6 +22,7 @@ class MangaCard extends StatefulWidget {
     this.height = 320,
     this.showTitle = true,
     this.margin,
+    this.heroTagSuffix,
   });
 
   @override
@@ -31,6 +34,7 @@ class _MangaCardState extends State<MangaCard>
   late AnimationController _controller;
   late Animation<double> _animation;
   bool _isFront = true;
+  bool _isPressed = false;
 
   @override
   void initState() {
@@ -64,14 +68,10 @@ class _MangaCardState extends State<MangaCard>
   void _onHover(bool isHovering) {
     if (isHovering && _isFront) {
       _controller.forward();
-      setState(() {
-        _isFront = false;
-      });
+      setState(() => _isFront = false);
     } else if (!isHovering && !_isFront) {
       _controller.reverse();
-      setState(() {
-        _isFront = true;
-      });
+      setState(() => _isFront = true);
     }
   }
 
@@ -90,8 +90,7 @@ class _MangaCardState extends State<MangaCard>
   Color _getGenreColor(String genre) {
     final g = genre.toLowerCase();
     if (g.contains('action') || g.contains('azione')) return Colors.red;
-    if (g.contains('adventure') || g.contains('avventura'))
-      return Colors.orange;
+    if (g.contains('adventure') || g.contains('avventura')) return Colors.orange;
     if (g.contains('comedy') || g.contains('commedia')) return Colors.amber;
     if (g.contains('drama')) return Colors.purple;
     if (g.contains('fantasy')) return Colors.indigo;
@@ -111,42 +110,47 @@ class _MangaCardState extends State<MangaCard>
       onEnter: (_) => _onHover(true),
       onExit: (_) => _onHover(false),
       child: GestureDetector(
-        onTap: () {
-          context.push('/manga/${widget.manga.id}');
-        },
+        onTapDown: (_) => setState(() => _isPressed = true),
+        onTapUp: (_) => setState(() => _isPressed = false),
+        onTapCancel: () => setState(() => _isPressed = false),
+        onTap: () => context.push('/manga/${widget.manga.id}'),
         onLongPress: _toggleFlip,
-        child: Container(
-          width: widget.width == double.infinity ? null : widget.width,
-          margin: widget.margin ?? const EdgeInsets.only(right: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (isFlexible)
-                Expanded(
-                  child: AnimatedBuilder(
+        child: AnimatedScale(
+          scale: _isPressed ? 0.96 : 1.0,
+          duration: const Duration(milliseconds: 100),
+          child: Container(
+            width: widget.width == double.infinity ? null : widget.width,
+            margin: widget.margin ?? const EdgeInsets.only(right: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (isFlexible)
+                  Expanded(
+                    child: AnimatedBuilder(
+                      animation: _animation,
+                      builder: (context, child) => _buildAnimatedContent(),
+                    ),
+                  )
+                else
+                  AnimatedBuilder(
                     animation: _animation,
                     builder: (context, child) => _buildAnimatedContent(),
                   ),
-                )
-              else
-                AnimatedBuilder(
-                  animation: _animation,
-                  builder: (context, child) => _buildAnimatedContent(),
-                ),
-              if (widget.showTitle) ...[
-                const SizedBox(height: 10),
-                Text(
-                  widget.manga.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    height: 1.3,
+                if (widget.showTitle) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    widget.manga.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
+                    ),
                   ),
-                ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -177,124 +181,141 @@ class _MangaCardState extends State<MangaCard>
     final width = widget.width == double.infinity ? null : widget.width;
     final height = widget.height == double.infinity ? null : widget.height;
 
+    final heroTag = widget.heroTagSuffix != null
+        ? 'manga-cover-${widget.manga.id}-${widget.heroTagSuffix}'
+        : null;
+
+    final imageWidget = CachedNetworkImage(
+      imageUrl: proxiedUrl,
+      width: width,
+      height: height,
+      fit: BoxFit.cover,
+      memCacheWidth: 440,
+      fadeInDuration: const Duration(milliseconds: 200),
+      placeholder: (context, url) => Container(
+        color: AppTheme.surfaceColor,
+        child: const Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppTheme.primaryColor,
+            ),
+          ),
+        ),
+      ),
+      errorWidget: (context, url, error) => Container(
+        width: width,
+        height: height,
+        color: AppTheme.surfaceColor,
+        child: const Icon(Icons.broken_image_outlined, color: AppTheme.textMuted),
+      ),
+    );
+
     return Container(
       height: height,
       width: width,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
         color: AppTheme.surfaceColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: AppTheme.elevatedShadow,
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(14),
         child: Stack(
           fit: StackFit.expand,
           children: [
-            CachedNetworkImage(
-              imageUrl: proxiedUrl,
-              width: width,
-              height: height,
-              fit: BoxFit.cover,
-              placeholder: (context, url) => Container(
-                color: AppTheme.surfaceColor,
-                child: const Center(
-                  child: SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppTheme.primaryColor,
-                    ),
-                  ),
-                ),
-              ),
-              errorWidget: (context, url, error) => Container(
-                width: width,
-                height: height,
-                color: AppTheme.surfaceColor,
-                child: const Icon(
-                  Icons.broken_image_outlined,
-                  color: AppTheme.textMuted,
-                ),
-              ),
-            ),
+            if (heroTag != null)
+              Hero(tag: heroTag, child: imageWidget)
+            else
+              imageWidget,
+
+            // Rating badge - glassmorphism
             if (widget.manga.score != null)
               Positioned(
                 top: 8,
                 left: 8,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.75),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.star_rounded,
-                          color: Colors.amber, size: 14),
-                      const SizedBox(width: 4),
-                      Text(
-                        widget.manga.score!.toStringAsFixed(1),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.4),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.white.withOpacity(0.1), width: 0.5),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-            if (widget.manga.status == MangaStatus.ongoing)
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    'IN CORSO',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.star_rounded, color: Colors.amber, size: 14),
+                          const SizedBox(width: 4),
+                          Text(
+                            widget.manga.score!.toStringAsFixed(1),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
+
+            // Status badge - glassmorphism
+            if (widget.manga.status == MangaStatus.ongoing)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.white.withOpacity(0.15), width: 0.5),
+                      ),
+                      child: const Text(
+                        'IN CORSO',
+                        style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            // Type badge (manhwa/manhua)
             if (widget.manga.type != null &&
                 (widget.manga.type!.toLowerCase() == 'manhwa' ||
                     widget.manga.type!.toLowerCase() == 'manhua'))
               Positioned(
                 bottom: 8,
                 left: 8,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: widget.manga.type!.toLowerCase() == 'manhwa'
-                        ? Colors.blue
-                        : Colors.orange,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    widget.manga.type!.toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: (widget.manga.type!.toLowerCase() == 'manhwa'
+                                ? Colors.blue
+                                : Colors.orange)
+                            .withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        widget.manga.type!.toUpperCase(),
+                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w600),
+                      ),
                     ),
                   ),
                 ),
@@ -315,15 +336,9 @@ class _MangaCardState extends State<MangaCard>
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        color: const Color(0xFF1A1A1A),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.5),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        color: AppTheme.surfaceColor.withOpacity(0.85),
+        border: Border.all(color: Colors.white.withOpacity(0.12)),
+        boxShadow: AppTheme.elevatedShadow,
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -352,51 +367,42 @@ class _MangaCardState extends State<MangaCard>
                         if (widget.manga.year != null)
                           Text(
                             '${widget.manga.year}',
-                            style: const TextStyle(
-                                fontSize: 11, color: Colors.greenAccent),
+                            style: const TextStyle(fontSize: 11, color: Colors.greenAccent),
                           ),
                         const SizedBox(width: 8),
-                        if (widget.manga.chapters != null &&
-                            widget.manga.chapters! > 0)
+                        if (widget.manga.chapters != null && widget.manga.chapters! > 0)
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 4, vertical: 1),
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                             decoration: BoxDecoration(
                               border: Border.all(color: Colors.white30),
                               borderRadius: BorderRadius.circular(3),
                             ),
                             child: Text(
                               '${widget.manga.chapters} cap',
-                              style: const TextStyle(
-                                  fontSize: 9, color: Colors.white70),
+                              style: const TextStyle(fontSize: 9, color: Colors.white70),
                             ),
                           ),
                         const SizedBox(width: 4),
-                        if (widget.manga.volumes != null &&
-                            widget.manga.volumes! > 0)
+                        if (widget.manga.volumes != null && widget.manga.volumes! > 0)
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 4, vertical: 1),
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                             decoration: BoxDecoration(
                               border: Border.all(color: Colors.white30),
                               borderRadius: BorderRadius.circular(3),
                             ),
                             child: Text(
                               '${widget.manga.volumes} vol',
-                              style: const TextStyle(
-                                  fontSize: 9, color: Colors.white70),
+                              style: const TextStyle(fontSize: 9, color: Colors.white70),
                             ),
                           ),
                       ],
                     ),
                     const SizedBox(height: 12),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Expanded(
                           child: GestureDetector(
-                            onTap: () =>
-                                context.push('/manga/${widget.manga.id}'),
+                            onTap: () => context.push('/manga/${widget.manga.id}'),
                             child: Container(
                               height: 36,
                               decoration: BoxDecoration(
@@ -406,16 +412,11 @@ class _MangaCardState extends State<MangaCard>
                               child: const Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.menu_book_rounded,
-                                      color: Colors.black, size: 20),
+                                  Icon(Icons.menu_book_rounded, color: Colors.black, size: 20),
                                   SizedBox(width: 4),
                                   Text(
                                     'Leggi',
-                                    style: TextStyle(
-                                      color: Colors.black,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                    ),
+                                    style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
                                   ),
                                 ],
                               ),
@@ -425,8 +426,7 @@ class _MangaCardState extends State<MangaCard>
                       ],
                     ),
                     const SizedBox(height: 12),
-                    if (widget.manga.synopsis != null &&
-                        widget.manga.synopsis!.isNotEmpty)
+                    if (widget.manga.synopsis != null && widget.manga.synopsis!.isNotEmpty)
                       Text(
                         widget.manga.synopsis!,
                         maxLines: 6,
@@ -466,8 +466,7 @@ class _MangaCardState extends State<MangaCard>
                         runSpacing: 4,
                         children: widget.manga.genres.take(3).map((genre) {
                           return Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: _getGenreColor(genre).withOpacity(0.2),
                               border: Border.all(
@@ -497,8 +496,7 @@ class _MangaCardState extends State<MangaCard>
     );
   }
 
-  Widget _buildDetailBadge(
-      {required IconData icon, required Color color, required String label}) {
+  Widget _buildDetailBadge({required IconData icon, required Color color, required String label}) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [

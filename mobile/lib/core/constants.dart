@@ -1,18 +1,53 @@
+/// Environment configuration.
+/// Set [environment] before running the app to switch between environments.
+/// For device testing, use Environment.staging with your LAN IP.
+enum Environment { dev, staging, production }
+
+class EnvironmentConfig {
+  static Environment environment = Environment.dev;
+
+  static String get apiBaseUrl {
+    switch (environment) {
+      case Environment.dev:
+        return 'http://localhost:3005';
+      case Environment.staging:
+        // Replace with your LAN IP for device testing
+        return const String.fromEnvironment(
+          'API_BASE_URL',
+          defaultValue: 'http://localhost:3005',
+        );
+      case Environment.production:
+        return const String.fromEnvironment(
+          'API_BASE_URL',
+          defaultValue: 'https://api.openanime.app',
+        );
+    }
+  }
+
+  static String get consumetBaseUrl {
+    switch (environment) {
+      case Environment.dev:
+        return 'http://localhost:3004';
+      case Environment.staging:
+        return const String.fromEnvironment(
+          'CONSUMET_BASE_URL',
+          defaultValue: 'http://localhost:3004',
+        );
+      case Environment.production:
+        return const String.fromEnvironment(
+          'CONSUMET_BASE_URL',
+          defaultValue: 'https://consumet.openanime.app',
+        );
+    }
+  }
+}
+
 class AppConstants {
   AppConstants._();
 
-  // API Configuration
-  // Use localhost for Flutter web development
-  // static const String apiBaseUrl = 'http://localhost:3010';
-  // static const String consumetBaseUrl = 'http://localhost:3004';
-
-  // For physical device testing, use your LAN IP:
-  // For physical device testing, use your LAN IP:
-  // static const String apiBaseUrl = 'http://192.168.191.73:3005';
-  // static const String consumetBaseUrl = 'http://192.168.191.73:3004';
-
-  static const String apiBaseUrl = 'http://localhost:3005';
-  static const String consumetBaseUrl = 'http://localhost:3004';
+  // API Configuration - uses EnvironmentConfig
+  static String get apiBaseUrl => EnvironmentConfig.apiBaseUrl;
+  static String get consumetBaseUrl => EnvironmentConfig.consumetBaseUrl;
 
   // Storage Keys
   static const String accessTokenKey = 'access_token';

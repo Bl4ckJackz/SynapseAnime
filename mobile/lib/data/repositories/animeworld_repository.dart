@@ -1,4 +1,4 @@
-import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants.dart';
 import '../api_client.dart';
@@ -16,53 +16,34 @@ class AnimeWorldRepository {
   /// Search for anime on AnimeWorld API
   Future<List<Anime>> searchAnime(String query) async {
     try {
-      String endpoint;
+      String path;
       if (query.toLowerCase().contains('trending')) {
-        endpoint = '${AppConstants.apiBaseUrl}/anime/animeunity/trending';
+        path = '/anime/animeunity/trending';
       } else if (query.toLowerCase().contains('popular')) {
-        endpoint = '${AppConstants.apiBaseUrl}/anime/animeunity/popular';
+        path = '/anime/animeunity/popular';
       } else {
-        endpoint =
-            '${AppConstants.apiBaseUrl}/anime/animeunity/${Uri.encodeComponent(query)}';
+        path = '/anime/animeunity/${Uri.encodeComponent(query)}';
       }
 
-      print('Making request to: $endpoint');
+      final response = await _apiClient.get<dynamic>(path);
+      final data = response.data;
 
-      final response = await _apiClient.httpClient.get(Uri.parse(endpoint));
-
-      print('Response status: ${response.statusCode}');
-      if (response.body.length < 500) {
-        // Only print short responses to avoid spam
-        print('Response body: ${response.body}');
-      } else {
-        print('Response body: [${response.body.length} chars]');
-      }
-
-      if (response.statusCode == 200) {
-        final jsonData =
-            response.body.isNotEmpty ? json.decode(response.body) : {};
-
-        if (jsonData is List) {
-          return jsonData
+      if (data is List) {
+        return data
+            .map((item) => _parseAnimeFromAnimeWorld(item))
+            .toList();
+      } else if (data is Map && data.containsKey('results')) {
+        final results = data['results'] as List<dynamic>?;
+        if (results != null) {
+          return results
               .map((item) => _parseAnimeFromAnimeWorld(item))
               .toList();
-        } else if (jsonData.containsKey('results')) {
-          final results = jsonData['results'] as List<dynamic>?;
-          if (results != null) {
-            return results
-                .map((item) => _parseAnimeFromAnimeWorld(item))
-                .toList();
-          }
         }
-
-        return [];
-      } else {
-        print('API request failed with status: ${response.statusCode}');
-        return []; // Return empty list instead of throwing
       }
+
+      return [];
     } catch (e) {
-      print('Error searching anime on AnimeWorld: $e');
-      // Return empty list instead of throwing to prevent app crashes
+      if (kDebugMode) debugPrint('Error searching anime on AnimeWorld: $e');
       return [];
     }
   }
@@ -70,68 +51,20 @@ class AnimeWorldRepository {
   /// Get anime details from AnimeWorld API
   Future<Anime> getAnimeDetails(String animeId) async {
     try {
-      final endpoint =
-          '${AppConstants.apiBaseUrl}/anime/animeunity/info?id=$animeId';
-
-      print('Making request to: $endpoint');
-
-      final response = await _apiClient.httpClient.get(Uri.parse(endpoint));
-
-      print('Response status: ${response.statusCode}');
-      if (response.body.length < 500) {
-        // Only print short responses to avoid spam
-        print('Response body: ${response.body}');
-      } else {
-        print('Response body: [${response.body.length} chars]');
-      }
-
-      if (response.statusCode == 200) {
-        final jsonData =
-            response.body.isNotEmpty ? json.decode(response.body) : {};
-        return _parseDetailedAnimeFromAnimeWorld(jsonData);
-      } else if (response.statusCode == 404) {
-        print('Anime details not found for ID: $animeId');
-        // Return a default anime object instead of throwing
-        return Anime(
-          id: animeId,
-          title: 'Anime Not Found',
-          description: 'Details not available',
-          coverUrl: null,
-          genres: [],
-          status: AnimeStatus.ongoing,
-          releaseYear: 0,
-          rating: 0.0,
-          totalEpisodes: 0,
-        );
-      } else {
-        print('API request failed with status: ${response.statusCode}');
-        // Return a default anime object instead of throwing
-        return Anime(
-          id: animeId,
-          title: 'Error Loading',
-          description: 'Could not load details',
-          coverUrl: null,
-          genres: [],
-          status: AnimeStatus.ongoing,
-          releaseYear: 0,
-          rating: 0.0,
-          totalEpisodes: 0,
-        );
-      }
-    } catch (e) {
-      print('Error getting anime details from AnimeWorld: $e');
-      // Return a default anime object instead of throwing
-      return Anime(
-        id: animeId,
-        title: 'Error Loading',
-        description: 'Could not load details',
-        coverUrl: null,
-        genres: [],
-        status: AnimeStatus.ongoing,
-        releaseYear: 0,
-        rating: 0.0,
-        totalEpisodes: 0,
+      final response = await _apiClient.get<dynamic>(
+        '/anime/animeunity/info',
+        queryParameters: {'id': animeId},
       );
+
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        return _parseDetailedAnimeFromAnimeWorld(data);
+      }
+
+      return _defaultAnime(animeId, 'Anime Not Found');
+    } catch (e) {
+      if (kDebugMode) debugPrint('Error getting anime details: $e');
+      return _defaultAnime(animeId, 'Error Loading');
     }
   }
 
@@ -139,158 +72,95 @@ class AnimeWorldRepository {
   Future<AnimeWorldEpisodeResponse> getEpisodeStreamingLinks(
       String episodeId) async {
     try {
-      final endpoint =
-          '${AppConstants.apiBaseUrl}/anime/animeunity/watch/${Uri.encodeComponent(episodeId)}';
+      final response = await _apiClient.get<dynamic>(
+        '/anime/animeunity/watch/${Uri.encodeComponent(episodeId)}',
+      );
 
-      print('Making request to: $endpoint');
-
-      final response = await _apiClient.httpClient.get(Uri.parse(endpoint));
-
-      print('Response status: ${response.statusCode}');
-      if (response.body.length < 500) {
-        // Only print short responses to avoid spam
-        print('Response body: ${response.body}');
-      } else {
-        print('Response body: [${response.body.length} chars]');
-      }
-
-      if (response.statusCode == 200) {
-        final jsonData =
-            response.body.isNotEmpty ? json.decode(response.body) : {};
-
-        // Parse the response - the structure might vary
-        final sources = (jsonData['sources'] as List<dynamic>?)
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        final sources = (data['sources'] as List<dynamic>?)
                 ?.map((source) => Source(
-                      url: (source['url'] as dynamic)?.toString() ?? '',
-                      quality: (source['quality'] as dynamic)?.toString() ??
-                          'unknown',
+                      url: source['url']?.toString() ?? '',
+                      quality: source['quality']?.toString() ?? 'unknown',
                       isM3U8: source['isM3U8'] as bool? ?? false,
                     ))
                 .toList() ??
             [];
 
-        final downloadLink = (jsonData['download'] as dynamic)?.toString();
+        final downloadLink = data['download']?.toString();
 
         return AnimeWorldEpisodeResponse(
           sources: sources,
           downloadLink: downloadLink,
         );
-      } else if (response.statusCode == 404) {
-        print('Episode streaming links not found for ID: $episodeId');
-        // Return empty response instead of throwing
-        return AnimeWorldEpisodeResponse(
-          sources: [],
-          downloadLink: null,
-        );
-      } else {
-        print('API request failed with status: ${response.statusCode}');
-        // Return empty response instead of throwing to prevent app crashes
-        return AnimeWorldEpisodeResponse(
-          sources: [],
-          downloadLink: null,
-        );
       }
+
+      return AnimeWorldEpisodeResponse(sources: [], downloadLink: null);
     } catch (e) {
-      print('Error fetching episode streaming links from AnimeWorld: $e');
-      // Return empty response instead of throwing to prevent app crashes
-      return AnimeWorldEpisodeResponse(
-        sources: [],
-        downloadLink: null,
-      );
+      if (kDebugMode) debugPrint('Error fetching episode streams: $e');
+      return AnimeWorldEpisodeResponse(sources: [], downloadLink: null);
     }
   }
 
-  // Helper method to parse anime from AnimeWorld API response
+  Anime _defaultAnime(String id, String title) {
+    return Anime(
+      id: id,
+      title: title,
+      description: '',
+      coverUrl: null,
+      genres: const [],
+      status: AnimeStatus.ongoing,
+      releaseYear: 0,
+      rating: 0.0,
+      totalEpisodes: 0,
+    );
+  }
+
   Anime _parseAnimeFromAnimeWorld(dynamic item) {
-    // Ensure item is a Map before accessing its properties
     if (item is! Map<String, dynamic>) {
-      return const Anime(
-        id: '',
-        title: 'Unknown Title',
-        description: '',
-        coverUrl: null,
-        genres: [],
-        status: AnimeStatus.ongoing,
-        releaseYear: 0,
-        rating: 0.0,
-        totalEpisodes: 0,
-      );
+      return _defaultAnime('', 'Unknown Title');
     }
 
     return Anime(
-      id: (item['id'] as dynamic)?.toString() ??
-          (item['link'] as dynamic)?.toString() ??
-          '',
-      title: (item['title'] as dynamic)?.toString() ??
-          (item['name'] as dynamic)?.toString() ??
-          'Unknown Title',
-      description: (item['description'] as dynamic)?.toString() ?? '',
-      coverUrl: (item['coverUrl'] as dynamic)?.toString() ??
-          (item['image'] as dynamic)?.toString(),
+      id: item['id']?.toString() ?? item['link']?.toString() ?? '',
+      title: item['title']?.toString() ?? item['name']?.toString() ?? 'Unknown Title',
+      description: item['description']?.toString() ?? '',
+      coverUrl: item['coverUrl']?.toString() ?? item['image']?.toString(),
       genres: _extractGenres(item['genres']),
-      status: AnimeStatus
-          .ongoing, // Default status, will be updated in detailed view
-      releaseYear:
-          int.tryParse((item['year'] as dynamic)?.toString() ?? '0') ?? 0,
-      rating: double.tryParse((item['rating'] as dynamic)?.toString() ?? '0') ??
-          0.0,
-      totalEpisodes:
-          int.tryParse((item['totalEpisodes'] as dynamic)?.toString() ?? '0') ??
-              0,
+      status: AnimeStatus.ongoing,
+      releaseYear: int.tryParse(item['year']?.toString() ?? '0') ?? 0,
+      rating: double.tryParse(item['rating']?.toString() ?? '0') ?? 0.0,
+      totalEpisodes: int.tryParse(item['totalEpisodes']?.toString() ?? '0') ?? 0,
     );
   }
 
-  // Helper method to parse detailed anime from AnimeWorld API response
   Anime _parseDetailedAnimeFromAnimeWorld(dynamic item) {
-    // Ensure item is a Map before accessing its properties
     if (item is! Map<String, dynamic>) {
-      return const Anime(
-        id: '',
-        title: 'Unknown Title',
-        description: '',
-        coverUrl: null,
-        genres: [],
-        status: AnimeStatus.ongoing,
-        releaseYear: 0,
-        rating: 0.0,
-        totalEpisodes: 0,
-      );
+      return _defaultAnime('', 'Unknown Title');
     }
 
     return Anime(
-      id: (item['id'] as dynamic)?.toString() ??
-          (item['link'] as dynamic)?.toString() ??
-          '',
-      title: (item['title'] as dynamic)?.toString() ??
-          (item['name'] as dynamic)?.toString() ??
-          'Unknown Title',
-      description: (item['description'] as dynamic)?.toString() ?? '',
-      coverUrl: (item['coverUrl'] as dynamic)?.toString() ??
-          (item['image'] as dynamic)?.toString(),
+      id: item['id']?.toString() ?? item['link']?.toString() ?? '',
+      title: item['title']?.toString() ?? item['name']?.toString() ?? 'Unknown Title',
+      description: item['description']?.toString() ?? '',
+      coverUrl: item['coverUrl']?.toString() ?? item['image']?.toString(),
       genres: _extractGenres(item['genres']),
-      status: _parseStatus((item['status'] as dynamic)?.toString() ?? ''),
-      releaseYear:
-          int.tryParse((item['year'] as dynamic)?.toString() ?? '0') ?? 0,
-      rating: double.tryParse((item['rating'] as dynamic)?.toString() ?? '0') ??
-          0.0,
-      totalEpisodes:
-          int.tryParse((item['totalEpisodes'] as dynamic)?.toString() ?? '0') ??
-              0,
+      status: _parseStatus(item['status']?.toString() ?? ''),
+      releaseYear: int.tryParse(item['year']?.toString() ?? '0') ?? 0,
+      rating: double.tryParse(item['rating']?.toString() ?? '0') ?? 0.0,
+      totalEpisodes: int.tryParse(item['totalEpisodes']?.toString() ?? '0') ?? 0,
     );
   }
 
-  // Helper method to safely extract genres from API response
   List<String> _extractGenres(dynamic genresData) {
     if (genresData is List) {
-      return genresData.map((e) => (e as dynamic)?.toString() ?? '').toList();
+      return genresData.map((e) => e?.toString() ?? '').toList();
     } else if (genresData is String) {
-      // If genres is a single string, wrap it in a list
       return [genresData];
     }
     return [];
   }
 
-  // Helper to parse status from string
   AnimeStatus _parseStatus(String status) {
     final lowerStatus = status.toLowerCase();
     if (lowerStatus.contains('completed') || lowerStatus.contains('finished')) {

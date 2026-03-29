@@ -1,14 +1,15 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 
 class AppTheme {
   AppTheme._();
 
   // Netflix-inspired Colors
-  static const Color primaryColor = Color(0xFFE50914); // Netflix red
-  static const Color secondaryColor = Color(0xFFFF9800); // Vibrant orange
-  static const Color accentColor = Color(0xFF2196F3); // Vibrant blue
+  static const Color primaryColor = Color(0xFFE50914);
+  static const Color secondaryColor = Color(0xFFFF9800);
+  static const Color accentColor = Color(0xFF2196F3);
 
-  static const Color backgroundColor = Color(0xFF0D0D0D); // Darker background
+  static const Color backgroundColor = Color(0xFF0D0D0D);
   static const Color surfaceColor = Color(0xFF1A1A1A);
   static const Color cardColor = Color(0xFF222222);
   static const Color cardHoverColor = Color(0xFF333333);
@@ -20,6 +21,16 @@ class AppTheme {
   static const Color successColor = Color(0xFF4CAF50);
   static const Color errorColor = Color(0xFFF44336);
   static const Color warningColor = Color(0xFFFF9800);
+
+  // Spacing constants
+  static const double spacingXS = 4;
+  static const double spacingS = 8;
+  static const double spacingM = 16;
+  static const double spacingL = 24;
+  static const double spacingXL = 32;
+  static const double spacingXXL = 48;
+  static const double cardRadius = 16;
+  static const double cardRadiusSmall = 12;
 
   // Gradients
   static const LinearGradient primaryGradient = LinearGradient(
@@ -33,6 +44,46 @@ class AppTheme {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+
+  static const LinearGradient glassGradient = LinearGradient(
+    colors: [Color(0x33FFFFFF), Color(0x0DFFFFFF)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static LinearGradient cardOverlayGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      Colors.transparent,
+      Colors.black.withOpacity(0.4),
+      Colors.black.withOpacity(0.9),
+    ],
+    stops: const [0.0, 0.5, 1.0],
+  );
+
+  // Shadows
+  static List<BoxShadow> get elevatedShadow => [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.4),
+          blurRadius: 12,
+          offset: const Offset(0, 6),
+          spreadRadius: -2,
+        ),
+        BoxShadow(
+          color: Colors.black.withOpacity(0.2),
+          blurRadius: 4,
+          offset: const Offset(0, 2),
+        ),
+      ];
+
+  static List<BoxShadow> get subtleShadow => [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.3),
+          blurRadius: 8,
+          offset: const Offset(0, 4),
+        ),
+      ];
 
   // Theme Data
   static ThemeData get darkTheme {
@@ -55,8 +106,9 @@ class AppTheme {
 
       // AppBar Theme
       appBarTheme: const AppBarTheme(
-        backgroundColor: backgroundColor,
+        backgroundColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
         centerTitle: false,
         iconTheme: IconThemeData(color: textPrimary),
         titleTextStyle: TextStyle(

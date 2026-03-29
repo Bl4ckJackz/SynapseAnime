@@ -1,4 +1,4 @@
-import { Injectable, StreamableFile } from '@nestjs/common';
+import { Injectable, Logger, StreamableFile } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import { spawn } from 'child_process';
@@ -40,6 +40,7 @@ export interface LocalAnime {
 
 @Injectable()
 export class LibraryService {
+  private readonly logger = new Logger(LibraryService.name);
   private folders: LibraryFolder[] = [];
   private videoRegistry: Map<string, string> = new Map();
 
@@ -90,7 +91,7 @@ export class LibraryService {
       });
       return entries.filter((e) => e.isDirectory()).map((e) => e.name);
     } catch (error) {
-      console.error('Error reading folder:', error);
+      this.logger.error('Error reading folder:', error);
       return [];
     }
   }
@@ -101,7 +102,7 @@ export class LibraryService {
     try {
       await this.scanRecursive(folderPath, groupedEpisodes);
     } catch (error) {
-      console.error('Error scanning videos:', error);
+      this.logger.error('Error scanning videos:', error);
     }
 
     const animes: LocalAnime[] = [];
@@ -192,7 +193,7 @@ export class LibraryService {
     try {
       duration = await this.getVideoDuration(videoPath);
     } catch (error) {
-      console.error('Error getting video duration:', error);
+      this.logger.error('Error getting video duration:', error);
       duration = 1800; // Fallback 30 mins
     }
 
@@ -292,11 +293,11 @@ export class LibraryService {
     let skipped = 0;
     const errors: string[] = [];
 
-    console.log('[OrganizeService] Starting library organization...');
+    this.logger.log('[OrganizeService] Starting library organization...');
 
     try {
       const looseFiles = await this.findLooseFiles(libraryPath);
-      console.log(`[OrganizeService] Found ${looseFiles.length} loose files`);
+      this.logger.log(`[OrganizeService] Found ${looseFiles.length} loose files`);
 
       for (const filePath of looseFiles) {
         try {
@@ -304,7 +305,7 @@ export class LibraryService {
           const parsed = this.parseFilenameAdvanced(filename);
 
           if (!parsed.title || parsed.episode === 0) {
-            console.log(`[OrganizeService] Skipping unparseable: ${filename}`);
+            this.logger.log(`[OrganizeService] Skipping unparseable: ${filename}`);
             skipped++;
             continue;
           }
@@ -323,27 +324,27 @@ export class LibraryService {
 
           // Check if file already exists
           if (fs.existsSync(newPath)) {
-            console.log(`[OrganizeService] Already exists: ${newFilename}`);
+            this.logger.log(`[OrganizeService] Already exists: ${newFilename}`);
             skipped++;
             continue;
           }
 
           // Move file
           await fs.promises.rename(filePath, newPath);
-          console.log(`[OrganizeService] Moved: ${filename} -> ${newFilename}`);
+          this.logger.log(`[OrganizeService] Moved: ${filename} -> ${newFilename}`);
           organized++;
         } catch (err) {
           const errorMsg = `Error processing ${filePath}: ${err}`;
-          console.error(`[OrganizeService] ${errorMsg}`);
+          this.logger.error(`[OrganizeService] ${errorMsg}`);
           errors.push(errorMsg);
         }
       }
     } catch (err) {
-      console.error('[OrganizeService] Critical error:', err);
+      this.logger.error('[OrganizeService] Critical error:', err);
       errors.push(`Critical error: ${err}`);
     }
 
-    console.log(
+    this.logger.log(
       `[OrganizeService] Complete: ${organized} organized, ${skipped} skipped, ${errors.length} errors`,
     );
 
@@ -373,7 +374,7 @@ export class LibraryService {
         }
       }
     } catch (err) {
-      console.error('[OrganizeService] Error scanning for loose files:', err);
+      this.logger.error('[OrganizeService] Error scanning for loose files:', err);
     }
 
     return looseFiles;

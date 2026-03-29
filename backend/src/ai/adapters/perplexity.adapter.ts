@@ -212,7 +212,7 @@ export class PerplexityAdapter extends LlmAdapter implements OnModuleInit {
       );
       // Ensure we see this validation error
       if (error.response?.data) {
-        console.error("PERPLEXITY API ERROR BODY:", JSON.stringify(error.response.data, null, 2));
+        this.logger.error("PERPLEXITY API ERROR BODY:", JSON.stringify(error.response.data, null, 2));
       }
       throw error;
     }

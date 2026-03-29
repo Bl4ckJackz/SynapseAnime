@@ -1,14 +1,16 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
-import 'package:chewie/chewie.dart';
 import '../../core/theme.dart';
 import '../../domain/entities/episode.dart';
 import '../../domain/entities/anime.dart';
 import '../../data/repositories/repositories.dart';
 import '../../domain/providers/anime_provider.dart';
+import '../../domain/providers/player_settings_provider.dart';
+import '../widgets/player/custom_video_controls.dart';
 
 class PlayerScreen extends ConsumerStatefulWidget {
   final String animeId;
@@ -30,14 +32,13 @@ class PlayerScreen extends ConsumerStatefulWidget {
 
 class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   VideoPlayerController? _videoPlayerController;
-  ChewieController? _chewieController;
   bool _initialized = false;
+  bool _hasError = false;
+  String _errorMessage = '';
   Timer? _progressTimer;
   Episode? _episode;
   Anime? _anime;
   List<Episode> _episodes = [];
-  double _volume = 1.0;
-  bool _showControls = true;
 
   @override
   void initState() {
@@ -49,8 +50,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   void dispose() {
     _progressTimer?.cancel();
     _videoPlayerController?.dispose();
-    _chewieController?.dispose();
-    // Restore orientations and UI
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
@@ -61,52 +60,34 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   Future<void> _initializePlayer() async {
-    debugPrint('=== PLAYER DEBUG: Starting initialization ===');
-    debugPrint('PLAYER DEBUG: animeId=${widget.animeId}');
-    debugPrint('PLAYER DEBUG: episodeId=${widget.episodeId}');
-    debugPrint('PLAYER DEBUG: source=${widget.source}');
-    debugPrint('PLAYER DEBUG: startUrl=${widget.startUrl}');
-
     try {
       final animeRepository = ref.read(animeRepositoryProvider);
 
-      // Try to fetch anime details for metadata (important for watch history)
+      // Load anime metadata
       try {
         _anime = await ref.read(animeDetailsProvider(widget.animeId).future);
-        debugPrint('PLAYER DEBUG: Loaded anime metadata: ${_anime?.title}');
       } catch (e) {
-        debugPrint('PLAYER DEBUG: Failed to load anime metadata: $e');
+        if (kDebugMode) debugPrint('Failed to load anime metadata: $e');
       }
 
-      // Get episodes from provider state (preserves loaded pages)
+      // Get episodes
       final episodesAsync = ref.read(animeEpisodesProvider(widget.animeId));
       var episodesList = episodesAsync.valueOrNull ?? [];
-      debugPrint(
-          'PLAYER DEBUG: Episodes from provider: ${episodesList.length}');
-
       if (episodesList.isEmpty) {
-        // Fallback fetch if provider is empty - fetch ALL episodes
-        debugPrint('PLAYER DEBUG: Fetching all episodes from repository...');
         episodesList = await animeRepository.getAllEpisodes(widget.animeId);
-        debugPrint('PLAYER DEBUG: Fetched ${episodesList.length} episodes');
       }
       _episodes = episodesList;
 
+      // Find current episode
       Episode? episode;
       try {
         episode = episodesList.firstWhere(
           (e) => e.id.toString() == widget.episodeId.toString(),
         );
-        debugPrint('PLAYER DEBUG: Found episode in list: ${episode.id}');
-      } catch (e) {
-        debugPrint(
-            'PLAYER DEBUG: Episode not found in list, using first or placeholder');
-        if (episodesList.isNotEmpty) {
-          episode = episodesList.first;
-        }
+      } catch (_) {
+        if (episodesList.isNotEmpty) episode = episodesList.first;
       }
 
-      // If not in list, try to fetch it or create a placeholder
       episode ??= Episode(
         id: widget.episodeId,
         animeId: widget.animeId,
@@ -119,66 +100,47 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       );
 
       var currentEpisode = episode;
-      debugPrint(
-          'PLAYER DEBUG: Current episode streamUrl before: ${currentEpisode.streamUrl}');
 
+      // Resolve stream URL
       if (widget.startUrl != null && widget.startUrl!.isNotEmpty) {
-        debugPrint(
-            'PLAYER DEBUG: Using startUrl from widget: ${widget.startUrl}');
         currentEpisode = currentEpisode.copyWith(streamUrl: widget.startUrl);
       } else if (currentEpisode.streamUrl.isEmpty) {
-        // Resolve stream URL
-        debugPrint('PLAYER DEBUG: Resolving stream URL...');
         try {
           final resolvedData = await animeRepository.resolveStreamUrl(
               widget.episodeId,
               source: currentEpisode.source);
-
           final url = resolvedData['url'] as String;
-          // Cast explicitly to Map<String, String> if present
           final headers = resolvedData['headers'] != null
               ? Map<String, String>.from(resolvedData['headers'])
               : null;
-
-          debugPrint('PLAYER DEBUG: Resolved URL: $url');
-          debugPrint('PLAYER DEBUG: Resolved headers: $headers');
-
           if (url.isNotEmpty) {
             currentEpisode =
                 currentEpisode.copyWith(streamUrl: url, headers: headers);
           }
         } catch (e) {
-          debugPrint('PLAYER DEBUG: Failed to resolve stream: $e');
+          if (kDebugMode) debugPrint('Failed to resolve stream: $e');
         }
       }
 
       _episode = currentEpisode;
-      debugPrint('PLAYER DEBUG: Final streamUrl: ${_episode!.streamUrl}');
 
-      // Validate the stream URL before initializing
       if (_episode!.streamUrl.isEmpty) {
-        throw Exception(
-            'Video non disponibile. Il server di streaming potrebbe essere temporaneamente irraggiungibile. Riprova più tardi.');
+        throw Exception('Video non disponibile. Riprova più tardi.');
       }
 
-      // Try to get saved progress
+      // Saved progress
       int startPosition = 0;
       try {
         final progressInfo = await ref
             .read(userRepositoryProvider)
             .getEpisodeProgress(widget.episodeId);
         startPosition = progressInfo.progressSeconds;
-        debugPrint(
-            'PLAYER DEBUG: Start position from progress: $startPosition');
-      } catch (e) {
-        debugPrint('PLAYER DEBUG: Could not load progress: $e');
-      }
+      } catch (_) {}
 
-      // Prepare headers - skip Referer for local/downloaded content
+      // Headers
       final isLocalContent = _episode!.streamUrl.contains('localhost') ||
           _episode!.streamUrl.contains('127.0.0.1') ||
           _episode!.streamUrl.contains('/downloads/');
-      debugPrint('PLAYER DEBUG: Is local content: $isLocalContent');
 
       final Map<String, String> httpHeaders = {
         'User-Agent':
@@ -188,7 +150,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       if (_episode!.headers != null && _episode!.headers!.isNotEmpty) {
         httpHeaders.addAll(_episode!.headers!);
       } else if (!isLocalContent) {
-        // Only add Referer for external streams, not for local downloads
         final activeSource = currentEpisode.source ??
             animeRepository.getActiveSource() ??
             'jikan';
@@ -202,79 +163,40 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       }
 
       final headersToUse = isLocalContent ? <String, String>{} : httpHeaders;
-      debugPrint('PLAYER DEBUG: Headers to use: $headersToUse');
-      debugPrint('PLAYER DEBUG: Creating VideoPlayerController...');
 
       _videoPlayerController = VideoPlayerController.networkUrl(
         Uri.parse(_episode!.streamUrl),
         httpHeaders: headersToUse,
       );
 
-      // Add error listener to handle playback errors
       _videoPlayerController!.addListener(_videoListener);
-
-      debugPrint('PLAYER DEBUG: Calling initialize()...');
-      try {
-        await _videoPlayerController!.initialize();
-        debugPrint(
-            'PLAYER DEBUG: VideoPlayerController initialized successfully!');
-        debugPrint(
-            'PLAYER DEBUG: Video duration: ${_videoPlayerController!.value.duration}');
-        debugPrint(
-            'PLAYER DEBUG: Video size: ${_videoPlayerController!.value.size}');
-      } catch (initError) {
-        debugPrint('PLAYER DEBUG: *** INITIALIZATION FAILED ***');
-        debugPrint('PLAYER DEBUG: Error type: ${initError.runtimeType}');
-        debugPrint('PLAYER DEBUG: Error message: $initError');
-        rethrow;
-      }
+      await _videoPlayerController!.initialize();
 
       if (startPosition > 0) {
         await _videoPlayerController!.seekTo(Duration(seconds: startPosition));
       }
 
-      // Initialize volume
-      await _videoPlayerController!.setVolume(_volume);
+      // Set initial playback speed from settings
+      final settings = ref.read(playerSettingsProvider);
+      await _videoPlayerController!.setPlaybackSpeed(settings.defaultPlaybackSpeed);
 
-      _chewieController = ChewieController(
-        videoPlayerController: _videoPlayerController!,
-        autoPlay: true,
-        looping: false,
-        aspectRatio: 16 / 9,
-        allowFullScreen: true,
-        allowMuting: true,
-        showControls: true,
-        placeholder: Container(color: Colors.black),
-        materialProgressColors: ChewieProgressColors(
-          playedColor: AppTheme.primaryColor,
-          handleColor: AppTheme.primaryColor,
-          backgroundColor: Colors.grey,
-          bufferedColor: Colors.white24,
-        ),
-      );
+      await _videoPlayerController!.play();
 
       _startProgressTracking();
 
-      setState(() {
-        _initialized = true;
-      });
-
-      debugPrint('PLAYER DEBUG: Player fully initialized!');
+      setState(() => _initialized = true);
 
       SystemChrome.setPreferredOrientations([
         DeviceOrientation.landscapeLeft,
         DeviceOrientation.landscapeRight,
       ]);
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    } catch (e, stackTrace) {
-      debugPrint('PLAYER DEBUG: *** FATAL ERROR ***');
-      debugPrint('PLAYER DEBUG: Error: $e');
-      debugPrint('PLAYER DEBUG: Stack trace: $stackTrace');
+    } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Errore caricamento video: ${e.toString()}')),
-        );
-        Navigator.of(context).pop();
+        setState(() {
+          _hasError = true;
+          _errorMessage = e.toString();
+        });
       }
     }
   }
@@ -299,10 +221,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 duration: _videoPlayerController!.value.duration.inSeconds,
                 source: widget.source ?? _episode?.source,
               );
-        } catch (e) {
-          // Silently ignore errors (e.g., 401 Unauthorized when not logged in)
-          print('Progress update failed: $e');
-        }
+        } catch (_) {}
       }
     });
   }
@@ -320,8 +239,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       }
     }
 
-    // Auto-next logic: check if video is finished
-    if (_videoPlayerController!.value.isInitialized &&
+    // Auto-next episode
+    final settings = ref.read(playerSettingsProvider);
+    if (settings.autoNextEpisode &&
+        _videoPlayerController!.value.isInitialized &&
         !_videoPlayerController!.value.isPlaying &&
         _videoPlayerController!.value.position >=
             _videoPlayerController!.value.duration &&
@@ -333,15 +254,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   void _playNextEpisode() {
     if (_episodes.isEmpty || _episode == null) return;
 
-    // Sort episodes by number just in case
-    // Assuming episode.number is reliable. If it's a string or irregular, index-based might be safer
-    // But since the list comes from provider/repo, let's use list index.
-
     final currentIndex = _episodes.indexWhere((e) => e.id == _episode!.id);
     if (currentIndex != -1 && currentIndex < _episodes.length - 1) {
       final nextEpisode = _episodes[currentIndex + 1];
-
-      // Navigate to new player screen (to reset everything cleanly)
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (context) => PlayerScreen(
@@ -351,7 +266,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         ),
       );
     } else {
-      // Last episode, maybe exit or show toast?
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Non ci sono altri episodi.')),
@@ -360,75 +274,70 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
   }
 
-  void _changeVolume(double value) {
-    setState(() {
-      _volume = value;
-    });
-    _videoPlayerController?.setVolume(_volume);
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (!_initialized) {
-      return const Scaffold(
+    if (_hasError) {
+      return Scaffold(
         backgroundColor: Colors.black,
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, color: Colors.red, size: 48),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Text(
+                  _errorMessage,
+                  style: const TextStyle(color: Colors.white70),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _hasError = false;
+                    _initialized = false;
+                  });
+                  _initializePlayer();
+                },
+                child: const Text('Riprova'),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Indietro'),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
+    if (!_initialized) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: CircularProgressIndicator(color: AppTheme.primaryColor),
+        ),
+      );
+    }
+
+    final settings = ref.watch(playerSettingsProvider);
+
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Center(
-              child: Chewie(controller: _chewieController!),
-            ),
-            Positioned(
-              top: 16,
-              left: 16,
-              child: SafeArea(
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                    const SizedBox(width: 16),
-                    // Volume Slider
-                    SizedBox(
-                      width: 150,
-                      child: Slider(
-                        value: _volume,
-                        min: 0.0,
-                        max: 1.0,
-                        activeColor: AppTheme.primaryColor,
-                        inactiveColor: Colors.white24,
-                        onChanged: _changeVolume,
-                      ),
-                    ),
-                    const Icon(Icons.volume_up, color: Colors.white, size: 20),
-                  ],
-                ),
-              ),
-            ),
-            Positioned(
-              top: 16,
-              right: 16,
-              child: SafeArea(
-                child: TextButton.icon(
-                  onPressed: _playNextEpisode,
-                  style: TextButton.styleFrom(
-                    backgroundColor: Colors.black54,
-                    foregroundColor: Colors.white,
-                  ),
-                  icon: const Icon(Icons.skip_next),
-                  label: const Text('Next Ep'),
-                ),
-              ),
-            ),
-          ],
-        ),
+      body: CustomVideoControls(
+        controller: _videoPlayerController!,
+        title: _anime?.title ?? 'Anime',
+        subtitle: _episode != null
+            ? 'Episodio ${_episode!.number}${_episode!.title.isNotEmpty ? ' - ${_episode!.title}' : ''}'
+            : null,
+        onBack: () => Navigator.of(context).pop(),
+        onNextEpisode: _playNextEpisode,
+        skipIntroDuration: settings.skipIntroDuration,
+        initialPlaybackSpeed: settings.defaultPlaybackSpeed,
       ),
     );
   }

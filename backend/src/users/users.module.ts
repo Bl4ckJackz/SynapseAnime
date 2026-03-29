@@ -23,8 +23,6 @@ import { JwtService } from '@nestjs/jwt';
       Watchlist,
       WatchHistory,
       Episode,
-      WatchHistory,
-      Episode,
       Anime,
     ]),
     AnimeModule,

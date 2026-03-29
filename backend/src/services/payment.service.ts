@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Payment } from '../entities/payment.entity';
@@ -9,6 +9,7 @@ import Stripe from 'stripe';
 
 @Injectable()
 export class PaymentService {
+  private readonly logger = new Logger(PaymentService.name);
   private stripe: Stripe;
 
   constructor(
@@ -22,7 +23,7 @@ export class PaymentService {
   ) {
     const stripeKey = configService.get<string>('STRIPE_SECRET_KEY');
     if (!stripeKey) {
-      console.warn(
+      this.logger.warn(
         'Stripe secret key not found. Payment features will be disabled.',
       );
     }
@@ -108,7 +109,7 @@ export class PaymentService {
       payment.status = 'refunded';
       return await this.paymentRepository.save(payment);
     } catch (error) {
-      console.error('Error processing refund:', error);
+      this.logger.error('Error processing refund:', error);
       throw new Error('Failed to process refund');
     }
   }
@@ -141,7 +142,7 @@ export class PaymentService {
         webhookSecret!,
       );
     } catch (err) {
-      console.error(`Webhook signature verification failed: ${err.message}`);
+      this.logger.error(`Webhook signature verification failed: ${err.message}`);
       throw err;
     }
 
@@ -156,7 +157,7 @@ export class PaymentService {
         await this.handleChargeRefunded(event.data.object);
         break;
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        this.logger.log(`Unhandled event type: ${event.type}`);
     }
   }
 
@@ -166,7 +167,7 @@ export class PaymentService {
     const userId = paymentIntent.metadata?.userId;
 
     if (!userId) {
-      console.error('No userId found in payment intent metadata');
+      this.logger.error('No userId found in payment intent metadata');
       return;
     }
 
@@ -192,7 +193,7 @@ export class PaymentService {
     const userId = paymentIntent.metadata?.userId;
 
     if (!userId) {
-      console.error('No userId found in payment intent metadata');
+      this.logger.error('No userId found in payment intent metadata');
       return;
     }
 
@@ -228,7 +229,7 @@ export class PaymentService {
   ): Promise<any> {
     // This would integrate with PayPal's API
     // For now, we'll return a mock response
-    console.log(
+    this.logger.log(
       `Creating PayPal payment for user ${userId}, amount: ${amount} ${currency}`,
     );
 
@@ -264,7 +265,7 @@ export class PaymentService {
           return true;
         }
       } catch (error) {
-        console.error('Error verifying payment with Stripe:', error);
+        this.logger.error('Error verifying payment with Stripe:', error);
       }
     }
 
