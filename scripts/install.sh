@@ -241,18 +241,41 @@ ok ".env mangahook creato"
 step "Installazione dipendenze npm..."
 
 # Helper: usa npm ci se c'e' il lockfile, altrimenti npm install
+# Mostra output completo in caso di errore
 npm_safe_install() {
     local flags="$*"
-    if [ -f "package-lock.json" ]; then
-        npm ci $flags 2>&1 | tail -3
+    local logfile="/tmp/npm_install_$$.log"
+    local cmd="install"
+    [ -f "package-lock.json" ] && cmd="ci"
+
+    if npm $cmd $flags 2>&1 | tee "$logfile" | tail -5; then
+        rm -f "$logfile"
+        return 0
     else
-        npm install $flags 2>&1 | tail -3
+        echo ""
+        err "npm $cmd fallito in $(pwd). Log completo:"
+        cat "$logfile"
+        rm -f "$logfile"
+        exit 1
     fi
 }
 
-# Forza git a usare HTTPS invece di SSH (consumet dipende da github:consumet/consumet.ts)
+# ── Fix dipendenze GitHub SSH → HTTPS ────────────────────────────────────────
+# npm risolve "github:user/repo" via SSH. Su LXC senza chiavi SSH fallisce.
+# Tripla protezione: git config globale + system + riscrittura package.json.
 git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
 git config --global url."https://github.com/".insteadOf "git@github.com:"
+git config --system url."https://github.com/".insteadOf "ssh://git@github.com/" 2>/dev/null || true
+git config --system url."https://github.com/".insteadOf "git@github.com:" 2>/dev/null || true
+
+# Riscrittura diretta: qualsiasi "github:xxx" → URL HTTPS nel package.json
+sed -i 's|"github:\([^"]*\)"|"https://github.com/\1.git"|g' "$INSTALL_DIR/consumet-api/package.json"
+
+# Pulisci cache npm per evitare risoluzioni stale
+npm cache clean --force 2>/dev/null || true
+
+# Rimuovi node_modules vecchi per install pulita
+rm -rf "$INSTALL_DIR/consumet-api/node_modules"
 
 # Consumet ha bisogno di ts-node (devDep), e non ha package-lock.json
 cd "$INSTALL_DIR/consumet-api"
@@ -261,16 +284,20 @@ npm_safe_install --no-audit --no-fund
 
 # MangaHook (solo production deps)
 cd "$INSTALL_DIR/mangahook-api/server"
+rm -rf node_modules
 echo "    npm install in mangahook-api..."
 npm_safe_install --omit=dev --no-audit --no-fund
 
 # Backend: install completo (serve nest cli per build), poi build, poi prune
 cd "$INSTALL_DIR/backend"
+rm -rf node_modules dist
 echo "    npm install in backend..."
 npm_safe_install --no-audit --no-fund
 
 step "Build backend NestJS..."
-npx nest build
+if ! npx nest build; then
+    err "Build backend fallito!"
+fi
 ok "Backend compilato (dist/)"
 
 # Rimuovi devDependencies dal backend dopo il build per risparmiare spazio
