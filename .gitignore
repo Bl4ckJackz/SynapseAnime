@@ -68,3 +68,11 @@ temp_*/
 backend/downloads/
 backend/video_library/
 backend/test-output.mp4
+backend/anime_player.db
+
+# Claude / AI
+CLAUDE.md
+.claude/
+
+# Planning
+.planning/
