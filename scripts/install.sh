@@ -262,14 +262,34 @@ npm_safe_install() {
 
 # ── Fix dipendenze GitHub SSH → HTTPS ────────────────────────────────────────
 # npm risolve "github:user/repo" via SSH. Su LXC senza chiavi SSH fallisce.
-# Tripla protezione: git config globale + system + riscrittura package.json.
+# git config insteadOf non basta: npm usa un wrapper git interno che puo' ignorarlo.
+# Soluzione: git wrapper che riscrive ssh://git@github.com → https://github.com/
+
+# 1. git config (aiuta in alcuni casi)
 git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
 git config --global url."https://github.com/".insteadOf "git@github.com:"
 git config --system url."https://github.com/".insteadOf "ssh://git@github.com/" 2>/dev/null || true
 git config --system url."https://github.com/".insteadOf "git@github.com:" 2>/dev/null || true
 
-# Riscrittura diretta: qualsiasi "github:xxx" → URL HTTPS nel package.json
+# 2. Riscrittura diretta nel package.json
 sed -i 's|"github:\([^"]*\)"|"https://github.com/\1.git"|g' "$INSTALL_DIR/consumet-api/package.json"
+
+# 3. Git wrapper che intercetta TUTTE le chiamate SSH a github
+#    npm chiama "git" direttamente, quindi creiamo un falso "git" nel PATH
+GIT_REAL=$(command -v git)
+GIT_WRAPPER_DIR=$(mktemp -d)
+cat > "$GIT_WRAPPER_DIR/git" <<GWEOF
+#!/bin/bash
+args=()
+for arg in "\$@"; do
+    arg="\${arg//ssh:\/\/git@github.com\//https:\/\/github.com\/}"
+    arg="\${arg//git@github.com:/https:\/\/github.com\/}"
+    args+=("\$arg")
+done
+exec "$GIT_REAL" "\${args[@]}"
+GWEOF
+chmod +x "$GIT_WRAPPER_DIR/git"
+ok "Git wrapper HTTPS creato in $GIT_WRAPPER_DIR"
 
 # Pulisci cache npm per evitare risoluzioni stale
 npm cache clean --force 2>/dev/null || true
@@ -280,7 +300,10 @@ rm -rf "$INSTALL_DIR/consumet-api/node_modules"
 # Consumet ha bisogno di ts-node (devDep), e non ha package-lock.json
 cd "$INSTALL_DIR/consumet-api"
 echo "    npm install in consumet-api..."
-npm_safe_install --no-audit --no-fund
+PATH="$GIT_WRAPPER_DIR:$PATH" npm_safe_install --no-audit --no-fund
+
+# Rimuovi il wrapper temporaneo
+rm -rf "$GIT_WRAPPER_DIR"
 
 # MangaHook (solo production deps)
 cd "$INSTALL_DIR/mangahook-api/server"
