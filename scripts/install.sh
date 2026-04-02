@@ -240,20 +240,17 @@ ok ".env mangahook creato"
 # ─── npm install + build ────────────────────────────────────────────────────
 step "Installazione dipendenze npm..."
 
-# Helper: usa npm ci se c'e' il lockfile, altrimenti npm install
-# Mostra output completo in caso di errore
+# Helper: npm install con gestione errori
+# Usa sempre "npm install" — npm ci e' troppo rigido (lockfile out-of-sync)
 npm_safe_install() {
-    local flags="$*"
     local logfile="/tmp/npm_install_$$.log"
-    local cmd="install"
-    [ -f "package-lock.json" ] && cmd="ci"
 
-    if npm $cmd $flags 2>&1 | tee "$logfile" | tail -5; then
+    if npm install "$@" 2>&1 | tee "$logfile" | tail -5; then
         rm -f "$logfile"
         return 0
     else
         echo ""
-        err "npm $cmd fallito in $(pwd). Log completo:"
+        echo "    npm install fallito in $(pwd):"
         cat "$logfile"
         rm -f "$logfile"
         exit 1
