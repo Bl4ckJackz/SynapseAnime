@@ -231,20 +231,30 @@ ok ".env mangahook creato"
 # ─── npm install + build ────────────────────────────────────────────────────
 step "Installazione dipendenze npm..."
 
-# Consumet ha bisogno di ts-node (devDep)
+# Helper: usa npm ci se c'e' il lockfile, altrimenti npm install
+npm_safe_install() {
+    local flags="$*"
+    if [ -f "package-lock.json" ]; then
+        npm ci $flags 2>&1 | tail -3
+    else
+        npm install $flags 2>&1 | tail -3
+    fi
+}
+
+# Consumet ha bisogno di ts-node (devDep), e non ha package-lock.json
 cd "$INSTALL_DIR/consumet-api"
-echo "    npm ci in consumet-api..."
-npm ci --no-audit --no-fund 2>&1 | tail -3
+echo "    npm install in consumet-api..."
+npm_safe_install --no-audit --no-fund
 
 # MangaHook (solo production deps)
 cd "$INSTALL_DIR/mangahook-api/server"
-echo "    npm ci in mangahook-api..."
-npm ci --omit=dev --no-audit --no-fund 2>&1 | tail -3
+echo "    npm install in mangahook-api..."
+npm_safe_install --omit=dev --no-audit --no-fund
 
-# Backend: ci completo (serve nest cli per build), poi build, poi prune
+# Backend: install completo (serve nest cli per build), poi build, poi prune
 cd "$INSTALL_DIR/backend"
-echo "    npm ci in backend..."
-npm ci --no-audit --no-fund 2>&1 | tail -3
+echo "    npm install in backend..."
+npm_safe_install --no-audit --no-fund
 
 step "Build backend NestJS..."
 npx nest build
