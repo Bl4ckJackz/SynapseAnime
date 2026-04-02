@@ -47,6 +47,10 @@ coverage/
 Thumbs.db
 
 serviceAccountKey.json
+**/serviceAccountKey.json
+
+# Test files with secrets
+backend/test_pplx.js
 
 # General Node.js & Builds
 dist/

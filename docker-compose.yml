@@ -4,9 +4,9 @@ services:
     image: postgres:16-alpine
     container_name: openanime_db
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: anime_player
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      POSTGRES_DB: ${DB_DATABASE:-anime_player}
     ports:
       - "5432:5432"
     volumes:
@@ -42,12 +42,12 @@ services:
       - DB_TYPE=postgres
       - DB_HOST=postgres
       - DB_PORT=5432
-      - DB_USERNAME=postgres
-      - DB_PASSWORD=postgres
-      - DB_DATABASE=anime_player
+      - DB_USERNAME=${DB_USERNAME:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      - DB_DATABASE=${DB_DATABASE:-anime_player}
       - CONSUMET_API_URL=http://consumet:3004
       - MANGAHOOK_API_URL=http://mangahook:5000/api
-      - JWT_SECRET=${JWT_SECRET:-e5a43253255837da402a1cf144c61f5a}
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env}
       - JWT_EXPIRES_IN=7d
     volumes:
       - ./backend/serviceAccountKey.json:/app/serviceAccountKey.json:ro
