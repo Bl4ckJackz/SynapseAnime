@@ -165,6 +165,8 @@ rsync -a --delete \
     --exclude='temp_*' \
     --exclude='*.db' \
     --exclude='scripts/' \
+    --exclude='.env' \
+    --exclude='video_library/' \
     "$PROJECT_ROOT/" "$INSTALL_DIR/"
 ok "Sorgenti copiati"
 
