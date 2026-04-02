@@ -77,6 +77,4 @@ backend/anime_player.db
 # Claude / AI
 CLAUDE.md
 .claude/
-
-# Planning
 .planning/
