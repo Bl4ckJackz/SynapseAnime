@@ -100,6 +100,15 @@ if ! $SKIP_DEPS; then
     fi
     ok "Node.js $(node -v)"
 
+    # Aggiorna npm se troppo vecchio (Debian spesso ha npm 9.x)
+    NPM_MAJOR=$(npm -v | cut -d. -f1)
+    if [ "$NPM_MAJOR" -lt 10 ]; then
+        echo "    Aggiornamento npm..."
+        npm install -g npm@latest 2>&1 | tail -1
+        hash -r
+        ok "npm $(npm -v)"
+    fi
+
     # Avvia servizi infrastruttura
     systemctl enable --now postgresql 2>/dev/null || true
     systemctl enable --now redis-server 2>/dev/null || true
@@ -240,6 +249,10 @@ npm_safe_install() {
         npm install $flags 2>&1 | tail -3
     fi
 }
+
+# Forza git a usare HTTPS invece di SSH (consumet dipende da github:consumet/consumet.ts)
+git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+git config --global url."https://github.com/".insteadOf "git@github.com:"
 
 # Consumet ha bisogno di ts-node (devDep), e non ha package-lock.json
 cd "$INSTALL_DIR/consumet-api"
