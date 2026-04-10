@@ -182,12 +182,18 @@ _tui_network() {
 # Sets: DB_EXTERNAL, DB_NAME, DB_USER, DB_PASSWORD, DB_PORT, DB_HOST
 _tui_postgresql() {
     _tui_detect_terminal
-    if whiptail --title "PostgreSQL" --yesno \
-        "Use an external PostgreSQL server?\n\nSelect 'No' to install PostgreSQL locally." \
-        10 60 3>&1 1>&2 2>&3; then
+    local choice
+    choice="$(_whiptail_menu "PostgreSQL" \
+        "How should PostgreSQL be provided?" \
+        "local"    "Install locally (recommended)" \
+        "external" "Use an existing external server")" || return 1
+
+    if [[ "$choice" == "external" ]]; then
         DB_EXTERNAL="true"
-        DB_HOST="$(_whiptail_input "PostgreSQL Host" \
-            "External PostgreSQL hostname:" "$DB_HOST")" || return 1
+        DB_HOST="$(_whiptail_input "PostgreSQL — Host" \
+            "External PostgreSQL hostname or IP:" "$DB_HOST")" || return 1
+        DB_PORT="$(_whiptail_input "PostgreSQL — Port" \
+            "External PostgreSQL port:" "$DB_PORT")" || return 1
     else
         DB_EXTERNAL="false"
         DB_HOST="localhost"
@@ -199,20 +205,25 @@ _tui_postgresql() {
         "PostgreSQL user:" "$DB_USER")" || return 1
     DB_PASSWORD="$(_whiptail_password "Database Password" \
         "PostgreSQL password (leave empty to auto-generate):")" || true
-    DB_PORT="$(_whiptail_input "Database Port" \
-        "PostgreSQL port:" "$DB_PORT")" || return 1
+    if [[ "$DB_EXTERNAL" == "false" ]]; then
+        DB_PORT="$(_whiptail_input "Database Port" \
+            "PostgreSQL local port:" "$DB_PORT")" || return 1
+    fi
 }
 
 # _tui_redis - Configure Redis settings.
 # Sets: REDIS_EXTERNAL, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
 _tui_redis() {
-    _tui_detect_terminal
-    if whiptail --title "Redis" --yesno \
-        "Use an external Redis server?\n\nSelect 'No' to install Redis locally." \
-        10 60 3>&1 1>&2 2>&3; then
+    local choice
+    choice="$(_whiptail_menu "Redis" \
+        "How should Redis be provided?" \
+        "local"    "Install locally (recommended)" \
+        "external" "Use an existing external server")" || return 1
+
+    if [[ "$choice" == "external" ]]; then
         REDIS_EXTERNAL="true"
-        REDIS_HOST="$(_whiptail_input "Redis Host" \
-            "External Redis hostname:" "$REDIS_HOST")" || return 1
+        REDIS_HOST="$(_whiptail_input "Redis — Host" \
+            "External Redis hostname or IP:" "$REDIS_HOST")" || return 1
     else
         REDIS_EXTERNAL="false"
         REDIS_HOST="localhost"
@@ -225,15 +236,31 @@ _tui_redis() {
 }
 
 # _tui_nginx - Configure Nginx proxy.
-# Sets: NGINX_EXTERNAL
+# Sets: NGINX_EXTERNAL, HTTP_PORT
 _tui_nginx() {
-    _tui_detect_terminal
-    if whiptail --title "Nginx" --yesno \
-        "Install and configure Nginx as a reverse proxy?\n\nSelect 'No' if you manage Nginx externally." \
-        10 60 3>&1 1>&2 2>&3; then
-        NGINX_EXTERNAL="false"
-    else
+    local choice
+    choice="$(_whiptail_menu "Nginx Reverse Proxy" \
+        "How should the reverse proxy be provided?" \
+        "local"    "Install Nginx locally (recommended)" \
+        "external" "I manage my own proxy (Nginx/Caddy/Traefik)")" || return 1
+
+    if [[ "$choice" == "external" ]]; then
         NGINX_EXTERNAL="true"
+        _tui_detect_terminal
+        whiptail --title "Nginx — External Proxy" --msgbox \
+"Configure your reverse proxy to point to:
+
+  Web frontend:  http://127.0.0.1:${WEB_PORT}
+  Backend API:   http://127.0.0.1:${API_PORT}
+  WebSocket:     http://127.0.0.1:${API_PORT}/downloads
+                 (requires Upgrade + Connection headers)
+
+The installer will skip Nginx installation." \
+            16 65 3>&1 1>&2 2>&3
+    else
+        NGINX_EXTERNAL="false"
+        HTTP_PORT="$(_whiptail_input "Nginx — HTTP Port" \
+            "Port for Nginx to listen on:" "$HTTP_PORT")" || return 1
     fi
 }
 
@@ -258,21 +285,24 @@ _tui_options() {
     INSTALL_DIR="$(_whiptail_input "Install Directory" \
         "Where to install SynapseAnime:" "$INSTALL_DIR")" || return 1
 
+    # Optional components checklist
     _tui_detect_terminal
-    if whiptail --title "Log Rotation" --yesno \
-        "Enable log rotation (recommended)?" 8 50 3>&1 1>&2 2>&3; then
-        ENABLE_LOGROTATE="true"
-    else
-        ENABLE_LOGROTATE="false"
+    local result exit_code=0
+    result="$(whiptail --title "Additional Options" --checklist \
+        "Select additional features (space to toggle):" \
+        14 65 3 \
+        "logrotate" "Log rotation (daily, 14 days, compress)" ON \
+        "ufw"       "UFW firewall rules (HTTP, API, SSH)"     OFF \
+        3>&1 1>&2 2>&3)" || exit_code=$?
+
+    if [[ $exit_code -eq 1 ]] || [[ $exit_code -eq 255 ]]; then
+        return 1
     fi
 
-    if whiptail --title "Firewall (UFW)" --yesno \
-        "Configure UFW firewall rules?\n\n(Only for servers with UFW installed)" \
-        10 50 3>&1 1>&2 2>&3; then
-        ENABLE_UFW="true"
-    else
-        ENABLE_UFW="false"
-    fi
+    ENABLE_LOGROTATE="false"
+    ENABLE_UFW="false"
+    [[ "$result" == *"logrotate"* ]] && ENABLE_LOGROTATE="true"
+    [[ "$result" == *"ufw"* ]] && ENABLE_UFW="true"
 }
 
 # _tui_summary - Display a summary of all settings for confirmation.
@@ -307,7 +337,10 @@ _tui_summary() {
   JWT:       $jwt_display (expires: $JWT_EXPIRES_IN)
   CORS:      $CORS_ORIGINS
 
-  Nginx:     $([ "$NGINX_EXTERNAL" == "true" ] && echo "external" || echo "install locally")
+  PostgreSQL: $([ "$DB_EXTERNAL" == "true" ] && echo "external ($DB_HOST:$DB_PORT)" || echo "local (:$DB_PORT)")
+  Redis:      $([ "$REDIS_EXTERNAL" == "true" ] && echo "external ($REDIS_HOST:$REDIS_PORT)" || echo "local (:$REDIS_PORT)")
+  Nginx:      $([ "$NGINX_EXTERNAL" == "true" ] && echo "external (user-managed)" || echo "local (:$HTTP_PORT)")
+
   Logrotate: $ENABLE_LOGROTATE
   UFW:       $ENABLE_UFW
 
