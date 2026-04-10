@@ -1,0 +1,27 @@
+[Unit]
+Description=SynapseAnime Backend API (NestJS)
+After=network.target postgresql.service redis-server.service ${SYSTEMD_AFTER}
+Requires=postgresql.service
+Wants=redis-server.service openanime-consumet.service openanime-mangahook.service
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=openanime
+Group=openanime
+WorkingDirectory=${INSTALL_DIR}/backend
+ExecStart=${NODE_BIN} dist/src/main.js
+Environment=HOME=${INSTALL_DIR}
+Restart=always
+RestartSec=5
+EnvironmentFile=${INSTALL_DIR}/backend/.env
+StandardOutput=append:${LOG_DIR}/backend.log
+StandardError=append:${LOG_DIR}/backend.error.log
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=${INSTALL_DIR}/backend/video_library ${LOG_DIR}
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

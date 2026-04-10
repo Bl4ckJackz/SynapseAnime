@@ -1,0 +1,26 @@
+[Unit]
+Description=SynapseAnime MangaHook API
+After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=openanime
+Group=openanime
+WorkingDirectory=${INSTALL_DIR}/mangahook-api/server
+ExecStart=${NODE_BIN} app.js
+Environment=HOME=${INSTALL_DIR}
+Environment=NODE_ENV=production
+Restart=always
+RestartSec=5
+EnvironmentFile=${INSTALL_DIR}/mangahook-api/server/.env
+StandardOutput=append:${LOG_DIR}/mangahook.log
+StandardError=append:${LOG_DIR}/mangahook.error.log
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=${LOG_DIR}
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

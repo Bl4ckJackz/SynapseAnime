@@ -1,0 +1,27 @@
+[Unit]
+Description=SynapseAnime Web Frontend (Next.js)
+After=network.target openanime-backend.service
+Wants=openanime-backend.service
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=openanime
+Group=openanime
+WorkingDirectory=${INSTALL_DIR}/web
+ExecStart=${NODE_BIN} node_modules/.bin/next start -p ${WEB_PORT}
+Environment=HOME=${INSTALL_DIR}
+Environment=NODE_ENV=production
+Restart=always
+RestartSec=5
+EnvironmentFile=${INSTALL_DIR}/web/.env
+StandardOutput=append:${LOG_DIR}/web.log
+StandardError=append:${LOG_DIR}/web.error.log
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=${LOG_DIR} ${INSTALL_DIR}
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

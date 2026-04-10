@@ -1,0 +1,26 @@
+[Unit]
+Description=SynapseAnime Consumet API
+After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=openanime
+Group=openanime
+WorkingDirectory=${INSTALL_DIR}/consumet-api
+ExecStart=${NPX_BIN} ts-node src/main.ts
+Environment=HOME=${INSTALL_DIR}
+Environment=NODE_ENV=production
+Environment=PORT=${CONSUMET_PORT}
+Restart=always
+RestartSec=5
+StandardOutput=append:${LOG_DIR}/consumet.log
+StandardError=append:${LOG_DIR}/consumet.error.log
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=${LOG_DIR}
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
