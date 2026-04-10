@@ -327,24 +327,24 @@ _tui_options() {
         "Where to install SynapseAnime:" "$INSTALL_DIR" || return 1
     INSTALL_DIR="$_WT_RESULT"
 
-    # Optional components checklist
+    # Optional components checklist — use _WT_RESULT pattern
     _tui_detect_terminal
-    local result=""
-    if result="$(whiptail --title "Additional Options" --checklist \
+    _WT_RESULT=""
+    if _WT_RESULT="$(whiptail --title "Additional Options" --checklist \
         "Select additional features (space to toggle):" \
-        14 65 3 \
+        14 65 2 \
         "logrotate" "Log rotation (daily, 14 days, compress)" ON \
         "ufw"       "UFW firewall rules (HTTP, API, SSH)"     OFF \
         3>&1 1>&2 2>&3)"; then
-        :  # OK pressed
+        : # OK
     else
-        return 1  # Cancel pressed
+        return 1
     fi
 
     ENABLE_LOGROTATE="false"
     ENABLE_UFW="false"
-    [[ "$result" == *"logrotate"* ]] && ENABLE_LOGROTATE="true"
-    [[ "$result" == *"ufw"* ]] && ENABLE_UFW="true"
+    [[ "$_WT_RESULT" == *"logrotate"* ]] && ENABLE_LOGROTATE="true"
+    [[ "$_WT_RESULT" == *"ufw"* ]] && ENABLE_UFW="true"
 }
 
 # _tui_summary - Display a summary of all settings for confirmation.
@@ -360,7 +360,15 @@ _tui_summary() {
     local jwt_display="(auto-generate)"
     [[ -n "$JWT_SECRET" ]] && jwt_display="********"
 
-    whiptail --title "Configuration Summary" --yesno \
+    # Build external/local labels outside the whiptail call to avoid subshell issues
+    local pg_label="local (:$DB_PORT)"
+    [[ "$DB_EXTERNAL" == "true" ]] && pg_label="external ($DB_HOST:$DB_PORT)"
+    local redis_label="local (:$REDIS_PORT)"
+    [[ "$REDIS_EXTERNAL" == "true" ]] && redis_label="external ($REDIS_HOST:$REDIS_PORT)"
+    local nginx_label="local (:$HTTP_PORT)"
+    [[ "$NGINX_EXTERNAL" == "true" ]] && nginx_label="external (user-managed)"
+
+    if whiptail --title "Configuration Summary" --yesno \
 "Please review your configuration:
 
   Source:     $DEPLOY_SOURCE ${GIT_REPO:+(${GIT_REPO}@${GIT_BRANCH})}
@@ -379,15 +387,19 @@ _tui_summary() {
   JWT:       $jwt_display (expires: $JWT_EXPIRES_IN)
   CORS:      $CORS_ORIGINS
 
-  PostgreSQL: $([ "$DB_EXTERNAL" == "true" ] && echo "external ($DB_HOST:$DB_PORT)" || echo "local (:$DB_PORT)")
-  Redis:      $([ "$REDIS_EXTERNAL" == "true" ] && echo "external ($REDIS_HOST:$REDIS_PORT)" || echo "local (:$REDIS_PORT)")
-  Nginx:      $([ "$NGINX_EXTERNAL" == "true" ] && echo "external (user-managed)" || echo "local (:$HTTP_PORT)")
+  PostgreSQL: $pg_label
+  Redis:      $redis_label
+  Nginx:      $nginx_label
 
   Logrotate: $ENABLE_LOGROTATE
   UFW:       $ENABLE_UFW
 
 Proceed with installation?" \
-        "$((TUI_ROWS - 2))" "$((TUI_COLS - 6))"
+        "$((TUI_ROWS - 2))" "$((TUI_COLS - 6))" 3>&1 1>&2 2>&3; then
+        return 0
+    else
+        return 1
+    fi
 }
 
 # ---------------------------------------------------------------------------
@@ -418,10 +430,17 @@ run_tui_wizard() {
     local idx=0
     local total=${#screens[@]}
 
+    # Disable set -e for the wizard loop — TUI screens rely on non-zero
+    # exit codes for Cancel/back navigation, which is incompatible with -e
+    set +e
+
     while [[ $idx -lt $total ]]; do
         local screen="${screens[$idx]}"
 
-        if "$screen"; then
+        "$screen"
+        local rc=$?
+
+        if [[ $rc -eq 0 ]]; then
             idx=$((idx + 1))
         else
             # Cancel pressed — go back one screen (minimum 0)
@@ -430,10 +449,14 @@ run_tui_wizard() {
                 log_debug "Back to screen $idx"
             else
                 log_warn "Installation cancelled by user."
+                set -e
                 exit 0
             fi
         fi
     done
+
+    # Re-enable strict mode
+    set -e
 
     # Auto-generate secrets if left empty
     if [[ -z "$DB_PASSWORD" ]]; then
