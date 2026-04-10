@@ -39,7 +39,7 @@ docker-compose up -d
 # Modalità sviluppo (con hot-reload)
 npm run start:dev
 ```
-Il server sarà attivo su `http://localhost:3000`.
+Il server sarà attivo su `http://localhost:3005`.
 
 ---
 
@@ -55,9 +55,9 @@ flutter pub get
 ### 2. Variabili d'Ambiente
 Crea il file `.env` nella root di `mobile` (se richiesto dalla configurazione del progetto):
 ```text
-API_URL=http://<IL_TUO_IP_LOCALE>:3000
+API_URL=http://<IL_TUO_IP_LOCALE>:3005
 ```
-*Nota: Se usi un emulatore Android, usa `10.0.2.2` invece di `localhost`.*
+*Nota: Se usi un emulatore Android, usa `10.0.2.2` invece di `localhost`. La porta del backend è `3005`.*
 
 ### 3. Avvio App
 Collega un dispositivo o avvia un emulatore:
@@ -69,7 +69,7 @@ flutter run
 
 ## 🕷️ Consumet API (Wrapper)
 
-Questo servizio funge da proxy per le fonti anime.
+Questo servizio funge da proxy per le fonti anime. Gira sulla porta **3004**.
 
 1. Naviga in `consumet-api`:
    ```bash
@@ -80,3 +80,40 @@ Questo servizio funge da proxy per le fonti anime.
    ```bash
    npm run start
    ```
+Il servizio sarà attivo su `http://localhost:3004`.
+
+---
+
+## 🌐 Web App (Next.js)
+
+1. Naviga in `web`:
+   ```bash
+   cd web
+   npm install
+   ```
+2. Avvia il server di sviluppo:
+   ```bash
+   npm run dev
+   ```
+Il server sarà attivo su `http://localhost:3000`.
+
+---
+
+## Porte dei servizi
+
+| Servizio | Porta |
+|----------|-------|
+| Web App (Next.js) | 3000 |
+| Consumet API | 3004 |
+| Backend (NestJS) | 3005 |
+| MangaHook API | 5000 |
+
+---
+
+## Avvio rapido (tutti i servizi)
+
+Dalla root del progetto:
+```bash
+npm install    # installa tutte le dipendenze (root + sub-projects)
+npm run dev    # avvia backend, consumet e web in parallelo
+```

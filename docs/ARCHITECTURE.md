@@ -1,47 +1,143 @@
-# 🏗️ Architettura del Progetto
+# Architettura del Progetto
 
-OpenAnime segue un'architettura **Client-Server** moderna, separando chiaramente la logica di presentazione (Mobile) dalla logica di business (Backend) e dall'aggregazione dati (Consumet).
+SynapseAnime segue un'architettura **Client-Server** moderna, separando la logica di presentazione (Web, Mobile) dalla logica di business (Backend) e dall'aggregazione dati (Consumet, MangaHook).
 
-## 🧩 Componenti Principali
+## Componenti Principali
 
-### 1. Mobile App (Frontend)
+### 1. Web App (Frontend)
+- **Framework**: Next.js 16 (App Router) + React 19 + TypeScript
+- **Styling**: Tailwind CSS v4, tema dark con CSS custom properties
+- **Routing**: App Router con route groups `(auth)` (pagine pubbliche) e `(main)` (pagine autenticate)
+- **State Management**: React Context (AuthContext, SourceContext, SocketContext)
+- **Autenticazione**: JWT in localStorage, middleware Next.js per protezione route
+- **Video**: HTML5 `<video>` + hls.js per streaming HLS/m3u8
+- **Real-time**: Socket.IO client per progress download
+- **Porta**: 3000
+
+**Struttura prevista:**
+```
+web/
+├── app/
+│   ├── (auth)/          # Login, Register (layout centrato)
+│   └── (main)/          # Pagine autenticate (app shell: navbar + sidebar)
+│       ├── home/
+│       ├── anime/
+│       ├── manga/
+│       ├── movies-tv/
+│       ├── news/
+│       ├── downloads/
+│       ├── chat/
+│       ├── library/
+│       ├── profile/
+│       ├── settings/
+│       └── subscribe/
+├── components/
+│   ├── layout/          # Navbar, Sidebar, MobileNav, UserMenu
+│   └── ui/              # Button, Input, Skeleton, Toast (primitives)
+├── contexts/            # AuthContext, SourceContext, SocketContext
+├── services/            # API client, servizi per dominio
+├── types/               # Interfacce TypeScript per tutti i domain model
+└── lib/                 # Utility (cn, formatDate, formatDuration)
+```
+
+### 2. Mobile App (Frontend)
 - **Framework**: Flutter (Dart)
 - **State Management**: Riverpod. Gestisce lo stato globale in modo reattivo e sicuro.
-- **Routing**: GoRouter per una gestione profonda della navigazione e deep linking.
-- **Vantaggi**: Codice unico per Android e iOS, UI fluida a 60/120fps.
+- **Routing**: GoRouter per deep linking e navigazione avanzata.
+- **HTTP**: Dio per le chiamate API.
+- **Video**: video_player + webview_flutter per playback.
+- **Notifiche**: Firebase Push Notifications.
+- **Real-time**: Socket.IO client per progress download.
 
-### 2. Backend API
-- **Framework**: NestJS (Node.js/TypeScript).
-- **Struttura**: Modulare (Controller, Service, Module).
-- **Database**: PostgreSQL con TypeORM.
-- **Ruolo**:
-  - Gestione Utenti (Auth JWT).
-  - Gestione Watch History (sincronizzazione progressi).
-  - Proxy verso Consumet per metadati (titoli, immagini).
+**Struttura:**
+```
+mobile/
+├── lib/
+│   ├── data/            # Repository e sorgenti dati (API client)
+│   ├── domain/          # Modelli e logica di business pura
+│   └── presentation/    # Widget, Schermate e State Notifiers
+```
 
-### 3. Consumet API (Data Source)
-- **Ruolo**: Abstrae le differenze tra i vari siti di anime (AnimeUnity, AnimeSaturn, ecc.).
-- **Funzionamento**: Espone endpoint unificati che fanno scraping o chiamate API verso i fornitori originali.
+### 3. Backend API
+- **Framework**: NestJS (Node.js/TypeScript)
+- **Struttura**: Modulare (Controller → Service → Repository)
+- **Database**: TypeORM con supporto dual-driver (PostgreSQL in produzione, SQLite in locale)
+- **Entità**: Centralizzate in `backend/src/entities/` (auto-discovered via glob)
+- **Autenticazione**: JWT + Passport (strategia locale + JWT), Google OAuth opzionale
+- **Real-time**: WebSocket gateway per download progress e history updates
+- **Rate Limiting**: Throttler globale 60 req/min
+- **Porta**: 3005
 
-## 🔄 Flusso dei Dati
+**Moduli principali:**
+| Modulo | Responsabilità |
+|--------|---------------|
+| `auth/` | JWT, Passport (local + JWT), Google OAuth |
+| `anime/` | Logica anime + sistema sorgenti pluggabile (Jikan, AnimeUnity, HiAnime, DB, File) |
+| `manga/`, `mangahook/` | Manga via MangaDex API e MangaHook |
+| `jikan/` | Metadati MyAnimeList via Jikan v4 (anime + manga) |
+| `movies-tv/` | Film/Serie TV via TMDB |
+| `ai/` | Raccomandazioni AI (adapter pattern: Perplexity + mock) |
+| `comments/` | Commenti e rating su anime/manga/episodi |
+| `download/` | Download video con ffmpeg, WebSocket per progresso |
+| `library/` | Browser libreria locale, streaming HLS dei file |
+| `monetization/` | Abbonamenti e pagamenti Stripe |
+| `notifications/` | Push notifications Firebase |
+| `users/` | Profilo, preferenze, watchlist, cronologia, progressi |
+| `common/` | Cache, circuit breaker, rate limiter |
 
-1. **Ricerca Anime**:
-   `Mobile` -> `Backend` -> `Consumet` -> `Source (es. AnimeWorld)`
-   *Il Backend fa da cache o arricchisce i dati prima di rispondere al mobile.*
+### 4. Consumet API (Data Source)
+- **Ruolo**: Aggrega fonti streaming anime (AnimeUnity, HiAnime, ecc.)
+- **Framework**: Fastify + @consumet/extensions + aniwatch
+- **Porta**: 3004
 
-2. **Streaming Video**:
-   Il Mobile ottiene l'URL del flusso video tramite le API e lo riproduce nativamente (ExoPlayer/AVPlayer).
+### 5. MangaHook API (Data Source)
+- **Ruolo**: Provider alternativo per fonti manga
+- **Server**: `mangahook-api/server/`
+- **Porta**: 5000
 
-3. **Autenticazione**:
-   JWT Tokens scambiati tra Mobile e Backend per sessioni sicure.
+## Flusso dei Dati
 
-## 📂 Struttura Cartelle (Convenzioni)
+### Ricerca e Streaming Anime
+```
+Web/Mobile → Backend (:3005) → Consumet API (:3004) → Source (AnimeUnity, HiAnime, ecc.)
+                              → Jikan v4 (metadati MAL)
+```
+Il Backend arricchisce i dati con informazioni dal DB locale (watchlist, progressi) prima di rispondere.
 
-### Backend
-- `src/modules/`: Moduli funzionali (es. `auth`, `anime`, `user`).
-- `src/common/`: Utility condivise, guardie, intercettori.
+### Lettura Manga
+```
+Web/Mobile → Backend (:3005) → MangaDex API (metadati + pagine)
+                              → MangaHook (:5000) (fonte alternativa)
+                              → Jikan v4 (metadati MAL)
+```
 
-### Mobile
-- `lib/data/`: Repository e sorgenti dati (API client).
-- `lib/domain/`: Modelli e logica di business pura.
-- `lib/presentation/`: Widget, Schermate e State Notifiers.
+### Film e Serie TV
+```
+Web/Mobile → Backend (:3005) → TMDB API (metadati, cast, simili)
+                              → vidsrc (URL streaming embed)
+```
+
+### Download con progresso real-time
+```
+Web/Mobile ←WebSocket→ Backend (:3005)
+                         ↓
+                      ffmpeg (transcoding/download)
+                         ↓
+                      video_library/ (file salvati)
+```
+
+### Autenticazione
+```
+Client → POST /auth/login (email+password) → Backend → JWT token
+Client → POST /auth/google (Google token) → Backend → JWT token
+Client → Authorization: Bearer <token> → tutte le API protette
+```
+
+## Porte dei Servizi
+
+| Servizio | Porta | Direzione |
+|----------|-------|-----------|
+| Web App (Next.js) | 3000 | `NEXT_PUBLIC_API_URL` → Backend |
+| Consumet API | 3004 | Chiamato dal Backend via `CONSUMET_API_URL` |
+| Backend (NestJS) | 3005 | API centrale, WebSocket |
+| MangaHook API | 5000 | Chiamato dal Backend via `MANGAHOOK_API_URL` |

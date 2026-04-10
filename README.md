@@ -37,10 +37,11 @@ cd SynapseAnime
 sudo bash scripts/install.sh
 ```
 
-Lo script installa automaticamente tutte le dipendenze (PostgreSQL, Redis, Node.js 20), builda il progetto e registra 3 servizi systemd:
+Lo script installa automaticamente tutte le dipendenze (PostgreSQL, Redis, Node.js 20), builda il progetto e registra 4 servizi systemd:
 
 | Servizio | Porta | Descrizione |
 |----------|-------|-------------|
+| `openanime-web` | 3000 | Frontend web (Next.js) |
 | `openanime-backend` | 3005 | API principale (NestJS) |
 | `openanime-consumet` | 3004 | Provider anime |
 | `openanime-mangahook` | 5000 | Provider manga |
@@ -68,7 +69,7 @@ sudo systemctl restart openanime-backend
 journalctl -u openanime-backend -f
 
 # Tutti i servizi
-sudo systemctl restart openanime-{backend,consumet,mangahook}
+sudo systemctl restart openanime-{web,backend,consumet,mangahook}
 ```
 
 ### Aggiornamento

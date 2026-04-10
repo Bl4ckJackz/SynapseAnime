@@ -4,7 +4,7 @@ This document outlines the available sources in the Consumet API and their usage
 **Important:** Parameter styles (Path vs Query) vary by provider. Please consult the table below for specific usage.
 
 ## Base URL
-By default, the API runs at `http://localhost:3000` (or `3004` if configured). All routes are prefixed with the category name.
+The Consumet API runs at `http://localhost:3004`. All routes are prefixed with the category name.
 
 ## 1. Anime Providers (`/anime/...`)
 | Provider | Search URL | Info URL | Watch URL |

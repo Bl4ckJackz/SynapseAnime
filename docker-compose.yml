@@ -84,6 +84,26 @@ services:
       - NODE_ENV=production
     restart: unless-stopped
 
+  # Web Frontend (Next.js)
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        # NEXT_PUBLIC_API_URL is baked at build time. The browser calls this URL,
+        # so it must be reachable from the host, not from Docker internal network.
+        # Override with: docker compose build --build-arg NEXT_PUBLIC_API_URL=https://api.yourdomain.com web
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3005}
+    container_name: openanime_web
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    depends_on:
+      - backend
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:

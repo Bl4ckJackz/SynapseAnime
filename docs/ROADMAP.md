@@ -1,54 +1,71 @@
-# 🗺️ Project Roadmap & Tasks
+# Roadmap — Web Frontend
 
-Questo documento contiene le task pianificate per l'evoluzione del progetto. Puoi copiare queste sezioni per creare Issue su GitHub.
+Questo documento traccia lo stato di avanzamento dello sviluppo del frontend web (Next.js).
+I piani dettagliati di ogni fase sono in `docs/superpowers/plans/`.
 
-## 📱 Web App Implementation
-**Status:** In Progress 🚧
-**Priority:** High
+## Stato delle Fasi
 
-Sviluppo della versione Web completa per browser desktop e mobile.
-- [ ] **Setup Iniziale**: Configurazione Next.js + Tailwind (Fatto).
-- [ ] **Auth Integration**: Login/Register page collegata alle API NestJS.
-- [ ] **Video Player**: Implementazione player custom (es. Vidstack o HTML5 nativo) con supporto HLS.
-- [ ] **Search & Discover**: Pagina di ricerca con filtri avanzati (Genere, Anno, Stato).
-- [ ] **Responsive Design**: Ottimizzazione layout per Mobile Web.
+| Fase | Nome | Stato | Piano dettagliato |
+|------|------|-------|-------------------|
+| 1 | Foundation & Auth | **Parziale** | `2026-04-03-phase1-foundation-auth.md` |
+| 2 | Anime Core | Da iniziare | `2026-04-03-phase2-anime-core.md` |
+| 3 | Manga & Reading | Da iniziare | `2026-04-03-phase3-manga-reading.md` |
+| 4 | Movies/TV & News | Da iniziare | `2026-04-03-phase4-movies-tv-news.md` |
+| 5 | User & Social | Da iniziare | `2026-04-03-phase5-user-social.md` |
+| 6 | Downloads, AI, Library & Premium | Da iniziare | `2026-04-03-phase6-downloads-ai-premium.md` |
 
-## 💾 Download Feature (Offline Mode)
-**Status:** Planned 📋
-**Priority:** Medium (Mobile Only)
+### Dipendenze tra fasi
 
-Permettere agli utenti di scaricare episodi per la visione offline.
-- [ ] **Download Manager**: Servizio background per gestire code di download.
-- [ ] **Storage**: Gestione file system locale (criptato opzionale).
-- [ ] **UI**: Pulsante download nella scheda episodio e pagina "Download" dedicata.
-- [ ] **Sync**: Quando online, sincronizzare il progresso degli episodi guardati offline.
+```
+Phase 1 (Foundation & Auth)
+├── Phase 2 (Anime Core)
+│   └── Phase 5 (User & Social)
+│       └── Phase 6 (Downloads, AI, Library & Premium)
+├── Phase 3 (Manga & Reading)
+└── Phase 4 (Movies/TV & News)
+```
 
-## 🎨 UI Optimization & UX
-**Status:** Planned 📋
-**Priority:** Medium
+---
 
-Migliorare l'aspetto e l'usabilità dell'app mobile e web.
-- [ ] **Design System**: Standardizzare colori, typografia e spaziature.
-- [ ] **Animations**: Aggiungere micro-animazioni (hero transitions, button feedback) per rendere l'app più "viva".
-- [ ] **Skeleton Loaders**: Migliorare l'esperienza di caricamento dati.
-- [ ] **Error Handling**: Schermate di errore user-friendly (es. "Nessuna connessione").
+## Fase 1: Foundation & Auth — Dettaglio avanzamento
 
-## ⏱️ Watch History Sync
-**Status:** Started (Backend) 🔄
-**Priority:** High
+| Task | Stato | Note |
+|------|-------|------|
+| Configurazione Tailwind + dark theme (`globals.css`) | Fatto | CSS variables, scrollbar, dark mode |
+| TypeScript type definitions (`types/`) | Fatto | 9 file: anime, manga, user, download, comment, news, chat, movies-tv, api |
+| `next.config.ts` (image domains) | Fatto | MAL, AniList, MangaDex, TMDB |
+| Dipendenze base (clsx, tailwind-merge) | Fatto | Installate in `package.json` |
+| API Client (`services/api-client.ts`) | Da fare | |
+| Auth Service (`services/auth.service.ts`) | Da fare | |
+| Utility helpers (`lib/utils.ts`) | Da fare | cn(), formatDate, formatDuration |
+| UI Primitives (Button, Input, Skeleton, Toast) | Da fare | |
+| Auth Context (`contexts/AuthContext.tsx`) | Da fare | |
+| Layout components (Navbar, Sidebar, MobileNav, UserMenu) | Da fare | |
+| Auth pages (Login, Register) | Da fare | |
+| Middleware di protezione route | Da fare | |
+| Home page placeholder | Da fare | |
 
-Sincronizzazione robusta della cronologia tra dispositivi.
-- [ ] **Backend**: API per salvare/recuperare progressi puntuali (già avviato con Firebase).
-- [ ] **Resume Watching**: Funzionalità "Riprendi da dove hai lasciato" in Home.
-- [ ] **Auto-Sync**: Trigger salvataggio ogni 30 secondi durante la riproduzione.
-- [ ] **Visual Indicators**: Progress bar sulle card degli episodi.
+---
 
-## 🌍 Language Support (i18n)
-**Status:** Planned 📋
-**Priority:** Low
+## Roadmap Cross-Platform
 
-Supporto multilingua per l'interfaccia utente.
-- [ ] **Infrastructure**: Configurazione libreria i18n (es. `easy_localization` per Flutter, `next-intl` per Web).
-- [ ] **Translations**: File JSON per le lingue target (IT, EN standard).
-- [ ] **Language Switcher**: Opzione nelle impostazioni per cambiare lingua manualmente.
-- [ ] **Content**: Gestione (ove possibile) dei metadati anime in lingua diversa (se supportato dalle fonti).
+Queste feature sono trasversali e non ancora pianificate in dettaglio:
+
+### i18n (Internazionalizzazione)
+**Stato:** Da pianificare
+- Libreria: `next-intl` per il web
+- Lingue target: IT, EN
+- Language switcher nelle impostazioni
+
+### UI Optimization
+**Stato:** Da pianificare (post Fase 2)
+- Design system: standardizzare colori, tipografia, spaziature
+- Micro-animazioni (hero transitions, button feedback)
+- Skeleton loaders (componente già previsto in Fase 1)
+- Schermate di errore user-friendly
+
+### Watch History Sync
+**Stato:** Backend implementato, frontend in Fase 2 + 5
+- API endpoints per progressi: implementati nel backend (`POST /users/progress`, `GET /users/continue-watching`)
+- Resume watching: previsto in Fase 2 (player) e Fase 5 (UI profilo)
+- Auto-sync ogni 10 secondi durante la riproduzione: previsto in Fase 2
