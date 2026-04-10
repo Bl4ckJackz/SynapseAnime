@@ -419,7 +419,7 @@ build_web() {
     rm -rf node_modules .next
     npm_install "$INSTALL_DIR/web"
     NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://127.0.0.1:3005}" npx next build || die "Web build failed"
-    npm prune --omit=dev --no-audit --no-fund 2>&1 | tail -1
+    # Don't prune devDeps — next start needs typescript to transpile next.config.ts
     ok "Frontend compiled"
 }
 
@@ -457,6 +457,8 @@ Description=SynapseAnime Backend API (NestJS)
 After=network.target postgresql.service redis-server.service
 Requires=postgresql.service
 Wants=redis-server.service openanime-consumet.service openanime-mangahook.service
+StartLimitIntervalSec=60
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -466,8 +468,6 @@ WorkingDirectory=$INSTALL_DIR/backend
 ExecStart=$NODE_BIN dist/src/main.js
 Restart=always
 RestartSec=5
-StartLimitIntervalSec=60
-StartLimitBurst=5
 EnvironmentFile=$INSTALL_DIR/backend/.env
 StandardOutput=append:$LOG_DIR/backend.log
 StandardError=append:$LOG_DIR/backend.error.log
@@ -548,7 +548,8 @@ Type=simple
 User=$SERVICE_USER
 Group=$SERVICE_USER
 WorkingDirectory=$INSTALL_DIR/web
-ExecStart=$NPX_BIN next start -p 3000
+ExecStart=$NODE_BIN node_modules/.bin/next start -p 3000
+Environment=HOME=$INSTALL_DIR
 Restart=always
 RestartSec=5
 EnvironmentFile=$INSTALL_DIR/web/.env
@@ -556,8 +557,7 @@ StandardOutput=append:$LOG_DIR/web.log
 StandardError=append:$LOG_DIR/web.error.log
 NoNewPrivileges=true
 ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=$LOG_DIR
+ReadWritePaths=$LOG_DIR $INSTALL_DIR
 PrivateTmp=true
 
 [Install]
@@ -625,9 +625,15 @@ do_status() {
             status_text="n/a"
         fi
 
-        # HTTP health check
-        local http_color http_text
-        if curl -sf -o /dev/null --max-time 3 "http://127.0.0.1:$port" 2>/dev/null; then
+        # HTTP health check (try / first, then service-specific paths)
+        local http_color http_text http_ok=false
+        for path in "/" "/api" "/home"; do
+            if curl -sf -o /dev/null --max-time 3 "http://127.0.0.1:$port$path" 2>/dev/null; then
+                http_ok=true
+                break
+            fi
+        done
+        if $http_ok; then
             http_color="$GREEN"
             http_text="OK"
         else

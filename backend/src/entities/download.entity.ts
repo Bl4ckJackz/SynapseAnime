@@ -72,7 +72,7 @@ export class Download {
   @CreateDateColumn()
   createdAt: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   completedAt: Date;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
