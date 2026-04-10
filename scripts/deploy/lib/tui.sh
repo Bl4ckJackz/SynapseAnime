@@ -287,16 +287,16 @@ _tui_options() {
 
     # Optional components checklist
     _tui_detect_terminal
-    local result exit_code=0
-    result="$(whiptail --title "Additional Options" --checklist \
+    local result=""
+    if result="$(whiptail --title "Additional Options" --checklist \
         "Select additional features (space to toggle):" \
         14 65 3 \
         "logrotate" "Log rotation (daily, 14 days, compress)" ON \
         "ufw"       "UFW firewall rules (HTTP, API, SSH)"     OFF \
-        3>&1 1>&2 2>&3)" || exit_code=$?
-
-    if [[ $exit_code -eq 1 ]] || [[ $exit_code -eq 255 ]]; then
-        return 1
+        3>&1 1>&2 2>&3)"; then
+        :  # OK pressed
+    else
+        return 1  # Cancel pressed
     fi
 
     ENABLE_LOGROTATE="false"
