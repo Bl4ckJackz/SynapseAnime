@@ -424,6 +424,9 @@ main() {
     export CONSUMET_PORT MANGAHOOK_PORT
     export INSTALL_DIR LOG_DIR
     export NGINX_EXTERNAL ENABLE_LOGROTATE ENABLE_UFW
+
+    # Ensure log directory exists early so _log_to_file works
+    mkdir -p "$LOG_DIR" 2>/dev/null || true
     export NEXT_PUBLIC_API_URL NODE_BIN NPX_BIN SYSTEMD_AFTER
     export DEPLOY_SOURCE GIT_REPO GIT_BRANCH
 

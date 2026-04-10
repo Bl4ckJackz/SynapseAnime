@@ -78,7 +78,7 @@ _log_to_file() {
     # Strip ANSI escape sequences
     local clean
     clean="$(printf '%s' "$msg" | sed 's/\x1b\[[0-9;]*m//g')"
-    printf '[%s] %s\n' "$ts" "$clean" >> "$LOG_FILE" 2>/dev/null || true
+    { printf '[%s] %s\n' "$ts" "$clean" >> "$LOG_FILE"; } 2>/dev/null || true
 }
 
 # log_info MSG - Informational message (blue arrow).

@@ -140,7 +140,7 @@ check_systemd() {
 # install_prerequisites - Install required system packages.
 # ---------------------------------------------------------------------------
 # Packages: gnupg, curl, git, rsync, ca-certificates, build-essential, python3,
-#           lsb-release, software-properties-common, whiptail
+#           lsb-release, whiptail
 # Globals: DRY_RUN
 install_prerequisites() {
     log_info "Installing prerequisite packages..."
@@ -154,7 +154,6 @@ install_prerequisites() {
         build-essential
         python3
         lsb-release
-        software-properties-common
         whiptail
     )
 
