@@ -84,38 +84,56 @@ set_defaults() {
 # ---------------------------------------------------------------------------
 
 # _whiptail_input TITLE TEXT DEFAULT - Prompt for text input.
-# Returns: user input on stdout, or empty + rc=1 on Cancel.
+# Sets _WT_RESULT. Returns 0 on OK, 1 on Cancel.
 _whiptail_input() {
     local title="$1" text="$2" default="$3"
     _tui_detect_terminal
-    whiptail --title "$title" --inputbox "$text" \
+    _WT_RESULT=""
+    if _WT_RESULT="$(whiptail --title "$title" --inputbox "$text" \
         "$((TUI_ROWS - 6))" "$((TUI_COLS - 10))" "$default" \
-        3>&1 1>&2 2>&3
+        3>&1 1>&2 2>&3)"; then
+        return 0
+    else
+        _WT_RESULT=""
+        return 1
+    fi
 }
 
 # _whiptail_password TITLE TEXT - Prompt for password input (masked).
-# Returns: password on stdout, or empty + rc=1 on Cancel.
+# Sets _WT_RESULT. Returns 0 on OK, 1 on Cancel.
 _whiptail_password() {
     local title="$1" text="$2"
     _tui_detect_terminal
-    whiptail --title "$title" --passwordbox "$text" \
+    _WT_RESULT=""
+    if _WT_RESULT="$(whiptail --title "$title" --passwordbox "$text" \
         "$((TUI_ROWS - 6))" "$((TUI_COLS - 10))" \
-        3>&1 1>&2 2>&3
+        3>&1 1>&2 2>&3)"; then
+        return 0
+    else
+        _WT_RESULT=""
+        return 1
+    fi
 }
 
 # _whiptail_menu TITLE TEXT ITEMS... - Display a menu.
 # ITEMS are tag/description pairs.
-# Returns: selected tag on stdout, or empty + rc=1 on Cancel.
+# Sets _WT_RESULT. Returns 0 on OK, 1 on Cancel.
 _whiptail_menu() {
     local title="$1" text="$2"
     shift 2
     _tui_detect_terminal
     local items=("$@")
     local count=$(( ${#items[@]} / 2 ))
-    whiptail --title "$title" --menu "$text" \
+    _WT_RESULT=""
+    if _WT_RESULT="$(whiptail --title "$title" --menu "$text" \
         "$((TUI_ROWS - 4))" "$((TUI_COLS - 10))" "$count" \
         "${items[@]}" \
-        3>&1 1>&2 2>&3
+        3>&1 1>&2 2>&3)"; then
+        return 0
+    else
+        _WT_RESULT=""
+        return 1
+    fi
 }
 
 # ---------------------------------------------------------------------------
@@ -144,34 +162,37 @@ Press OK to continue." \
 # _tui_source - Choose deploy source.
 # Sets: DEPLOY_SOURCE, GIT_REPO, GIT_BRANCH
 _tui_source() {
-    local choice
-    choice="$(_whiptail_menu "Deploy Source" \
+    _whiptail_menu "Deploy Source" \
         "Where should the application files come from?" \
         "local" "Use files from current directory" \
-        "git"   "Clone from a Git repository")" || return 1
-
-    DEPLOY_SOURCE="$choice"
+        "git"   "Clone from a Git repository" || return 1
+    DEPLOY_SOURCE="$_WT_RESULT"
 
     if [[ "$DEPLOY_SOURCE" == "git" ]]; then
-        GIT_REPO="$(_whiptail_input "Git Repository" \
-            "Enter the Git repository URL:" "$GIT_REPO")" || return 1
-        GIT_BRANCH="$(_whiptail_input "Git Branch" \
-            "Enter the branch to deploy:" "$GIT_BRANCH")" || return 1
+        _whiptail_input "Git Repository" \
+            "Enter the Git repository URL:" "$GIT_REPO" || return 1
+        GIT_REPO="$_WT_RESULT"
+        _whiptail_input "Git Branch" \
+            "Enter the branch to deploy:" "$GIT_BRANCH" || return 1
+        GIT_BRANCH="$_WT_RESULT"
     fi
 }
 
 # _tui_network - Configure domain and ports.
 # Sets: DOMAIN, WEB_PORT, API_PORT
 _tui_network() {
-    DOMAIN="$(_whiptail_input "Domain / Hostname" \
+    _whiptail_input "Domain / Hostname" \
         "Enter the domain name or hostname for this server:" \
-        "$DOMAIN")" || return 1
+        "$DOMAIN" || return 1
+    DOMAIN="$_WT_RESULT"
 
-    WEB_PORT="$(_whiptail_input "Web Port" \
-        "Port for the Next.js web frontend:" "$WEB_PORT")" || return 1
+    _whiptail_input "Web Port" \
+        "Port for the Next.js web frontend:" "$WEB_PORT" || return 1
+    WEB_PORT="$_WT_RESULT"
 
-    API_PORT="$(_whiptail_input "API Port" \
-        "Port for the NestJS backend API:" "$API_PORT")" || return 1
+    _whiptail_input "API Port" \
+        "Port for the NestJS backend API:" "$API_PORT" || return 1
+    API_PORT="$_WT_RESULT"
 
     # Recalculate derived values
     CORS_ORIGINS="http://${DOMAIN}"
@@ -181,70 +202,80 @@ _tui_network() {
 # _tui_postgresql - Configure PostgreSQL settings.
 # Sets: DB_EXTERNAL, DB_NAME, DB_USER, DB_PASSWORD, DB_PORT, DB_HOST
 _tui_postgresql() {
-    _tui_detect_terminal
-    local choice
-    choice="$(_whiptail_menu "PostgreSQL" \
+    _whiptail_menu "PostgreSQL" \
         "How should PostgreSQL be provided?" \
         "local"    "Install locally (recommended)" \
-        "external" "Use an existing external server")" || return 1
+        "external" "Use an existing external server" || return 1
 
-    if [[ "$choice" == "external" ]]; then
+    if [[ "$_WT_RESULT" == "external" ]]; then
         DB_EXTERNAL="true"
-        DB_HOST="$(_whiptail_input "PostgreSQL — Host" \
-            "External PostgreSQL hostname or IP:" "$DB_HOST")" || return 1
-        DB_PORT="$(_whiptail_input "PostgreSQL — Port" \
-            "External PostgreSQL port:" "$DB_PORT")" || return 1
+        _whiptail_input "PostgreSQL — Host" \
+            "External PostgreSQL hostname or IP:" "$DB_HOST" || return 1
+        DB_HOST="$_WT_RESULT"
+        _whiptail_input "PostgreSQL — Port" \
+            "External PostgreSQL port:" "$DB_PORT" || return 1
+        DB_PORT="$_WT_RESULT"
     else
         DB_EXTERNAL="false"
         DB_HOST="localhost"
     fi
 
-    DB_NAME="$(_whiptail_input "Database Name" \
-        "PostgreSQL database name:" "$DB_NAME")" || return 1
-    DB_USER="$(_whiptail_input "Database User" \
-        "PostgreSQL user:" "$DB_USER")" || return 1
-    DB_PASSWORD="$(_whiptail_password "Database Password" \
-        "PostgreSQL password (leave empty to auto-generate):")" || true
+    _whiptail_input "Database Name" \
+        "PostgreSQL database name:" "$DB_NAME" || return 1
+    DB_NAME="$_WT_RESULT"
+
+    _whiptail_input "Database User" \
+        "PostgreSQL user:" "$DB_USER" || return 1
+    DB_USER="$_WT_RESULT"
+
+    # Password: OK with empty (auto-generate), so ignore cancel
+    _whiptail_password "Database Password" \
+        "PostgreSQL password (leave empty to auto-generate):" || true
+    DB_PASSWORD="$_WT_RESULT"
+
     if [[ "$DB_EXTERNAL" == "false" ]]; then
-        DB_PORT="$(_whiptail_input "Database Port" \
-            "PostgreSQL local port:" "$DB_PORT")" || return 1
+        _whiptail_input "Database Port" \
+            "PostgreSQL local port:" "$DB_PORT" || return 1
+        DB_PORT="$_WT_RESULT"
     fi
 }
 
 # _tui_redis - Configure Redis settings.
 # Sets: REDIS_EXTERNAL, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
 _tui_redis() {
-    local choice
-    choice="$(_whiptail_menu "Redis" \
+    _whiptail_menu "Redis" \
         "How should Redis be provided?" \
         "local"    "Install locally (recommended)" \
-        "external" "Use an existing external server")" || return 1
+        "external" "Use an existing external server" || return 1
 
-    if [[ "$choice" == "external" ]]; then
+    if [[ "$_WT_RESULT" == "external" ]]; then
         REDIS_EXTERNAL="true"
-        REDIS_HOST="$(_whiptail_input "Redis — Host" \
-            "External Redis hostname or IP:" "$REDIS_HOST")" || return 1
+        _whiptail_input "Redis — Host" \
+            "External Redis hostname or IP:" "$REDIS_HOST" || return 1
+        REDIS_HOST="$_WT_RESULT"
     else
         REDIS_EXTERNAL="false"
         REDIS_HOST="localhost"
     fi
 
-    REDIS_PORT="$(_whiptail_input "Redis Port" \
-        "Redis port:" "$REDIS_PORT")" || return 1
-    REDIS_PASSWORD="$(_whiptail_password "Redis Password" \
-        "Redis password (leave empty for none):")" || true
+    _whiptail_input "Redis Port" \
+        "Redis port:" "$REDIS_PORT" || return 1
+    REDIS_PORT="$_WT_RESULT"
+
+    _whiptail_password "Redis Password" \
+        "Redis password (leave empty for none):" || true
+    REDIS_PASSWORD="$_WT_RESULT"
 }
 
 # _tui_nginx - Configure Nginx proxy.
 # Sets: NGINX_EXTERNAL, HTTP_PORT
 _tui_nginx() {
-    local choice
-    choice="$(_whiptail_menu "Nginx Reverse Proxy" \
+    _whiptail_menu "Nginx Reverse Proxy" \
         "How should the reverse proxy be provided?" \
         "local"    "Install Nginx locally (recommended)" \
-        "external" "I manage my own proxy (Nginx/Caddy/Traefik)")" || return 1
+        "external" "I manage my own proxy (Nginx/Caddy/Traefik)" || return 1
 
-    if [[ "$choice" == "external" ]]; then
+    if [[ "$_WT_RESULT" == "external" ]]; then
         NGINX_EXTERNAL="true"
         _tui_detect_terminal
         whiptail --title "Nginx — External Proxy" --msgbox \
@@ -259,31 +290,42 @@ The installer will skip Nginx installation." \
             16 65 3>&1 1>&2 2>&3
     else
         NGINX_EXTERNAL="false"
-        HTTP_PORT="$(_whiptail_input "Nginx — HTTP Port" \
-            "Port for Nginx to listen on:" "$HTTP_PORT")" || return 1
+        _whiptail_input "Nginx — HTTP Port" \
+            "Port for Nginx to listen on:" "$HTTP_PORT" || return 1
+        HTTP_PORT="$_WT_RESULT"
     fi
 }
 
 # _tui_security - Configure JWT and CORS.
 # Sets: JWT_SECRET, JWT_EXPIRES_IN, CORS_ORIGINS
 _tui_security() {
-    JWT_SECRET="$(_whiptail_password "JWT Secret" \
-        "JWT secret key (leave empty to auto-generate):")" || true
-    JWT_EXPIRES_IN="$(_whiptail_input "JWT Expiration" \
-        "JWT token expiration (e.g., 7d, 24h):" "$JWT_EXPIRES_IN")" || return 1
-    CORS_ORIGINS="$(_whiptail_input "CORS Origins" \
-        "Allowed CORS origins (comma-separated):" "$CORS_ORIGINS")" || return 1
+    _whiptail_password "JWT Secret" \
+        "JWT secret key (leave empty to auto-generate):" || true
+    JWT_SECRET="$_WT_RESULT"
+
+    _whiptail_input "JWT Expiration" \
+        "JWT token expiration (e.g., 7d, 24h):" "$JWT_EXPIRES_IN" || return 1
+    JWT_EXPIRES_IN="$_WT_RESULT"
+
+    _whiptail_input "CORS Origins" \
+        "Allowed CORS origins (comma-separated):" "$CORS_ORIGINS" || return 1
+    CORS_ORIGINS="$_WT_RESULT"
 }
 
 # _tui_options - Additional options (logrotate, UFW, ports).
 # Sets: CONSUMET_PORT, MANGAHOOK_PORT, INSTALL_DIR, ENABLE_LOGROTATE, ENABLE_UFW
 _tui_options() {
-    CONSUMET_PORT="$(_whiptail_input "Consumet API Port" \
-        "Port for the Consumet API:" "$CONSUMET_PORT")" || return 1
-    MANGAHOOK_PORT="$(_whiptail_input "MangaHook API Port" \
-        "Port for the MangaHook API:" "$MANGAHOOK_PORT")" || return 1
-    INSTALL_DIR="$(_whiptail_input "Install Directory" \
-        "Where to install SynapseAnime:" "$INSTALL_DIR")" || return 1
+    _whiptail_input "Consumet API Port" \
+        "Port for the Consumet API:" "$CONSUMET_PORT" || return 1
+    CONSUMET_PORT="$_WT_RESULT"
+
+    _whiptail_input "MangaHook API Port" \
+        "Port for the MangaHook API:" "$MANGAHOOK_PORT" || return 1
+    MANGAHOOK_PORT="$_WT_RESULT"
+
+    _whiptail_input "Install Directory" \
+        "Where to install SynapseAnime:" "$INSTALL_DIR" || return 1
+    INSTALL_DIR="$_WT_RESULT"
 
     # Optional components checklist
     _tui_detect_terminal
