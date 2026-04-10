@@ -32,7 +32,7 @@ install_database() {
         else
             # Add PostgreSQL APT repository
             run_cmd "Adding PostgreSQL APT repository" \
-                "curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql-archive-keyring.gpg"
+                "curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --batch --yes --dearmor -o /usr/share/keyrings/postgresql-archive-keyring.gpg"
 
             echo "deb [signed-by=/usr/share/keyrings/postgresql-archive-keyring.gpg] https://apt.postgresql.org/pub/repos/apt ${OS_CODENAME}-pgdg main" \
                 > /etc/apt/sources.list.d/pgdg.list

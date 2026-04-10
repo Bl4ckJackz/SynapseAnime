@@ -168,37 +168,43 @@ run_cmd() {
         return 0
     fi
 
-    printf "${BLUE}  -> ${RESET}%s ... " "$desc"
+    # Print description with trailing space for spinner
+    printf "${BLUE}  -> ${RESET}%s ..." "$desc"
     _log_to_file "[RUN] $desc: $cmd_str"
 
     local tmp_out
     tmp_out="$(mktemp)"
 
-    local spinner_chars='|/-\'
+    local spinner_chars='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
     local spin_i=0
     local pid
 
-    # Run command in background
-    ( eval "$cmd_str" ) > "$tmp_out" 2>&1 &
+    # Run command in background, pipe stdin from /dev/null to prevent
+    # interactive prompts from blocking (commands must be non-interactive)
+    ( eval "$cmd_str" ) < /dev/null > "$tmp_out" 2>&1 &
     pid=$!
 
-    # Spinner loop
-    while kill -0 "$pid" 2>/dev/null; do
-        printf "\b%s" "${spinner_chars:spin_i++%4:1}"
-        sleep 0.15
-    done
+    # Spinner loop — write spinner char, then erase it
+    if [[ -t 1 ]]; then
+        while kill -0 "$pid" 2>/dev/null; do
+            printf " %s\b\b" "${spinner_chars:spin_i++%10:1}"
+            sleep 0.12
+        done
+        # Clear spinner char
+        printf " \b"
+    fi
 
     local rc=0
     wait "$pid" || rc=$?
 
     # Log captured output
-    cat "$tmp_out" >> "$LOG_FILE" 2>/dev/null || true
+    { cat "$tmp_out" >> "$LOG_FILE"; } 2>/dev/null || true
 
     if [[ $rc -eq 0 ]]; then
-        printf "\b${GREEN}done${RESET}\n"
+        printf " ${GREEN}done${RESET}\n"
         _log_to_file "[OK] $desc completed"
     else
-        printf "\b${RED}FAILED (exit $rc)${RESET}\n"
+        printf " ${RED}FAILED (exit $rc)${RESET}\n"
         _log_to_file "[FAIL] $desc failed with exit $rc"
         # Show last 5 lines
         log_fail "Last 5 lines of output:"
