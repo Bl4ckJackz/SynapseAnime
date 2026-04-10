@@ -70,23 +70,23 @@ install_database() {
         log_debug "[DRY] Would create role $DB_USER and database $DB_NAME"
     else
         local role_exists
-        role_exists="$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'" 2>/dev/null || echo "")"
+        role_exists="$(su - postgres -c "psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'\"" 2>/dev/null || echo "")"
 
         if [[ "$role_exists" != "1" ]]; then
-            sudo -u postgres psql -c "CREATE ROLE ${DB_USER} WITH LOGIN PASSWORD '${DB_PASSWORD}';" 2>/dev/null
+            su - postgres -c "psql -c \"CREATE ROLE ${DB_USER} WITH LOGIN PASSWORD '${DB_PASSWORD}';\"" 2>/dev/null
             log_ok "Created database role '${DB_USER}'"
         else
             # Update password on existing role
-            sudo -u postgres psql -c "ALTER ROLE ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';" 2>/dev/null
+            su - postgres -c "psql -c \"ALTER ROLE ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';\"" 2>/dev/null
             log_ok "Updated password for existing role '${DB_USER}'"
         fi
 
         # Create database if it doesn't exist
         local db_exists
-        db_exists="$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'" 2>/dev/null || echo "")"
+        db_exists="$(su - postgres -c "psql -tAc \"SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'\"" 2>/dev/null || echo "")"
 
         if [[ "$db_exists" != "1" ]]; then
-            sudo -u postgres psql -c "CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};" 2>/dev/null
+            su - postgres -c "psql -c \"CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};\"" 2>/dev/null
             log_ok "Created database '${DB_NAME}'"
         else
             log_ok "Database '${DB_NAME}' already exists"
