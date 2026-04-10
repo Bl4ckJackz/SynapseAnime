@@ -168,34 +168,15 @@ run_cmd() {
         return 0
     fi
 
-    # Print description with trailing space for spinner
     printf "${BLUE}  -> ${RESET}%s ..." "$desc"
     _log_to_file "[RUN] $desc: $cmd_str"
 
     local tmp_out
     tmp_out="$(mktemp)"
 
-    local spinner_chars='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
-    local spin_i=0
-    local pid
-
-    # Run command in background, pipe stdin from /dev/null to prevent
-    # interactive prompts from blocking (commands must be non-interactive)
-    ( eval "$cmd_str" ) < /dev/null > "$tmp_out" 2>&1 &
-    pid=$!
-
-    # Spinner loop — write spinner char, then erase it
-    if [[ -t 1 ]]; then
-        while kill -0 "$pid" 2>/dev/null; do
-            printf " %s\b\b" "${spinner_chars:spin_i++%10:1}"
-            sleep 0.12
-        done
-        # Clear spinner char
-        printf " \b"
-    fi
-
+    # Run command, redirect stdin from /dev/null to prevent interactive prompts
     local rc=0
-    wait "$pid" || rc=$?
+    ( eval "$cmd_str" ) < /dev/null > "$tmp_out" 2>&1 || rc=$?
 
     # Log captured output
     { cat "$tmp_out" >> "$LOG_FILE"; } 2>/dev/null || true
@@ -206,7 +187,6 @@ run_cmd() {
     else
         printf " ${RED}FAILED (exit $rc)${RESET}\n"
         _log_to_file "[FAIL] $desc failed with exit $rc"
-        # Show last 5 lines
         log_fail "Last 5 lines of output:"
         tail -n 5 "$tmp_out" | while IFS= read -r line; do
             printf "       %s\n" "$line" >&2
