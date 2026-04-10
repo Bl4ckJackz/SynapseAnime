@@ -343,8 +343,9 @@ _tui_options() {
 
     ENABLE_LOGROTATE="false"
     ENABLE_UFW="false"
-    [[ "$_WT_RESULT" == *"logrotate"* ]] && ENABLE_LOGROTATE="true"
-    [[ "$_WT_RESULT" == *"ufw"* ]] && ENABLE_UFW="true"
+    [[ "$_WT_RESULT" == *logrotate* ]] && ENABLE_LOGROTATE="true"
+    [[ "$_WT_RESULT" == *ufw* ]] && ENABLE_UFW="true"
+    return 0
 }
 
 # _tui_summary - Display a summary of all settings for confirmation.
