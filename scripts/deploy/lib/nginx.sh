@@ -54,7 +54,8 @@ install_nginx_proxy() {
         # Backup existing config if present
         [[ -f "$target" ]] && backup_file "$target"
 
-        template_render "$template" "$target"
+        # Whitelist only our vars — leave $host, $remote_addr etc. for nginx
+        template_render "$template" "$target" '${DOMAIN} ${WEB_PORT} ${API_PORT} ${HTTP_PORT} ${LOG_DIR}'
         log_ok "Rendered Nginx config to $target"
 
         # Disable default site if present

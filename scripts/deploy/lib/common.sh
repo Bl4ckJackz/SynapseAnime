@@ -287,17 +287,21 @@ backup_file() {
 }
 
 # ---------------------------------------------------------------------------
-# template_render TEMPLATE OUTPUT - Render a template file using envsubst.
+# template_render TEMPLATE OUTPUT [VARS] - Render a template file using envsubst.
 # ---------------------------------------------------------------------------
-# All exported shell variables are substituted. The template should use
-# ${VAR} notation.
+# The template should use ${VAR} notation. If VARS is provided (space-separated
+# list like '${DOMAIN} ${PORT}'), only those vars are substituted — other $vars
+# are left literal (important for nginx $host, $remote_addr, etc.).
+# Without VARS: all exported shell variables are substituted.
 #
 # Arguments:
 #   TEMPLATE - path to the template file
 #   OUTPUT   - path to write the rendered result
+#   VARS     - (optional) whitelist of variables to substitute
 template_render() {
     local template="$1"
     local output="$2"
+    local vars="${3:-}"
 
     if [[ ! -f "$template" ]]; then
         log_fail "Template not found: $template"
@@ -309,7 +313,11 @@ template_render() {
         return 0
     fi
 
-    envsubst < "$template" > "$output"
+    if [[ -n "$vars" ]]; then
+        envsubst "$vars" < "$template" > "$output"
+    else
+        envsubst < "$template" > "$output"
+    fi
     log_debug "Rendered template $template -> $output"
 }
 
