@@ -73,10 +73,14 @@ install_nginx_proxy() {
         # Test configuration
         run_cmd "Testing Nginx configuration" "nginx -t 2>&1"
 
-        # Reload Nginx
-        run_cmd "Reloading Nginx" "systemctl reload nginx"
+        # Start or reload Nginx depending on whether it's already running
+        if systemctl is-active --quiet nginx; then
+            run_cmd "Reloading Nginx" "systemctl reload nginx"
+        else
+            run_cmd "Enabling and starting Nginx" "systemctl enable --now nginx"
+        fi
 
-        log_ok "Nginx configured and reloaded"
+        log_ok "Nginx configured and running"
     fi
 
     # UFW firewall rules
