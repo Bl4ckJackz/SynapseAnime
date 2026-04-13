@@ -105,12 +105,21 @@ install_database() {
 # Side effects: may modify pg_hba.conf and restart PostgreSQL
 _configure_pg_hba() {
     local pg_hba
-    pg_hba="$(find /etc/postgresql -name pg_hba.conf -path "*/16/*" 2>/dev/null | head -1)"
 
-    if [[ -z "$pg_hba" ]]; then
-        log_warn "Could not locate pg_hba.conf for PostgreSQL 16"
+    # Try to get pg_hba.conf location from PostgreSQL itself
+    pg_hba="$(su - postgres -c "psql -tAc 'SHOW hba_file'" 2>/dev/null | tr -d '[:space:]' || true)"
+
+    # Fallback: search common locations
+    if [[ -z "$pg_hba" ]] || [[ ! -f "$pg_hba" ]]; then
+        pg_hba="$(find /etc/postgresql -name pg_hba.conf -type f 2>/dev/null | head -1)"
+    fi
+
+    if [[ -z "$pg_hba" ]] || [[ ! -f "$pg_hba" ]]; then
+        log_warn "Could not locate pg_hba.conf"
         return 0
     fi
+
+    log_debug "pg_hba.conf location: $pg_hba"
 
     local hba_entry="local   ${DB_NAME}   ${DB_USER}   md5"
     local host_entry="host    ${DB_NAME}   ${DB_USER}   127.0.0.1/32   md5"
