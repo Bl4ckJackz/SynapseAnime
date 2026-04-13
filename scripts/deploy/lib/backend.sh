@@ -127,6 +127,11 @@ DB_USERNAME=${DB_USER}
 DB_PASSWORD=${DB_PASSWORD}
 DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
 
+# Auto-create schema from entities (needed for first install; safe to leave on
+# in single-node deployments. For multi-node or when using migrations, set to
+# false and run \`typeorm migration:run\` instead).
+DB_SYNCHRONIZE=true
+
 # Redis
 REDIS_URL=${redis_url}
 REDIS_HOST=${REDIS_HOST}

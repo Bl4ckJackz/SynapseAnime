@@ -60,7 +60,9 @@ import { join } from 'path';
             : undefined,
           entities: [__dirname + '/**/*.entity{.ts,.js}'],
           // autoLoadEntities: true,
-          synchronize: process.env.NODE_ENV !== 'production',
+          synchronize:
+            configService.get<string>('DB_SYNCHRONIZE') === 'true' ||
+            process.env.NODE_ENV !== 'production',
           logging: process.env.NODE_ENV !== 'production',
         };
       },
