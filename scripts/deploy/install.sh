@@ -333,7 +333,9 @@ show_summary() {
 DONE
     printf "${RESET}\n"
 
-    log_info "Domain:       ${DOMAIN}"
+    local domain_label="${DOMAIN}"
+    [[ "$DOMAIN" == "_" ]] && domain_label="(any host — reverse-proxy mode)"
+    log_info "Domain:       ${domain_label}"
     log_info "Install dir:  ${INSTALL_DIR}"
     log_info "Log dir:      ${LOG_DIR}"
     log_info "Credentials:  ${CREDENTIALS_FILE}"
@@ -347,7 +349,11 @@ DONE
     log_info "  MangaHook:    http://127.0.0.1:${MANGAHOOK_PORT}"
 
     if [[ "$NGINX_EXTERNAL" != "true" ]]; then
-        log_info "  Nginx:        http://${DOMAIN}"
+        if [[ "$DOMAIN" == "_" ]]; then
+            log_info "  Nginx:        http://<server-ip>:${HTTP_PORT} (any Host)"
+        else
+            log_info "  Nginx:        http://${DOMAIN}"
+        fi
     fi
 
     printf "\n"

@@ -31,7 +31,10 @@ set_defaults() {
     GIT_BRANCH="${GIT_BRANCH:-main}"
 
     # Network
-    DOMAIN="${DOMAIN:-synapseanime.local}"
+    # DOMAIN="_" means "accept any Host header" — ideal for reverse-proxy
+    # setups where the upstream handles the actual domain. Override with a
+    # specific hostname (e.g. example.com) only if nginx needs to match it.
+    DOMAIN="${DOMAIN:-_}"
     WEB_PORT="${WEB_PORT:-3000}"
     API_PORT="${API_PORT:-3005}"
     HTTP_PORT="${HTTP_PORT:-80}"
@@ -53,7 +56,13 @@ set_defaults() {
     # Auth / Security
     JWT_SECRET="${JWT_SECRET:-}"
     JWT_EXPIRES_IN="${JWT_EXPIRES_IN:-7d}"
-    CORS_ORIGINS="${CORS_ORIGINS:-http://${DOMAIN}}"
+    # CORS: if DOMAIN is "_", allow all origins (reverse-proxy setup);
+    # otherwise restrict to the configured domain over http+https.
+    if [[ "$DOMAIN" == "_" ]]; then
+        CORS_ORIGINS="${CORS_ORIGINS:-*}"
+    else
+        CORS_ORIGINS="${CORS_ORIGINS:-http://${DOMAIN},https://${DOMAIN}}"
+    fi
 
     # Consumet / MangaHook
     CONSUMET_PORT="${CONSUMET_PORT:-3004}"
@@ -184,7 +193,7 @@ _tui_source() {
 # Sets: DOMAIN, WEB_PORT, API_PORT
 _tui_network() {
     _whiptail_input "Domain / Hostname" \
-        "Enter the domain name or hostname for this server:" \
+        "Domain or hostname nginx should respond to.\n\nLeave as \"_\" to accept any Host header (recommended when\nbehind a centralized reverse proxy like Cloudflare, Traefik,\nor an external nginx)." \
         "$DOMAIN" || return 1
     DOMAIN="$_WT_RESULT"
 
@@ -196,9 +205,13 @@ _tui_network() {
         "Port for the NestJS backend API:" "$API_PORT" || return 1
     API_PORT="$_WT_RESULT"
 
-    # Recalculate derived values
-    CORS_ORIGINS="http://${DOMAIN}"
-    NEXT_PUBLIC_API_URL="http://${DOMAIN}/api"
+    # Recalculate derived values based on new DOMAIN
+    if [[ "$DOMAIN" == "_" ]]; then
+        CORS_ORIGINS="*"
+    else
+        CORS_ORIGINS="http://${DOMAIN},https://${DOMAIN}"
+    fi
+    # NEXT_PUBLIC_API_URL stays as /api — relative path works everywhere
 }
 
 # _tui_postgresql - Configure PostgreSQL settings.
@@ -370,12 +383,14 @@ _tui_summary() {
     [[ "$REDIS_EXTERNAL" == "true" ]] && redis_label="external ($REDIS_HOST:$REDIS_PORT)"
     local nginx_label="local (:$HTTP_PORT)"
     [[ "$NGINX_EXTERNAL" == "true" ]] && nginx_label="external (user-managed)"
+    local domain_label="$DOMAIN"
+    [[ "$DOMAIN" == "_" ]] && domain_label="(any host — reverse-proxy mode)"
 
     if whiptail --title "Configuration Summary" --yesno \
 "Please review your configuration:
 
   Source:     $DEPLOY_SOURCE ${GIT_REPO:+(${GIT_REPO}@${GIT_BRANCH})}
-  Domain:     $DOMAIN
+  Domain:     $domain_label
   Install:    $INSTALL_DIR
 
   Web port:       $WEB_PORT
