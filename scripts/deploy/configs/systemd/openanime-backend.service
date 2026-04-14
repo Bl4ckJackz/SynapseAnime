@@ -20,7 +20,7 @@ StandardOutput=append:${LOG_DIR}/backend.log
 StandardError=append:${LOG_DIR}/backend.error.log
 NoNewPrivileges=true
 ProtectSystem=strict
-ReadWritePaths=${INSTALL_DIR}/backend/video_library ${LOG_DIR}
+ReadWritePaths=${INSTALL_DIR}/backend ${LOG_DIR}
 PrivateTmp=true
 
 [Install]
