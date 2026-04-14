@@ -23,7 +23,9 @@ class ApiClient {
     body?: unknown,
     params?: Record<string, string | number | undefined>,
   ): Promise<T> {
-    const url = new URL(`${this.baseUrl}${path}`);
+    const base =
+      typeof window !== "undefined" ? window.location.origin : "http://localhost";
+    const url = new URL(`${this.baseUrl}${path}`, base);
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined) {

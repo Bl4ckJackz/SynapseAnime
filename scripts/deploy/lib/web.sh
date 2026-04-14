@@ -52,6 +52,13 @@ install_web() {
     # the JS bundle at compile time, and reads .env automatically
     _generate_web_env "$web_dir"
 
+    # Wipe .next before build: webpack hashes source modules BEFORE substituting
+    # process.env.NEXT_PUBLIC_* literals, so changing only env values reuses old
+    # chunk filenames with different contents — which then collides with CDN
+    # immutable caches keyed by filename.
+    run_cmd "Clearing previous build artifacts" \
+        "rm -rf '${web_dir}/.next'"
+
     # Build Next.js (reads NEXT_PUBLIC_API_URL from .env just generated)
     run_cmd "Building Next.js application" \
         "cd '${web_dir}' && NEXT_PUBLIC_API_URL='${NEXT_PUBLIC_API_URL}' npx next build 2>&1"
@@ -60,6 +67,15 @@ install_web() {
     if [[ "$DRY_RUN" != "true" ]]; then
         chown -R openanime:openanime "$web_dir"
         log_ok "Web frontend installed and built at ${web_dir}"
+
+        # If the service is already running (update / --only web), restart it
+        # so the new manifest/chunks are picked up. Without this, Next.js keeps
+        # serving HTML referencing the previous build's chunk hashes which no
+        # longer exist on disk → 500 on /_next/static/chunks/*.
+        if systemctl is-active --quiet openanime-web 2>/dev/null; then
+            run_cmd "Restarting openanime-web to load new build" \
+                "systemctl restart openanime-web"
+        fi
     fi
 }
 
