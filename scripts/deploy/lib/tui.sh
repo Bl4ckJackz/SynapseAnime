@@ -68,8 +68,10 @@ set_defaults() {
     ENABLE_UFW="${ENABLE_UFW:-false}"
     NGINX_EXTERNAL="${NGINX_EXTERNAL:-false}"
 
-    # Derived
-    NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://${DOMAIN}/api}"
+    # Derived — use relative path by default so frontend works with any host
+    # (behind reverse proxy, CDN, custom domain, etc.) without mixed content
+    # issues. Override with a full URL only if the API is on a different origin.
+    NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-/api}"
 
     # Node paths (resolved later)
     NODE_BIN="${NODE_BIN:-/usr/bin/node}"

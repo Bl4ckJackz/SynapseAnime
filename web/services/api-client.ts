@@ -1,7 +1,9 @@
 import type { ApiError } from "@/types/api";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005";
+// Default to relative /api so the frontend works behind any proxy/CDN
+// without mixed-content or DNS issues. Set NEXT_PUBLIC_API_URL to a full
+// URL only if the backend is on a different origin.
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api";
 
 class ApiClient {
   private baseUrl: string;
