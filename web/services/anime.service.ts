@@ -18,9 +18,16 @@ function toPaginated<T>(
   page = 1,
   limit = 0,
 ): PaginatedResult<T> {
-  if (!input) return { data: [], total: 0, page, limit };
+  if (!input) return { data: [], total: 0, page, limit, totalPages: 0 };
   if (Array.isArray(input)) {
-    return { data: input, total: input.length, page, limit: limit || input.length };
+    const effLimit = limit || input.length || 1;
+    return {
+      data: input,
+      total: input.length,
+      page,
+      limit: effLimit,
+      totalPages: Math.max(1, Math.ceil(input.length / effLimit)),
+    };
   }
   return input;
 }
