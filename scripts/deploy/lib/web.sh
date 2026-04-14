@@ -48,12 +48,13 @@ install_web() {
     run_cmd "Installing web dependencies" \
         "cd '${web_dir}' && npm install --no-audit --no-fund 2>&1"
 
-    # Build Next.js with env var
+    # Generate .env BEFORE build — Next.js bakes NEXT_PUBLIC_* vars into
+    # the JS bundle at compile time, and reads .env automatically
+    _generate_web_env "$web_dir"
+
+    # Build Next.js (reads NEXT_PUBLIC_API_URL from .env just generated)
     run_cmd "Building Next.js application" \
         "cd '${web_dir}' && NEXT_PUBLIC_API_URL='${NEXT_PUBLIC_API_URL}' npx next build 2>&1"
-
-    # Generate .env (preserve existing on update)
-    _generate_web_env "$web_dir"
 
     # Set permissions
     if [[ "$DRY_RUN" != "true" ]]; then

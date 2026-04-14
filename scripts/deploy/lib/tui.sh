@@ -384,7 +384,7 @@ _tui_summary() {
     local nginx_label="local (:$HTTP_PORT)"
     [[ "$NGINX_EXTERNAL" == "true" ]] && nginx_label="external (user-managed)"
     local domain_label="$DOMAIN"
-    [[ "$DOMAIN" == "_" ]] && domain_label="(any host — reverse-proxy mode)"
+    [[ "$DOMAIN" == "_" ]] && domain_label="(any host - reverse-proxy mode)"
 
     if whiptail --title "Configuration Summary" --yesno \
 "Please review your configuration:
