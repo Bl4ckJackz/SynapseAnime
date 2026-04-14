@@ -79,11 +79,10 @@ _generate_web_env() {
         return 0
     fi
 
-    if [[ -f "$env_file" ]] && is_update_mode; then
-        log_info "Preserving existing web .env (update mode)"
-        backup_file "$env_file"
-        return 0
-    fi
+    # Always regenerate web .env — it only contains derived values (no user
+    # secrets). Preserving it causes Next.js to bake stale NEXT_PUBLIC_* vars
+    # into the bundle at build time.
+    [[ -f "$env_file" ]] && backup_file "$env_file"
 
     cat > "$env_file" <<ENV
 # SynapseAnime Web Frontend Environment
